@@ -1,0 +1,40 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Convocations",
+  "version": "0.1.0",
+  "identifier": "com.convocations.app",
+  "build": {
+    "beforeBuildCommand": "cargo run -p frontend-runner -- build-release",
+    "beforeDevCommand": "cargo run -p frontend-runner -- build-debug",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Convocations",
+        "width": 1280,
+        "height": 900,
+        "resizable": true,
+        "minWidth": 960,
+        "minHeight": 700
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:*"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "msi", "deb", "appimage"],
+    "icon": [
+      "icons/icon.png"
+    ],
+    "resources": [],
+    "copyright": "",
+    "category": "Utility",
+    "shortDescription": "ESO Convocations chat log processor",
+    "longDescription": "Process Elder Scrolls Online chat logs from roleplaying sessions with AI-powered grammar corrections"
+  },
+  "plugins": {}
+}

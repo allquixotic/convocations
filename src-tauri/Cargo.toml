@@ -1,0 +1,21 @@
+[package]
+name = "rconv-tauri"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+rconv-core = { path = "../crates/rconv-core" }
+serde.workspace = true
+serde_json.workspace = true
+shellexpand.workspace = true
+tokio.workspace = true
+tauri = { version = "2", features = ["wry", "tray-icon", "image-png"] }
+dirs = "6"
+axum = { version = "0.7", default-features = false, features = ["json", "tokio", "http1"] }
+anyhow = "1"
+uuid = { version = "1", features = ["v4"] }
+tower-http = { version = "0.5", features = ["cors"] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }

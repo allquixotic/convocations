@@ -1,0 +1,10 @@
+[package]
+name = "frontend-runner"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+anyhow = "1"
+dirs = "6"
+walkdir = "2"

@@ -1,0 +1,9 @@
+[package]
+name = "rconv"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rconv-core = { path = "../rconv-core" }
+tokio.workspace = true
+clap.workspace = true

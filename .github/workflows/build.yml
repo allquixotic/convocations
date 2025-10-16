@@ -1,0 +1,386 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      build_gui:
+        description: 'Build GUI applications'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-cli-linux:
+    name: Build CLI - Linux x86-64
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build CLI release binary
+        run: cargo build --release --target x86_64-unknown-linux-gnu -p rconv
+
+      - name: Strip binary
+        run: strip target/x86_64-unknown-linux-gnu/release/rconv
+
+      - name: Rename binary
+        run: mv target/x86_64-unknown-linux-gnu/release/rconv rconv-cli-linux-x86_64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rconv-cli-linux-x86_64
+          path: rconv-cli-linux-x86_64
+          if-no-files-found: error
+
+  build-cli-windows:
+    name: Build CLI - Windows x86-64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build CLI release binary
+        run: cargo build --release --target x86_64-pc-windows-msvc -p rconv
+
+      - name: Rename binary
+        run: mv target/x86_64-pc-windows-msvc/release/rconv.exe rconv-cli-windows-x86_64.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rconv-cli-windows-x86_64
+          path: rconv-cli-windows-x86_64.exe
+          if-no-files-found: error
+
+  build-cli-macos:
+    name: Build CLI - MacOS Universal
+    runs-on: macos-14
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Apple Silicon CLI binary
+        run: cargo build --release --target aarch64-apple-darwin -p rconv
+
+      - name: Build Intel CLI binary
+        run: cargo build --release --target x86_64-apple-darwin -p rconv
+
+      - name: Create universal CLI binary
+        run: |
+          lipo -create \
+            target/aarch64-apple-darwin/release/rconv \
+            target/x86_64-apple-darwin/release/rconv \
+            -output rconv-cli-macos-universal
+
+      - name: Strip universal binary
+        run: strip rconv-cli-macos-universal
+
+      - name: Verify universal binary
+        run: lipo -info rconv-cli-macos-universal
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rconv-cli-macos-universal
+          path: rconv-cli-macos-universal
+          if-no-files-found: error
+
+  build-gui-linux:
+    name: Build GUI - Linux x86-64
+    runs-on: ubuntu-24.04
+    if: github.event.inputs.build_gui == 'true' || startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+          targets: wasm32-unknown-unknown
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Install Trunk
+        run: cargo install trunk --locked
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version '^2' --locked
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-gui-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-gui-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-gui-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Tauri application
+        run: cargo tauri build
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rconv-gui-linux-x86_64-appimage
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+
+      - name: Upload Debian package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rconv-gui-linux-x86_64-deb
+          path: src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+
+  build-gui-windows:
+    name: Build GUI - Windows x86-64
+    runs-on: windows-latest
+    if: github.event.inputs.build_gui == 'true' || startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+          targets: wasm32-unknown-unknown
+
+      - name: Install Trunk
+        run: cargo install trunk --locked
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version '^2' --locked
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-gui-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-gui-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-gui-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Tauri application
+        run: cargo tauri build
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rconv-gui-windows-x86_64-msi
+          path: src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error
+
+  build-gui-macos:
+    name: Build GUI - MacOS Universal
+    runs-on: macos-14
+    if: github.event.inputs.build_gui == 'true' || startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+          targets: wasm32-unknown-unknown,aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install Trunk
+        run: cargo install trunk --locked
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version '^2' --locked
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-gui-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-gui-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-gui-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Tauri application (Universal)
+        run: cargo tauri build --target universal-apple-darwin
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rconv-gui-macos-universal-dmg
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  create-release:
+    name: Create Release
+    needs: [build-cli-linux, build-cli-windows, build-cli-macos, build-gui-linux, build-gui-windows, build-gui-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+
+      - name: Create CLI release archives
+        run: |
+          cd artifacts
+
+          # Linux CLI
+          chmod +x rconv-cli-linux-x86_64/rconv-cli-linux-x86_64
+          tar czf rconv-cli-linux-x86_64.tar.gz -C rconv-cli-linux-x86_64 rconv-cli-linux-x86_64
+
+          # Windows CLI (create zip)
+          cd rconv-cli-windows-x86_64
+          zip ../rconv-cli-windows-x86_64.zip rconv-cli-windows-x86_64.exe
+          cd ..
+
+          # MacOS CLI
+          chmod +x rconv-cli-macos-universal/rconv-cli-macos-universal
+          tar czf rconv-cli-macos-universal.tar.gz -C rconv-cli-macos-universal rconv-cli-macos-universal
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/rconv-cli-linux-x86_64.tar.gz
+            artifacts/rconv-cli-windows-x86_64.zip
+            artifacts/rconv-cli-macos-universal.tar.gz
+            artifacts/rconv-gui-linux-x86_64-appimage/*.AppImage
+            artifacts/rconv-gui-linux-x86_64-deb/*.deb
+            artifacts/rconv-gui-windows-x86_64-msi/*.msi
+            artifacts/rconv-gui-macos-universal-dmg/*.dmg
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

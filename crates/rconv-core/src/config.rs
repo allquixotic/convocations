@@ -1,0 +1,812 @@
+use crate::runtime::ConvocationsConfig;
+use dirs::config_dir;
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+use std::fs;
+use std::path::PathBuf;
+
+const CONFIG_DIR_NAME: &str = "convocations";
+const CONFIG_FILE_NAME: &str = "config.toml";
+const LEGACY_SETTINGS_FILE_NAME: &str = "settings.json";
+const CURRENT_SCHEMA_VERSION: u32 = 1;
+pub const SATURDAY_PRESET_ID: &str = "saturday-10pm-midnight";
+pub const TUESDAY_7_PRESET_ID: &str = "tuesday-7pm";
+pub const TUESDAY_8_PRESET_ID: &str = "tuesday-8pm";
+pub const FRIDAY_6_PRESET_ID: &str = "friday-6pm";
+
+/// Result returned by [`load_config`], capturing the source and any non-fatal issues.
+#[derive(Debug, Clone)]
+pub struct ConfigLoadResult {
+    pub config: FileConfig,
+    pub warnings: Vec<String>,
+    pub source: ConfigSource,
+}
+
+/// Indicates where the configuration was loaded from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfigSource {
+    /// No persisted configuration was found or usable; defaults were synthesized.
+    Default,
+    /// Configuration was read from `config.toml`.
+    File,
+    /// Configuration was converted from the legacy `settings.json`.
+    LegacyJson,
+}
+
+/// Errors that can occur when persisting configuration.
+#[derive(Debug)]
+pub enum ConfigError {
+    Io(std::io::Error),
+    Ser(toml::ser::Error),
+}
+
+impl std::fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConfigError::Io(err) => write!(f, "IO error: {err}"),
+            ConfigError::Ser(err) => write!(f, "TOML serialization error: {err}"),
+        }
+    }
+}
+
+impl std::error::Error for ConfigError {}
+
+impl From<std::io::Error> for ConfigError {
+    fn from(value: std::io::Error) -> Self {
+        Self::Io(value)
+    }
+}
+
+impl From<toml::ser::Error> for ConfigError {
+    fn from(value: toml::ser::Error) -> Self {
+        Self::Ser(value)
+    }
+}
+
+/// Disk-backed configuration schema.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileConfig {
+    #[serde(default = "FileConfig::schema_version")]
+    pub schema_version: u32,
+    #[serde(default)]
+    pub runtime: RuntimePreferences,
+    #[serde(default)]
+    pub ui: UiPreferences,
+    #[serde(default = "default_presets")]
+    pub presets: Vec<PresetDefinition>,
+}
+
+impl Default for FileConfig {
+    fn default() -> Self {
+        Self {
+            schema_version: CURRENT_SCHEMA_VERSION,
+            runtime: RuntimePreferences::default(),
+            ui: UiPreferences::default(),
+            presets: default_presets(),
+        }
+    }
+}
+
+impl FileConfig {
+    const fn schema_version() -> u32 {
+        CURRENT_SCHEMA_VERSION
+    }
+}
+
+/// Runtime preferences that map closely to CLI flag behaviour.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RuntimePreferences {
+    #[serde(default = "RuntimePreferences::default_chat_log_path")]
+    pub chat_log_path: String,
+    #[serde(default = "RuntimePreferences::default_active_preset")]
+    pub active_preset: String,
+    #[serde(default)]
+    pub weeks_ago: u32,
+    #[serde(default)]
+    pub dry_run: bool,
+    #[serde(default = "RuntimePreferences::default_use_ai_corrections")]
+    pub use_ai_corrections: bool,
+    #[serde(default)]
+    pub keep_original_output: bool,
+    #[serde(default = "RuntimePreferences::default_show_diff")]
+    pub show_diff: bool,
+    #[serde(default = "RuntimePreferences::default_cleanup_enabled")]
+    pub cleanup_enabled: bool,
+    #[serde(default = "RuntimePreferences::default_format_dialogue_enabled")]
+    pub format_dialogue_enabled: bool,
+    #[serde(default)]
+    pub outfile_override: Option<String>,
+    #[serde(default)]
+    pub duration_override: DurationOverride,
+}
+
+impl Default for RuntimePreferences {
+    fn default() -> Self {
+        Self {
+            chat_log_path: Self::default_chat_log_path(),
+            active_preset: Self::default_active_preset(),
+            weeks_ago: 0,
+            dry_run: false,
+            use_ai_corrections: true,
+            keep_original_output: false,
+            show_diff: true,
+            cleanup_enabled: true,
+            format_dialogue_enabled: true,
+            outfile_override: None,
+            duration_override: DurationOverride::default(),
+        }
+    }
+}
+
+impl RuntimePreferences {
+    fn default_chat_log_path() -> String {
+        "~/Documents/Elder Scrolls Online/live/Logs/ChatLog.log".to_string()
+    }
+
+    fn default_active_preset() -> String {
+        SATURDAY_PRESET_ID.to_string()
+    }
+
+    const fn default_use_ai_corrections() -> bool {
+        true
+    }
+
+    const fn default_show_diff() -> bool {
+        true
+    }
+
+    const fn default_cleanup_enabled() -> bool {
+        true
+    }
+
+    const fn default_format_dialogue_enabled() -> bool {
+        true
+    }
+}
+
+/// Represents the optional duration override UI state.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DurationOverride {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "DurationOverride::default_hours")]
+    pub hours: f32,
+}
+
+impl Default for DurationOverride {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            hours: 1.0,
+        }
+    }
+}
+
+impl DurationOverride {
+    const fn default_hours() -> f32 {
+        1.0
+    }
+}
+
+/// UI-only preferences that the GUI needs to persist.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UiPreferences {
+    #[serde(default)]
+    pub theme: ThemePreference,
+    #[serde(default)]
+    pub show_technical_log: bool,
+    #[serde(default = "UiPreferences::default_follow_technical_log")]
+    pub follow_technical_log: bool,
+}
+
+impl Default for UiPreferences {
+    fn default() -> Self {
+        Self {
+            theme: ThemePreference::Dark,
+            show_technical_log: false,
+            follow_technical_log: true,
+        }
+    }
+}
+
+impl UiPreferences {
+    const fn default_follow_technical_log() -> bool {
+        true
+    }
+}
+
+/// Theme preference options.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ThemePreference {
+    Light,
+    Dark,
+    System,
+}
+
+impl Default for ThemePreference {
+    fn default() -> Self {
+        ThemePreference::Dark
+    }
+}
+
+/// Preset definition shared between CLI and GUI.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PresetDefinition {
+    pub id: String,
+    pub name: String,
+    pub weekday: String,
+    pub timezone: String,
+    pub start_time: String,
+    pub duration_minutes: u32,
+    pub file_prefix: String,
+    #[serde(default)]
+    pub default_weeks_ago: u32,
+    #[serde(default)]
+    pub builtin: bool,
+}
+
+pub(crate) fn default_presets() -> Vec<PresetDefinition> {
+    vec![
+        PresetDefinition {
+            id: SATURDAY_PRESET_ID.to_string(),
+            name: "Saturday 10pm-midnight".to_string(),
+            weekday: "saturday".to_string(),
+            timezone: "America/New_York".to_string(),
+            start_time: "22:00".to_string(),
+            duration_minutes: 145,
+            file_prefix: "conv".to_string(),
+            default_weeks_ago: 0,
+            builtin: true,
+        },
+        PresetDefinition {
+            id: TUESDAY_7_PRESET_ID.to_string(),
+            name: "Tuesday 7pm".to_string(),
+            weekday: "tuesday".to_string(),
+            timezone: "America/New_York".to_string(),
+            start_time: "19:00".to_string(),
+            duration_minutes: 60,
+            file_prefix: "rsm7".to_string(),
+            default_weeks_ago: 0,
+            builtin: true,
+        },
+        PresetDefinition {
+            id: TUESDAY_8_PRESET_ID.to_string(),
+            name: "Tuesday 8pm".to_string(),
+            weekday: "tuesday".to_string(),
+            timezone: "America/New_York".to_string(),
+            start_time: "20:00".to_string(),
+            duration_minutes: 60,
+            file_prefix: "rsm8".to_string(),
+            default_weeks_ago: 0,
+            builtin: true,
+        },
+        PresetDefinition {
+            id: FRIDAY_6_PRESET_ID.to_string(),
+            name: "Friday 6pm".to_string(),
+            weekday: "friday".to_string(),
+            timezone: "America/New_York".to_string(),
+            start_time: "18:00".to_string(),
+            duration_minutes: 60,
+            file_prefix: "tp6".to_string(),
+            default_weeks_ago: 0,
+            builtin: true,
+        },
+    ]
+}
+
+/// Represents overrides sourced from runtime inputs (CLI flags, GUI form edits).
+#[derive(Debug, Default, Clone)]
+pub struct RuntimeOverrides {
+    pub last: Option<u32>,
+    pub dry_run: Option<bool>,
+    pub infile: Option<String>,
+    pub start: Option<Option<String>>,
+    pub end: Option<Option<String>>,
+    pub active_preset: Option<String>,
+    pub duration_override: Option<DurationOverride>,
+    pub process_file: Option<Option<String>>,
+    pub format_dialogue: Option<bool>,
+    pub cleanup: Option<bool>,
+    pub use_llm: Option<bool>,
+    pub keep_orig: Option<bool>,
+    pub no_diff: Option<bool>,
+    pub outfile: Option<Option<String>>,
+    pub use_ai_corrections: Option<bool>,
+    pub keep_original_output: Option<bool>,
+    pub show_diff: Option<bool>,
+}
+
+impl RuntimeOverrides {
+    pub fn is_empty(&self) -> bool {
+        self.last.is_none()
+            && self.dry_run.is_none()
+            && self.infile.is_none()
+            && self.start.is_none()
+            && self.end.is_none()
+            && self.active_preset.is_none()
+            && self.duration_override.is_none()
+            && self.process_file.is_none()
+            && self.format_dialogue.is_none()
+            && self.cleanup.is_none()
+            && self.use_llm.is_none()
+            && self.keep_orig.is_none()
+            && self.no_diff.is_none()
+            && self.outfile.is_none()
+            && self.use_ai_corrections.is_none()
+            && self.keep_original_output.is_none()
+            && self.show_diff.is_none()
+    }
+}
+
+/// Path to the configuration directory.
+pub fn config_directory() -> PathBuf {
+    config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(CONFIG_DIR_NAME)
+}
+
+/// Path to `config.toml`.
+pub fn config_path() -> PathBuf {
+    config_directory().join(CONFIG_FILE_NAME)
+}
+
+fn legacy_settings_path() -> PathBuf {
+    config_directory().join(LEGACY_SETTINGS_FILE_NAME)
+}
+
+/// Load the configuration, falling back to defaults or the legacy JSON representation.
+pub fn load_config() -> ConfigLoadResult {
+    let mut warnings = Vec::new();
+    let primary_path = config_path();
+
+    if primary_path.exists() {
+        match fs::read_to_string(&primary_path) {
+            Ok(raw) => match toml::from_str::<FileConfig>(&raw) {
+                Ok(cfg) => {
+                    let (cfg, mut sanitize_warnings) = sanitize_config(cfg);
+                    warnings.append(&mut sanitize_warnings);
+                    return ConfigLoadResult {
+                        config: cfg,
+                        warnings,
+                        source: ConfigSource::File,
+                    };
+                }
+                Err(err) => {
+                    warnings.push(format!(
+                        "Failed to parse {} as TOML: {}. Falling back to defaults.",
+                        CONFIG_FILE_NAME, err
+                    ));
+                }
+            },
+            Err(err) => {
+                warnings.push(format!(
+                    "Failed to read {}: {}. Falling back to defaults.",
+                    CONFIG_FILE_NAME, err
+                ));
+            }
+        }
+    } else {
+        // Attempt to migrate the legacy JSON settings.
+        let legacy_path = legacy_settings_path();
+        if legacy_path.exists() {
+            match fs::read_to_string(&legacy_path) {
+                Ok(raw) => match serde_json::from_str::<ConvocationsConfig>(&raw) {
+                    Ok(legacy) => {
+                        let cfg = migrate_legacy_config(legacy);
+                        let (cfg, mut sanitize_warnings) = sanitize_config(cfg);
+                        warnings.push(format!(
+                            "Loaded configuration from legacy {}. A new {} will be written.",
+                            LEGACY_SETTINGS_FILE_NAME, CONFIG_FILE_NAME
+                        ));
+                        warnings.append(&mut sanitize_warnings);
+                        if let Err(err) = save_config(&cfg) {
+                            warnings
+                                .push(format!("Failed to persist migrated configuration: {}", err));
+                        }
+                        return ConfigLoadResult {
+                            config: cfg,
+                            warnings,
+                            source: ConfigSource::LegacyJson,
+                        };
+                    }
+                    Err(err) => warnings.push(format!(
+                        "Failed to parse {}: {}. Ignoring legacy settings.",
+                        LEGACY_SETTINGS_FILE_NAME, err
+                    )),
+                },
+                Err(err) => warnings.push(format!(
+                    "Failed to read {}: {}. Ignoring legacy settings.",
+                    LEGACY_SETTINGS_FILE_NAME, err
+                )),
+            }
+        }
+    }
+
+    // Default fallback
+    ConfigLoadResult {
+        config: FileConfig::default(),
+        warnings,
+        source: ConfigSource::Default,
+    }
+}
+
+/// Persist the configuration to disk.
+pub fn save_config(config: &FileConfig) -> Result<(), ConfigError> {
+    let path = config_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let serialized = toml::to_string_pretty(config)?;
+    fs::write(path, serialized)?;
+    Ok(())
+}
+
+fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>) {
+    let mut warnings = Vec::new();
+
+    if config.schema_version != CURRENT_SCHEMA_VERSION {
+        warnings.push(format!(
+            "Unknown config schema version {}. Resetting to {}.",
+            config.schema_version, CURRENT_SCHEMA_VERSION
+        ));
+        config = FileConfig::default();
+        return (config, warnings);
+    }
+
+    let mut preset_ids = HashSet::new();
+    let mut duplicates = HashSet::new();
+
+    config.presets.retain(|preset| {
+        if !preset_ids.insert(preset.id.clone()) {
+            duplicates.insert(preset.id.clone());
+            false
+        } else {
+            true
+        }
+    });
+
+    if !duplicates.is_empty() {
+        warnings.push(format!(
+            "Removed duplicate preset IDs: {}",
+            duplicates.into_iter().collect::<Vec<_>>().join(", ")
+        ));
+    }
+
+    // Ensure all built-in presets exist. If missing, append defaults.
+    let mut existing: HashMap<String, PresetDefinition> = config
+        .presets
+        .iter()
+        .map(|p| (p.id.clone(), p.clone()))
+        .collect();
+    for builtin in default_presets() {
+        existing.entry(builtin.id.clone()).or_insert(builtin);
+    }
+    config.presets = existing.into_values().collect();
+    config.presets.sort_by(|a, b| a.id.cmp(&b.id));
+
+    if !config
+        .presets
+        .iter()
+        .any(|preset| preset.id == config.runtime.active_preset)
+    {
+        warnings.push(format!(
+            "Active preset '{}' not found. Resetting to default preset '{}'.",
+            config.runtime.active_preset, SATURDAY_PRESET_ID
+        ));
+        config.runtime.active_preset = SATURDAY_PRESET_ID.to_string();
+    }
+
+    let duration_hours = config.runtime.duration_override.hours;
+    if !duration_hours.is_finite() {
+        warnings.push(
+            "Duration override hours must be a finite number. Disabling override and resetting to 1.0."
+                .to_string(),
+        );
+        config.runtime.duration_override.enabled = false;
+        config.runtime.duration_override.hours = DurationOverride::default_hours();
+    } else if duration_hours < 1.0 {
+        warnings.push(
+            "Duration override hours must be at least 1.0. Disabling override and resetting to 1.0."
+                .to_string(),
+        );
+        config.runtime.duration_override.enabled = false;
+        config.runtime.duration_override.hours = DurationOverride::default_hours();
+    }
+
+    if let Some(ref mut outfile) = config.runtime.outfile_override {
+        if outfile.trim().is_empty() {
+            *outfile = String::new();
+        }
+    }
+
+    (config, warnings)
+}
+
+fn migrate_legacy_config(legacy: ConvocationsConfig) -> FileConfig {
+    let mut runtime = RuntimePreferences::default();
+    runtime.chat_log_path = legacy.infile;
+    runtime.weeks_ago = legacy.last;
+    runtime.dry_run = legacy.dry_run;
+    runtime.use_ai_corrections = legacy.use_llm;
+    runtime.keep_original_output = legacy.keep_orig;
+    runtime.show_diff = !legacy.no_diff;
+    runtime.cleanup_enabled = legacy.cleanup;
+    runtime.format_dialogue_enabled = legacy.format_dialogue;
+    runtime.outfile_override = legacy.outfile;
+    runtime.duration_override = if legacy.one_hour {
+        DurationOverride {
+            enabled: true,
+            hours: 1.0,
+        }
+    } else if legacy.two_hours {
+        DurationOverride {
+            enabled: true,
+            hours: 2.0,
+        }
+    } else {
+        DurationOverride::default()
+    };
+
+    runtime.active_preset = if legacy.rsm7 {
+        TUESDAY_7_PRESET_ID.to_string()
+    } else if legacy.rsm8 {
+        TUESDAY_8_PRESET_ID.to_string()
+    } else if legacy.tp6 {
+        FRIDAY_6_PRESET_ID.to_string()
+    } else {
+        SATURDAY_PRESET_ID.to_string()
+    };
+
+    FileConfig {
+        schema_version: CURRENT_SCHEMA_VERSION,
+        runtime,
+        ui: UiPreferences::default(),
+        presets: default_presets(),
+    }
+}
+
+/// Produce a `ConvocationsConfig` based on the stored runtime settings.
+pub fn runtime_preferences_to_convocations(
+    runtime: &RuntimePreferences,
+    presets: &[PresetDefinition],
+) -> (ConvocationsConfig, Vec<String>) {
+    let mut config = ConvocationsConfig::default();
+    let mut warnings = Vec::new();
+
+    config.presets = presets.to_vec();
+    config.infile = runtime.chat_log_path.clone();
+    config.last = runtime.weeks_ago;
+    config.dry_run = runtime.dry_run;
+    config.use_llm = runtime.use_ai_corrections;
+    config.keep_orig = runtime.keep_original_output;
+    config.no_diff = !runtime.show_diff;
+    config.cleanup = runtime.cleanup_enabled;
+    config.format_dialogue = runtime.format_dialogue_enabled;
+    config.outfile = runtime.outfile_override.as_ref().and_then(|value| {
+        if value.trim().is_empty() {
+            None
+        } else {
+            Some(value.clone())
+        }
+    });
+    config.active_preset = runtime.active_preset.clone();
+
+    // Reset event flags based on active preset.
+    set_event_flags_for_preset(
+        &mut config,
+        runtime.active_preset.as_str(),
+        presets,
+        &mut warnings,
+    );
+
+    // Map duration override to existing boolean flags.
+    config.duration_override = runtime.duration_override.clone();
+    if config.duration_override.enabled {
+        if !config.duration_override.hours.is_finite() {
+            warnings.push(
+                "Duration override hours must be a finite number. Disabling override.".to_string(),
+            );
+            config.duration_override.enabled = false;
+            config.duration_override.hours = DurationOverride::default_hours();
+        } else if config.duration_override.hours < 1.0 {
+            warnings.push(
+                "Duration override hours must be at least 1.0. Disabling override.".to_string(),
+            );
+            config.duration_override.enabled = false;
+            config.duration_override.hours = DurationOverride::default_hours();
+        }
+    }
+
+    if config.duration_override.enabled {
+        config.one_hour = (config.duration_override.hours - 1.0).abs() < f32::EPSILON;
+        config.two_hours = (config.duration_override.hours - 2.0).abs() < f32::EPSILON;
+    } else {
+        config.one_hour = false;
+        config.two_hours = false;
+    }
+
+    (config, warnings)
+}
+
+fn set_event_flags_for_preset(
+    config: &mut ConvocationsConfig,
+    preset_id: &str,
+    presets: &[PresetDefinition],
+    warnings: &mut Vec<String>,
+) {
+    config.rsm7 = false;
+    config.rsm8 = false;
+    config.tp6 = false;
+
+    let preset = presets.iter().find(|preset| preset.id == preset_id);
+    match preset {
+        Some(preset) => match preset.file_prefix.as_str() {
+            "rsm7" => config.rsm7 = true,
+            "rsm8" => config.rsm8 = true,
+            "tp6" => config.tp6 = true,
+            "conv" => { /* default Saturday */ }
+            other => warnings.push(format!(
+                "Preset '{}' uses unrecognised file prefix '{}'; falling back to Saturday configuration.",
+                preset_id, other
+            )),
+        },
+        None => warnings.push(format!(
+            "Preset '{}' not found. Falling back to Saturday configuration.",
+            preset_id
+        )),
+    }
+}
+
+/// Merge runtime overrides into an existing configuration.
+pub fn apply_runtime_overrides(
+    config: &mut ConvocationsConfig,
+    overrides: &RuntimeOverrides,
+    presets: &[PresetDefinition],
+    warnings: &mut Vec<String>,
+) {
+    if let Some(value) = overrides.last {
+        config.last = value;
+    }
+    if let Some(value) = overrides.dry_run {
+        config.dry_run = value;
+    }
+    if let Some(ref value) = overrides.infile {
+        config.infile = value.clone();
+    }
+    if let Some(ref value) = overrides.start {
+        config.start = value.clone();
+    }
+    if let Some(ref value) = overrides.end {
+        config.end = value.clone();
+    }
+    if let Some(ref preset_id) = overrides.active_preset {
+        config.active_preset = preset_id.clone();
+        set_event_flags_for_preset(config, preset_id, presets, warnings);
+    }
+    if let Some(mut duration) = overrides.duration_override.clone() {
+        if !duration.hours.is_finite() {
+            warnings.push(
+                "Duration override hours must be a finite number. Ignoring override.".to_string(),
+            );
+            duration.enabled = false;
+            duration.hours = DurationOverride::default_hours();
+        } else if duration.hours < 1.0 {
+            warnings.push(
+                "Duration override hours must be at least 1.0. Ignoring override.".to_string(),
+            );
+            duration.enabled = false;
+            duration.hours = DurationOverride::default_hours();
+        }
+
+        config.duration_override = duration;
+        if config.duration_override.enabled {
+            config.one_hour = (config.duration_override.hours - 1.0).abs() < f32::EPSILON;
+            config.two_hours = (config.duration_override.hours - 2.0).abs() < f32::EPSILON;
+        } else {
+            config.one_hour = false;
+            config.two_hours = false;
+        }
+    }
+    if let Some(ref value) = overrides.process_file {
+        config.process_file = value.clone();
+    }
+    if let Some(value) = overrides.format_dialogue {
+        config.format_dialogue = value;
+    }
+    if let Some(value) = overrides.cleanup {
+        config.cleanup = value;
+    }
+    if let Some(value) = overrides.use_llm {
+        config.use_llm = value;
+    }
+    if let Some(value) = overrides.keep_orig {
+        config.keep_orig = value;
+    }
+    if let Some(value) = overrides.no_diff {
+        config.no_diff = value;
+    }
+    if let Some(ref value) = overrides.outfile {
+        config.outfile = value.clone();
+    }
+    if let Some(value) = overrides.use_ai_corrections {
+        config.use_llm = value;
+    }
+    if let Some(value) = overrides.keep_original_output {
+        config.keep_orig = value;
+    }
+    if let Some(value) = overrides.show_diff {
+        config.no_diff = !value;
+    }
+}
+
+/// Produce overrides by diffing a configuration against defaults.
+pub fn runtime_overrides_from_convocations(config: &ConvocationsConfig) -> RuntimeOverrides {
+    let defaults = ConvocationsConfig::default();
+    let mut overrides = RuntimeOverrides::default();
+
+    if config.last != defaults.last {
+        overrides.last = Some(config.last);
+    }
+    if config.dry_run != defaults.dry_run {
+        overrides.dry_run = Some(config.dry_run);
+    }
+    if config.infile != defaults.infile {
+        overrides.infile = Some(config.infile.clone());
+    }
+    if config.start != defaults.start {
+        overrides.start = Some(config.start.clone());
+    }
+    if config.end != defaults.end {
+        overrides.end = Some(config.end.clone());
+    }
+    if config.active_preset != defaults.active_preset {
+        overrides.active_preset = Some(config.active_preset.clone());
+    } else if config.rsm7 && config.rsm7 != defaults.rsm7 {
+        overrides.active_preset = Some(TUESDAY_7_PRESET_ID.to_string());
+    } else if config.rsm8 && config.rsm8 != defaults.rsm8 {
+        overrides.active_preset = Some(TUESDAY_8_PRESET_ID.to_string());
+    } else if config.tp6 && config.tp6 != defaults.tp6 {
+        overrides.active_preset = Some(FRIDAY_6_PRESET_ID.to_string());
+    }
+    if config.duration_override != defaults.duration_override {
+        overrides.duration_override = Some(config.duration_override.clone());
+    } else if config.one_hour != defaults.one_hour || config.two_hours != defaults.two_hours {
+        overrides.duration_override = Some(DurationOverride {
+            enabled: config.one_hour || config.two_hours,
+            hours: if config.one_hour {
+                1.0
+            } else if config.two_hours {
+                2.0
+            } else {
+                1.0
+            },
+        });
+    }
+    if config.process_file != defaults.process_file {
+        overrides.process_file = Some(config.process_file.clone());
+    }
+    if config.format_dialogue != defaults.format_dialogue {
+        overrides.format_dialogue = Some(config.format_dialogue);
+    }
+    if config.cleanup != defaults.cleanup {
+        overrides.cleanup = Some(config.cleanup);
+    }
+    if config.use_llm != defaults.use_llm {
+        overrides.use_llm = Some(config.use_llm);
+        overrides.use_ai_corrections = Some(config.use_llm);
+    }
+    if config.keep_orig != defaults.keep_orig {
+        overrides.keep_orig = Some(config.keep_orig);
+        overrides.keep_original_output = Some(config.keep_orig);
+    }
+    if config.no_diff != defaults.no_diff {
+        overrides.no_diff = Some(config.no_diff);
+        overrides.show_diff = Some(!config.no_diff);
+    }
+    if config.outfile != defaults.outfile {
+        overrides.outfile = Some(config.outfile.clone());
+    }
+
+    overrides
+}

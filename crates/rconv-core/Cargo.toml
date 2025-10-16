@@ -1,0 +1,17 @@
+[package]
+name = "rconv-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+chrono.workspace = true
+chrono-tz.workspace = true
+google-ai-rs.workspace = true
+regex.workspace = true
+shellexpand.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+termdiff.workspace = true
+tokio.workspace = true
+toml.workspace = true
+dirs.workspace = true
