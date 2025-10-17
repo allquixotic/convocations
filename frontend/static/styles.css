@@ -396,6 +396,23 @@ main.container {
   opacity: 0.85;
 }
 
+/* Duration override block */
+.duration-override-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: calc(var(--pico-spacing) * 0.75);
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-card-background-color);
+}
+
+.duration-override-block .checkbox-field {
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .field-grid,

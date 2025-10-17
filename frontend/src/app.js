@@ -1002,29 +1002,6 @@ function App() {
             class: 'config-form',
             onSubmit: (event) => event.preventDefault(),
           },
-          validationStatus === 'loading' && configLoaded
-            ? h(
-                'div',
-                { class: 'form-banner form-banner--pending' },
-                'Validating configuration…',
-              )
-            : null,
-          validationStatus === 'error'
-            ? h(
-                'div',
-                { class: 'form-banner form-banner--error' },
-                'Validation failed. Check console for details.',
-              )
-            : null,
-          validation &&
-          validationStatus !== 'loading' &&
-          validation.valid === false
-            ? h(
-                'div',
-                { class: 'form-banner form-banner--error' },
-                'Resolve the inline validation errors below before running.',
-              )
-            : null,
           h(
             'div',
             { class: 'form-group' },
@@ -1076,24 +1053,24 @@ function App() {
                 h(
                   'label',
                   { class: fieldClasses('field', 'start') },
-                  h('span', { class: 'field-label' }, 'Start (ISO8601)'),
+                  h('span', { class: 'field-label' }, 'Start Date & Time'),
                   h('input', {
-                    type: 'text',
-                    placeholder: 'YYYY-MM-DDTHH:MM',
+                    type: 'datetime-local',
                     value: config.start ?? '',
                     onInput: handleText('start'),
+                    disabled: eventSelection !== 'saturday',
                   }),
                   renderFieldMessages('start'),
                 ),
                 h(
                   'label',
                   { class: fieldClasses('field', 'end') },
-                  h('span', { class: 'field-label' }, 'End (ISO8601)'),
+                  h('span', { class: 'field-label' }, 'End Date & Time'),
                   h('input', {
-                    type: 'text',
-                    placeholder: 'YYYY-MM-DDTHH:MM',
+                    type: 'datetime-local',
                     value: config.end ?? '',
                     onInput: handleText('end'),
+                    disabled: eventSelection !== 'saturday',
                   }),
                   renderFieldMessages('end'),
                 ),
@@ -1101,31 +1078,53 @@ function App() {
                   'div',
                   {
                     class: fieldClasses(
-                      'field checkbox-cluster',
+                      'field duration-override-block',
                       ['one_hour', 'two_hours'],
                     ),
                   },
-                  h('span', { class: 'field-label' }, 'Duration Overrides'),
                   h(
                     'label',
-                    { class: checkboxClasses('one_hour') },
+                    { class: 'checkbox-field' },
                     h('input', {
                       type: 'checkbox',
-                      checked: Boolean(config.one_hour),
-                      onChange: handleDurationToggle('one_hour'),
+                      checked: Boolean(config.one_hour || config.two_hours),
+                      onChange: (event) => {
+                        const checked = event.target.checked;
+                        setConfig((prev) => {
+                          if (!prev) return prev;
+                          if (!checked) {
+                            return { ...prev, one_hour: false, two_hours: false };
+                          }
+                          return { ...prev, one_hour: true, two_hours: false };
+                        });
+                      },
                     }),
-                    h('span', null, 'Force 1 hour (--1h)'),
+                    h('span', null, 'Override duration'),
                   ),
-                  h(
+                  (config.one_hour || config.two_hours) ? h(
                     'label',
-                    { class: checkboxClasses('two_hours') },
+                    { class: 'field', style: 'margin-top: 0.5rem;' },
+                    h('span', { class: 'field-label' }, 'Duration (hours)'),
                     h('input', {
-                      type: 'checkbox',
-                      checked: Boolean(config.two_hours),
-                      onChange: handleDurationToggle('two_hours'),
+                      type: 'number',
+                      min: 1,
+                      value: config.two_hours ? 2 : 1,
+                      onInput: (event) => {
+                        const value = Number.parseInt(event.target.value, 10) || 1;
+                        setConfig((prev) => {
+                          if (!prev) return prev;
+                          if (value === 1) {
+                            return { ...prev, one_hour: true, two_hours: false };
+                          } else if (value === 2) {
+                            return { ...prev, one_hour: false, two_hours: true };
+                          } else {
+                            // For other values, just use one_hour flag for now
+                            return { ...prev, one_hour: true, two_hours: false };
+                          }
+                        });
+                      },
                     }),
-                    h('span', null, 'Force 2 hours (--2h)'),
-                  ),
+                  ) : null,
                   renderFieldMessages(['one_hour', 'two_hours']),
                 ),
               ),
@@ -1205,55 +1204,41 @@ function App() {
                 { class: 'checkbox-grid' },
                 h(
                   'label',
-                  { class: checkboxClasses('format_dialogue') },
-                  h('input', {
-                    type: 'checkbox',
-                    checked: Boolean(config.format_dialogue),
-                    onChange: handleCheckbox('format_dialogue'),
-                  }),
-                  h('span', null, 'Format dialogue'),
-                  renderFieldMessages('format_dialogue'),
-                ),
-                h(
-                  'label',
-                  { class: checkboxClasses('cleanup') },
-                  h('input', {
-                    type: 'checkbox',
-                    checked: Boolean(config.cleanup),
-                    onChange: handleCheckbox('cleanup'),
-                  }),
-                  h('span', null, 'Cleanup middle stage'),
-                  renderFieldMessages('cleanup'),
-                ),
-                h(
-                  'label',
                   { class: checkboxClasses('use_llm') },
                   h('input', {
                     type: 'checkbox',
                     checked: Boolean(config.use_llm),
                     onChange: handleCheckbox('use_llm'),
                   }),
-                  h('span', null, 'Use LLM corrections'),
+                  h('span', null, 'Use AI corrections'),
                   renderFieldMessages('use_llm'),
                 ),
                 h(
                   'label',
-                  { class: checkboxClasses('keep_orig') },
+                  {
+                    class: checkboxClasses('keep_orig'),
+                    style: config.use_llm ? '' : 'opacity: 0.5; pointer-events: none;',
+                  },
                   h('input', {
                     type: 'checkbox',
                     checked: Boolean(config.keep_orig),
                     onChange: handleCheckbox('keep_orig'),
+                    disabled: !config.use_llm,
                   }),
                   h('span', null, 'Keep original output (--keep-orig)'),
                   renderFieldMessages('keep_orig'),
                 ),
                 h(
                   'label',
-                  { class: checkboxClasses('no_diff') },
+                  {
+                    class: checkboxClasses('no_diff'),
+                    style: config.use_llm ? '' : 'opacity: 0.5; pointer-events: none;',
+                  },
                   h('input', {
                     type: 'checkbox',
                     checked: Boolean(config.no_diff),
                     onChange: handleCheckbox('no_diff'),
+                    disabled: !config.use_llm,
                   }),
                   h('span', null, 'Disable diff generation (--no-diff)'),
                   renderFieldMessages('no_diff'),
