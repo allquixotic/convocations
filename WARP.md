@@ -354,7 +354,6 @@ The wrapper script design provides:
 
 # THE CHECKLIST - MODIFY THESE!
 
-[ ] Refine runtime defaults and derivations in `rconv-core`: ensure format dialogue is always enabled by default, apply `default_weeks_ago` and duration override hours when computing presets, and update default chat log/output path logic to honor the working directory + preset-derived filenames; extend tests for `resolve_outfile_paths` and weeks-ago calculations.
 [ ] Refresh CLI surfaces in `crates/rconv-cli`: rename help text to talk about "AI corrections", wire preset CRUD to the expanded fields (weekday, prefix, default weeks, duration hours), and exercise the new runtime defaults via integration tests so CLI/GUI stay in lockstep.
 [ ] Rework the Tauri HTTP API (`src-tauri/src/main.rs`) to treat `FileConfig` as the contract: expose runtime/ui/presets blocks, persist only preset definitions (and explicit UI prefs like theme) when the GUI issues a save, keep session-only overrides ephemeral, and confirm CLI arguments still override config-derived values.
 [ ] Enhance the technical log plumbing: keep backend progress events, tap `console.*` in the frontend early to funnel browser logs into the same stream (with origin tags), and respect the existing follow/visibility preferences.

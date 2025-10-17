@@ -177,9 +177,20 @@ fn derive_default_outfile(
         default_duration_minutes as i64
     };
 
+    // Determine effective weeks_ago value: use preset's default_weeks_ago if config.last is 0
+    let effective_weeks_ago = if config.last == 0 {
+        if let Some(preset) = find_active_preset(config) {
+            preset.default_weeks_ago
+        } else {
+            0
+        }
+    } else {
+        config.last
+    };
+
     let today = today.unwrap_or_else(|| Local::now().date_naive());
     let (calculated_start, calculated_end, file_date) =
-        calculate_dates_for_event(today, config.last, &event_type, duration_minutes);
+        calculate_dates_for_event(today, effective_weeks_ago, &event_type, duration_minutes);
 
     let user_provided_start = config.start.is_some();
     let user_provided_end = config.end.is_some();
@@ -664,9 +675,27 @@ async fn run(
             duration_minutes, duration_source
         ));
 
+        // Determine effective weeks_ago value: use preset's default_weeks_ago if config.last is 0
+        let effective_weeks_ago = if config.last == 0 {
+            if let Some(preset) = find_active_preset(&config) {
+                preset.default_weeks_ago
+            } else {
+                0
+            }
+        } else {
+            config.last
+        };
+
+        if effective_weeks_ago != config.last {
+            logger.note(format!(
+                "Using preset default_weeks_ago: {} (config.last was {})",
+                effective_weeks_ago, config.last
+            ));
+        }
+
         // Always calculate dates to get the file_date for default filename
         let (saturday_date, sunday_date, file_date) =
-            calculate_dates_for_event(today, config.last, &event_type, duration_minutes);
+            calculate_dates_for_event(today, effective_weeks_ago, &event_type, duration_minutes);
 
         // Always log the calculated dates (matching Python's logging.info)
         logger.note(format!("Calculated Saturday Date: {}", saturday_date));
@@ -1612,4 +1641,176 @@ Corrected text:",
 
     // Rejoin all corrected chunks
     Ok(corrected_chunks.join("\n"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+    use std::path::Path;
+
+    #[test]
+    fn test_resolve_outfile_paths_uses_preset_prefix() {
+        let mut config = ConvocationsConfig::default();
+        config.active_preset = TUESDAY_7_PRESET_ID.to_string();
+        config.rsm7 = true;
+
+        let today = NaiveDate::from_ymd_opt(2025, 10, 16).unwrap(); // Thursday
+        let result = resolve_outfile_paths(&config, None, Some(today)).unwrap();
+
+        // Should use "rsm7" prefix from the preset
+        assert!(result.default.contains("rsm7-"), "Expected preset prefix 'rsm7' in filename: {}", result.default);
+        assert!(!result.was_overridden);
+    }
+
+    #[test]
+    fn test_resolve_outfile_paths_with_working_dir() {
+        let config = ConvocationsConfig::default();
+        let working_dir = Path::new("/tmp/test");
+        let today = NaiveDate::from_ymd_opt(2025, 10, 16).unwrap();
+
+        let result = resolve_outfile_paths(&config, Some(working_dir), Some(today)).unwrap();
+
+        // Should use working directory
+        assert!(result.default.starts_with("/tmp/test/"), "Expected working dir in path: {}", result.default);
+    }
+
+    #[test]
+    fn test_resolve_outfile_paths_with_override() {
+        let mut config = ConvocationsConfig::default();
+        config.outfile = Some("custom-output.txt".to_string());
+        let today = NaiveDate::from_ymd_opt(2025, 10, 16).unwrap();
+
+        let result = resolve_outfile_paths(&config, None, Some(today)).unwrap();
+
+        assert_eq!(result.effective, "custom-output.txt");
+        assert!(result.was_overridden);
+        // Default should still be calculated
+        assert!(result.default.contains("conv-"));
+    }
+
+    #[test]
+    fn test_calculate_dates_saturday() {
+        let today = NaiveDate::from_ymd_opt(2025, 10, 16).unwrap(); // Thursday
+        let (_start, _end, file_date) = calculate_dates_for_event(
+            today,
+            0, // last_occurrences
+            &EventType::Saturday,
+            145, // 2h 25m
+        );
+
+        // Should calculate most recent Saturday (Oct 11)
+        assert!(file_date == "101125", "Expected file date 101125, got {}", file_date);
+    }
+
+    #[test]
+    fn test_calculate_dates_weeks_ago() {
+        let today = NaiveDate::from_ymd_opt(2025, 10, 16).unwrap(); // Thursday
+        let (_, _, file_date) = calculate_dates_for_event(
+            today,
+            1, // 1 week ago
+            &EventType::Saturday,
+            145,
+        );
+
+        // Should calculate Saturday one week before most recent (Oct 4)
+        assert!(file_date == "100425", "Expected file date 100425, got {}", file_date);
+    }
+
+    #[test]
+    fn test_calculate_dates_tuesday_rsm7() {
+        let today = NaiveDate::from_ymd_opt(2025, 10, 16).unwrap(); // Thursday
+        let (_, _, file_date) = calculate_dates_for_event(
+            today,
+            0,
+            &EventType::Rsm7,
+            60,
+        );
+
+        // Should calculate most recent Tuesday (Oct 14)
+        assert!(file_date == "101425", "Expected file date 101425, got {}", file_date);
+    }
+
+    #[test]
+    fn test_derive_file_prefix_uses_preset() {
+        let mut config = ConvocationsConfig::default();
+        // Set up a custom preset
+        config.presets.push(PresetDefinition {
+            id: "custom".to_string(),
+            name: "Custom Event".to_string(),
+            weekday: "monday".to_string(),
+            timezone: "America/New_York".to_string(),
+            start_time: "20:00".to_string(),
+            duration_minutes: 90,
+            file_prefix: "custom-prefix".to_string(),
+            default_weeks_ago: 0,
+            builtin: false,
+        });
+        config.active_preset = "custom".to_string();
+
+        let prefix = derive_file_prefix(&config, &EventType::Saturday);
+        assert_eq!(prefix, "custom-prefix");
+    }
+
+    #[test]
+    fn test_derive_file_prefix_fallback_to_event_type() {
+        let mut config = ConvocationsConfig::default();
+        // Set active preset to something that doesn't exist in the preset list
+        config.active_preset = "nonexistent".to_string();
+        config.presets.clear(); // Remove all presets to ensure fallback
+
+        let prefix = derive_file_prefix(&config, &EventType::Rsm8);
+        assert_eq!(prefix, "rsm8");
+    }
+
+    #[test]
+    fn test_find_active_preset() {
+        let mut config = ConvocationsConfig::default();
+        config.active_preset = TUESDAY_7_PRESET_ID.to_string();
+
+        let preset = find_active_preset(&config);
+        assert!(preset.is_some());
+        assert_eq!(preset.unwrap().id, TUESDAY_7_PRESET_ID);
+    }
+
+    #[test]
+    fn test_resolve_default_duration_from_preset() {
+        let mut config = ConvocationsConfig::default();
+        config.active_preset = SATURDAY_PRESET_ID.to_string();
+
+        let duration = resolve_default_duration_minutes(&config, &EventType::Saturday);
+        assert_eq!(duration, 145); // Saturday preset has 145 minutes
+    }
+
+    #[test]
+    fn test_hours_to_minutes_conversion() {
+        assert_eq!(hours_to_minutes(1.0).unwrap(), 60);
+        assert_eq!(hours_to_minutes(2.0).unwrap(), 120);
+        assert_eq!(hours_to_minutes(1.5).unwrap(), 90);
+        assert_eq!(hours_to_minutes(2.25).unwrap(), 135);
+    }
+
+    #[test]
+    fn test_hours_to_minutes_validation() {
+        assert!(hours_to_minutes(0.5).is_err());
+        assert!(hours_to_minutes(f32::INFINITY).is_err());
+        assert!(hours_to_minutes(f32::NAN).is_err());
+    }
+
+    #[test]
+    fn test_find_weekday_occurrence() {
+        let today = NaiveDate::from_ymd_opt(2025, 10, 16).unwrap(); // Thursday
+
+        // Find most recent Tuesday
+        let tuesday = find_weekday_occurrence(today, chrono::Weekday::Tue, 0);
+        assert_eq!(tuesday, NaiveDate::from_ymd_opt(2025, 10, 14).unwrap());
+
+        // Find Tuesday one week ago
+        let last_tuesday = find_weekday_occurrence(today, chrono::Weekday::Tue, 1);
+        assert_eq!(last_tuesday, NaiveDate::from_ymd_opt(2025, 10, 7).unwrap());
+
+        // Find most recent Friday
+        let friday = find_weekday_occurrence(today, chrono::Weekday::Fri, 0);
+        assert_eq!(friday, NaiveDate::from_ymd_opt(2025, 10, 10).unwrap());
+    }
 }
