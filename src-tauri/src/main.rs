@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Error, anyhow};
+use chrono::Local;
 use axum::extract::State;
 use axum::http::{Method, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -707,8 +708,8 @@ fn validate_config(config: &ConvocationsConfig) -> ValidationResult {
         }
     }
 
-    if config.use_llm && std::env::var("GOOGLE_API_KEY").is_err() {
-        let message = "LLM corrections enabled but GOOGLE_API_KEY environment variable not set. Processing will continue without AI corrections.";
+    if config.use_llm && std::env::var("OPENROUTER_API_KEY").is_err() {
+        let message = "LLM corrections enabled but OPENROUTER_API_KEY environment variable not set. Processing will continue without AI corrections.";
         record_field_message(&mut field_warnings, "use_llm", message);
         warnings.push(message.to_string());
     }
@@ -775,13 +776,13 @@ struct CreatePresetRequest {
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize)]
 struct UpdatePresetRequest {
-    id: String,
+    name: String,
     preset: PresetDefinition,
 }
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize)]
 struct DeletePresetRequest {
-    id: String,
+    name: String,
 }
 
 async fn create_preset_handler(
@@ -791,19 +792,19 @@ async fn create_preset_handler(
     let mut config = load_result.config;
 
     // Validate the preset
-    if request.preset.id.trim().is_empty() {
-        return Err(ApiError::bad_request("Preset ID cannot be empty"));
-    }
-
     if request.preset.name.trim().is_empty() {
         return Err(ApiError::bad_request("Preset name cannot be empty"));
     }
 
-    // Check for duplicate ID
-    if config.presets.iter().any(|p| p.id == request.preset.id) {
+    if request.preset.file_prefix.trim().is_empty() {
+        return Err(ApiError::bad_request("File prefix cannot be empty"));
+    }
+
+    // Check for duplicate name
+    if config.presets.iter().any(|p| p.name == request.preset.name) {
         return Err(ApiError::conflict(format!(
-            "A preset with ID '{}' already exists",
-            request.preset.id
+            "A preset with name '{}' already exists",
+            request.preset.name
         )));
     }
 
@@ -831,35 +832,34 @@ async fn update_preset_handler(
     let preset_index = config
         .presets
         .iter()
-        .position(|p| p.id == request.id)
-        .ok_or_else(|| ApiError::bad_request(format!("Preset '{}' not found", request.id)))?;
+        .position(|p| p.name == request.name)
+        .ok_or_else(|| ApiError::bad_request(format!("Preset '{}' not found", request.name)))?;
 
     // Block modification of built-in presets
     if config.presets[preset_index].builtin {
         return Err(ApiError::bad_request(format!(
             "Cannot modify built-in preset '{}'",
-            request.id
+            request.name
         )));
     }
 
-    // Ensure the new preset ID matches if changed
-    if request.preset.id != request.id {
-        // Check for duplicate ID
-        if config.presets.iter().any(|p| p.id == request.preset.id) {
-            return Err(ApiError::conflict(format!(
-                "A preset with ID '{}' already exists",
-                request.preset.id
-            )));
-        }
-    }
-
     // Validate the preset
-    if request.preset.id.trim().is_empty() {
-        return Err(ApiError::bad_request("Preset ID cannot be empty"));
-    }
-
     if request.preset.name.trim().is_empty() {
         return Err(ApiError::bad_request("Preset name cannot be empty"));
+    }
+
+    if request.preset.file_prefix.trim().is_empty() {
+        return Err(ApiError::bad_request("File prefix cannot be empty"));
+    }
+
+    // Check if name is being changed and if so, check for duplicate
+    if request.preset.name != request.name {
+        if config.presets.iter().any(|p| p.name == request.preset.name) {
+            return Err(ApiError::conflict(format!(
+                "A preset with name '{}' already exists",
+                request.preset.name
+            )));
+        }
     }
 
     // Update the preset (keeping builtin flag)
@@ -885,14 +885,14 @@ async fn delete_preset_handler(
     let preset_index = config
         .presets
         .iter()
-        .position(|p| p.id == request.id)
-        .ok_or_else(|| ApiError::bad_request(format!("Preset '{}' not found", request.id)))?;
+        .position(|p| p.name == request.name)
+        .ok_or_else(|| ApiError::bad_request(format!("Preset '{}' not found", request.name)))?;
 
     // Block deletion of built-in presets
     if config.presets[preset_index].builtin {
         return Err(ApiError::bad_request(format!(
             "Cannot delete built-in preset '{}'",
-            request.id
+            request.name
         )));
     }
 
@@ -905,6 +905,118 @@ async fn delete_preset_handler(
         .map_err(|err| ApiError::from(format!("{}", err)))?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct PkcePairResponse {
+    verifier: String,
+    challenge: String,
+}
+
+async fn generate_pkce_handler() -> Json<PkcePairResponse> {
+    let (verifier, challenge) = rconv_core::openrouter::generate_pkce_pair();
+    Json(PkcePairResponse {
+        verifier,
+        challenge,
+    })
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct OAuthUrlRequest {
+    code_challenge: String,
+    redirect_uri: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct OAuthUrlResponse {
+    url: String,
+}
+
+async fn build_oauth_url_handler(Json(request): Json<OAuthUrlRequest>) -> Json<OAuthUrlResponse> {
+    let url =
+        rconv_core::openrouter::build_oauth_url(&request.code_challenge, &request.redirect_uri);
+    Json(OAuthUrlResponse { url })
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ModelsResponse {
+    models: Vec<rconv_core::openrouter::ModelInfo>,
+}
+
+async fn fetch_models_handler() -> Result<Json<ModelsResponse>, ApiError> {
+    let models = rconv_core::openrouter::fetch_models()
+        .await
+        .map_err(|e| ApiError::from(format!("Failed to fetch models: {}", e)))?;
+    Ok(Json(ModelsResponse { models }))
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct FilterModelsRequest {
+    free_only: bool,
+}
+
+async fn recommended_models_handler(
+    Json(request): Json<FilterModelsRequest>,
+) -> Json<Vec<(String, String)>> {
+    let models = rconv_core::openrouter::get_recommended_models(request.free_only);
+    Json(models)
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct CalculateDatesRequest {
+    rsm7: bool,
+    rsm8: bool,
+    tp6: bool,
+    one_hour: bool,
+    two_hours: bool,
+    last: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct CalculateDatesResponse {
+    start: String,
+    end: String,
+}
+
+async fn calculate_dates_handler(
+    Json(request): Json<CalculateDatesRequest>,
+) -> Result<Json<CalculateDatesResponse>, ApiError> {
+    use rconv_core::runtime::calculate_event_dates;
+
+    let event_type = if request.rsm7 {
+        "rsm7"
+    } else if request.rsm8 {
+        "rsm8"
+    } else if request.tp6 {
+        "tp6"
+    } else {
+        "saturday"
+    };
+
+    let duration_minutes = if request.rsm7 || request.rsm8 || request.tp6 {
+        if request.one_hour {
+            60
+        } else if request.two_hours {
+            120
+        } else {
+            60 // default for non-Saturday events
+        }
+    } else {
+        // Saturday
+        if request.one_hour {
+            60
+        } else if request.two_hours {
+            120
+        } else {
+            145 // default for Saturday (2h 25m)
+        }
+    };
+
+    let today = Local::now().date_naive();
+    let (start, end) = calculate_event_dates(today, request.last, event_type, duration_minutes)
+        .map_err(|e| ApiError::from(format!("Failed to calculate dates: {}", e)))?;
+
+    Ok(Json(CalculateDatesResponse { start, end }))
 }
 
 async fn launch_http_server(
@@ -961,6 +1073,14 @@ async fn launch_http_server(
         .route("/api/presets/create", post(create_preset_handler))
         .route("/api/presets/update", post(update_preset_handler))
         .route("/api/presets/delete", post(delete_preset_handler))
+        .route("/api/openrouter/pkce", get(generate_pkce_handler))
+        .route("/api/openrouter/oauth-url", post(build_oauth_url_handler))
+        .route("/api/openrouter/models", get(fetch_models_handler))
+        .route(
+            "/api/openrouter/recommended",
+            post(recommended_models_handler),
+        )
+        .route("/api/calculate-dates", post(calculate_dates_handler))
         .with_state(context)
         .layer(cors);
 

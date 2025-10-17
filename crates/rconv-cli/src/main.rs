@@ -65,11 +65,10 @@ fn handle_preset_command(command: PresetCommand) -> Result<(), String> {
 
     match command {
         PresetCommand::Create(args) => {
-            if config.presets.iter().any(|preset| preset.id == args.id) {
-                return Err(format!("Preset '{}' already exists.", args.id));
+            if config.presets.iter().any(|preset| preset.name == args.name) {
+                return Err(format!("Preset '{}' already exists.", args.name));
             }
             let preset = PresetDefinition {
-                id: args.id.clone(),
                 name: args.name.clone(),
                 weekday: args.weekday.to_ascii_lowercase(),
                 timezone: args.timezone.clone(),
@@ -80,22 +79,19 @@ fn handle_preset_command(command: PresetCommand) -> Result<(), String> {
                 builtin: false,
             };
             config.presets.push(preset);
-            config.presets.sort_by(|a, b| a.id.cmp(&b.id));
+            config.presets.sort_by(|a, b| a.name.cmp(&b.name));
             // Save only presets and UI preferences; runtime preferences are session-only
             save_presets_and_ui_only(&config.presets, &config.ui).map_err(|err| err.to_string())?;
-            println!("Created preset '{}' ({})", args.name, args.id);
+            println!("Created preset '{}'", args.name);
             Ok(())
         }
         PresetCommand::Update(args) => {
             let preset = config
                 .presets
                 .iter_mut()
-                .find(|preset| preset.id == args.id)
-                .ok_or_else(|| format!("Preset '{}' not found.", args.id))?;
+                .find(|preset| preset.name == args.name)
+                .ok_or_else(|| format!("Preset '{}' not found.", args.name))?;
 
-            if let Some(name) = args.name {
-                preset.name = name;
-            }
             if let Some(weekday) = args.weekday {
                 preset.weekday = weekday.to_ascii_lowercase();
             }
@@ -117,19 +113,19 @@ fn handle_preset_command(command: PresetCommand) -> Result<(), String> {
 
             // Save only presets and UI preferences; runtime preferences are session-only
             save_presets_and_ui_only(&config.presets, &config.ui).map_err(|err| err.to_string())?;
-            println!("Updated preset '{}'", args.id);
+            println!("Updated preset '{}'", args.name);
             Ok(())
         }
         PresetCommand::Delete(args) => {
             let position = config
                 .presets
                 .iter()
-                .position(|preset| preset.id == args.id)
-                .ok_or_else(|| format!("Preset '{}' not found.", args.id))?;
+                .position(|preset| preset.name == args.name)
+                .ok_or_else(|| format!("Preset '{}' not found.", args.name))?;
             if config.presets[position].builtin {
                 return Err(format!(
                     "Preset '{}' is built-in and cannot be deleted.",
-                    args.id
+                    args.name
                 ));
             }
 
@@ -138,7 +134,7 @@ fn handle_preset_command(command: PresetCommand) -> Result<(), String> {
             // Save only presets and UI preferences; runtime preferences are session-only
             // Note: If the deleted preset was active, sanitize_config will reset it on next load
             save_presets_and_ui_only(&config.presets, &config.ui).map_err(|err| err.to_string())?;
-            println!("Deleted preset '{}'", args.id);
+            println!("Deleted preset '{}'", args.name);
             Ok(())
         }
     }

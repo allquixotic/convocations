@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use clap::{ArgAction, Args, Parser, Subcommand, ValueHint};
 use rconv_core::config::{
-    DurationOverride, FRIDAY_6_PRESET_ID, RuntimeOverrides, TUESDAY_7_PRESET_ID,
-    TUESDAY_8_PRESET_ID,
+    DurationOverride, FRIDAY_6_PRESET_NAME, RuntimeOverrides, TUESDAY_7_PRESET_NAME,
+    TUESDAY_8_PRESET_NAME,
 };
 
 /// Top-level CLI entrypoint.
@@ -194,13 +194,13 @@ impl ProcessArgs {
             preset_ids.insert(preset.clone());
         }
         if self.rsm7 {
-            preset_ids.insert(TUESDAY_7_PRESET_ID.to_string());
+            preset_ids.insert(TUESDAY_7_PRESET_NAME.to_string());
         }
         if self.rsm8 {
-            preset_ids.insert(TUESDAY_8_PRESET_ID.to_string());
+            preset_ids.insert(TUESDAY_8_PRESET_NAME.to_string());
         }
         if self.tp6 {
-            preset_ids.insert(FRIDAY_6_PRESET_ID.to_string());
+            preset_ids.insert(FRIDAY_6_PRESET_NAME.to_string());
         }
 
         if preset_ids.len() > 1 {
@@ -270,8 +270,6 @@ impl ProcessArgs {
 #[derive(Debug, Clone, Args)]
 pub struct PresetCreateArgs {
     #[arg(long)]
-    pub id: String,
-    #[arg(long)]
     pub name: String,
     #[arg(long)]
     pub weekday: String,
@@ -287,32 +285,37 @@ pub struct PresetCreateArgs {
     pub default_weeks_ago: u32,
 }
 
-/// Arguments for updating an existing preset.
+/// Arguments for updating an existing preset by name.
 #[derive(Debug, Clone, Args)]
 pub struct PresetUpdateArgs {
+    /// The name of the preset to update
     #[arg(long)]
-    pub id: String,
-    #[arg(long)]
-    pub name: Option<String>,
-    #[arg(long)]
+    pub name: String,
+    /// New weekday (if changing)
+    #[arg(long = "new-weekday")]
     pub weekday: Option<String>,
-    #[arg(long)]
+    /// New timezone (if changing)
+    #[arg(long = "new-timezone")]
     pub timezone: Option<String>,
-    #[arg(long = "start-time")]
+    /// New start time (if changing)
+    #[arg(long = "new-start-time")]
     pub start_time: Option<String>,
-    #[arg(long = "duration-minutes")]
+    /// New duration in minutes (if changing)
+    #[arg(long = "new-duration-minutes")]
     pub duration_minutes: Option<u32>,
-    #[arg(long = "file-prefix")]
+    /// New file prefix (if changing)
+    #[arg(long = "new-file-prefix")]
     pub file_prefix: Option<String>,
-    #[arg(long = "weeks-ago")]
+    /// New default weeks ago (if changing)
+    #[arg(long = "new-weeks-ago")]
     pub default_weeks_ago: Option<u32>,
 }
 
-/// Arguments for deleting a preset.
+/// Arguments for deleting a preset by name.
 #[derive(Debug, Clone, Args)]
 pub struct PresetDeleteArgs {
     #[arg(long)]
-    pub id: String,
+    pub name: String,
 }
 
 fn parse_optional_field(value: &str) -> Option<String> {

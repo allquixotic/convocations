@@ -1,11 +1,11 @@
 use crate::config::{
-    DurationOverride, FRIDAY_6_PRESET_ID, PresetDefinition, SATURDAY_PRESET_ID,
-    TUESDAY_7_PRESET_ID, TUESDAY_8_PRESET_ID, ThemePreference,
+    DurationOverride, FRIDAY_6_PRESET_NAME, PresetDefinition, SATURDAY_PRESET_NAME,
+    TUESDAY_7_PRESET_NAME, TUESDAY_8_PRESET_NAME, ThemePreference,
     default_presets as config_default_presets,
 };
+use crate::openrouter;
 use chrono::{Datelike, Duration, Local, NaiveDate};
 use chrono_tz;
-use google_ai_rs::Client as GoogleClient;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -48,7 +48,7 @@ pub struct ConvocationsConfig {
 }
 
 fn default_active_preset() -> String {
-    SATURDAY_PRESET_ID.to_string()
+    SATURDAY_PRESET_NAME.to_string()
 }
 
 fn runtime_presets_default() -> Vec<PresetDefinition> {
@@ -295,7 +295,7 @@ fn find_active_preset<'a>(config: &'a ConvocationsConfig) -> Option<&'a PresetDe
     config
         .presets
         .iter()
-        .find(|preset| preset.id == config.active_preset)
+        .find(|preset| preset.name == config.active_preset)
 }
 
 fn resolve_default_duration_minutes(config: &ConvocationsConfig, event_type: &EventType) -> u32 {
@@ -370,7 +370,7 @@ pub(crate) fn validate_config(config: &ConvocationsConfig) -> Result<(), String>
         if preset.duration_minutes == 0 {
             return Err(format!(
                 "Preset '{}' duration_minutes must be greater than zero.",
-                preset.id
+                preset.name
             ));
         }
     }
@@ -508,6 +508,37 @@ pub async fn run_with_config_with_progress(
     run(config, RunOrigin::ProvidedConfig, Some(callback)).await
 }
 
+/// Calculate start and end dates for an event type given current date, weeks ago, and duration.
+///
+/// This is a public API for calculating dates that the GUI and other consumers can use.
+///
+/// # Parameters
+/// - `today`: The reference date to calculate from
+/// - `weeks_ago`: Number of weeks to go back (0 = most recent occurrence)
+/// - `event_type_str`: The event type as a string ("saturday", "rsm7", "rsm8", "tp6")
+/// - `duration_minutes`: Duration of the event in minutes
+///
+/// # Returns
+/// A tuple of (start_datetime, end_datetime) in ISO format (YYYY-MM-DDTHH:MM)
+pub fn calculate_event_dates(
+    today: NaiveDate,
+    weeks_ago: u32,
+    event_type_str: &str,
+    duration_minutes: i64,
+) -> Result<(String, String), String> {
+    let event_type = match event_type_str.to_lowercase().as_str() {
+        "saturday" => EventType::Saturday,
+        "rsm7" => EventType::Rsm7,
+        "rsm8" => EventType::Rsm8,
+        "tp6" => EventType::Tp6,
+        _ => return Err(format!("Unknown event type: {}", event_type_str)),
+    };
+
+    let (start, end, _file_date) =
+        calculate_dates_for_event(today, weeks_ago, &event_type, duration_minutes);
+    Ok((start, end))
+}
+
 async fn run(
     mut config: ConvocationsConfig,
     origin: RunOrigin,
@@ -538,22 +569,22 @@ async fn run(
     // Normalize preset flags and duration toggles so downstream logic can rely on booleans
     if !config.active_preset.is_empty() {
         match config.active_preset.as_str() {
-            TUESDAY_7_PRESET_ID => {
+            TUESDAY_7_PRESET_NAME => {
                 config.rsm7 = true;
                 config.rsm8 = false;
                 config.tp6 = false;
             }
-            TUESDAY_8_PRESET_ID => {
+            TUESDAY_8_PRESET_NAME => {
                 config.rsm7 = false;
                 config.rsm8 = true;
                 config.tp6 = false;
             }
-            FRIDAY_6_PRESET_ID => {
+            FRIDAY_6_PRESET_NAME => {
                 config.rsm7 = false;
                 config.rsm8 = false;
                 config.tp6 = true;
             }
-            SATURDAY_PRESET_ID => {
+            SATURDAY_PRESET_NAME => {
                 config.rsm7 = false;
                 config.rsm8 = false;
                 config.tp6 = false;
@@ -666,7 +697,7 @@ async fn run(
         let duration_source = if config.duration_override.enabled {
             format!("override {:.2}h", config.duration_override.hours)
         } else if let Some(preset) = find_active_preset(&config) {
-            format!("preset {}", preset.id)
+            format!("preset {}", preset.name)
         } else {
             "default event duration".to_string()
         };
@@ -1530,15 +1561,15 @@ fn fmt_start(name: &str, value: &str, first_channel: &str, whtspc: &Regex) -> St
 }
 
 async fn apply_llm_correction(logger: &StageLogger, text: String) -> String {
-    // Try to use Google AI to apply corrections
-    match perform_google_ai_correction(logger, text.clone()).await {
+    // Try to use OpenRouter to apply corrections
+    match perform_openrouter_correction(logger, text.clone()).await {
         Ok(corrected) => {
-            println!("Applied Google AI grammar and spelling corrections");
+            println!("Applied OpenRouter grammar and spelling corrections");
             corrected
         }
         Err(e) => {
             eprintln!(
-                "Warning: Could not apply Google AI corrections: {}. Using original text.",
+                "Warning: Could not apply OpenRouter corrections: {}. Using original text.",
                 e
             );
             text
@@ -1546,20 +1577,17 @@ async fn apply_llm_correction(logger: &StageLogger, text: String) -> String {
     }
 }
 
-async fn perform_google_ai_correction(
+async fn perform_openrouter_correction(
     logger: &StageLogger,
     text: String,
 ) -> Result<String, Box<dyn std::error::Error>> {
     // Get API key from environment variable
-    let api_key = std::env::var("GOOGLE_API_KEY")
-        .map_err(|_| "GOOGLE_API_KEY environment variable not set")?;
+    let api_key = std::env::var("OPENROUTER_API_KEY")
+        .map_err(|_| "OPENROUTER_API_KEY environment variable not set")?;
 
-    // Initialize Google AI client
-    let client = GoogleClient::new(api_key).await?;
-    let model = client
-        .generative_model("gemini-2.0-flash-exp")
-        .temperature(0.3) // Lower temperature for more consistent corrections
-        .top_k(10);
+    // Get model from environment variable or use default
+    let model = std::env::var("OPENROUTER_MODEL")
+        .unwrap_or_else(|_| "google/gemini-2.5-flash-lite".to_string());
 
     // System instructions for grammar correction
     let system_prompt = r##"
@@ -1579,7 +1607,7 @@ async fn perform_google_ai_correction(
     "##;
 
     // Split text into manageable chunks if needed (to respect token limits)
-    const MAX_CHUNK_SIZE: usize = 4000; // Conservative chunk size for Gemini
+    const MAX_CHUNK_SIZE: usize = 4000; // Conservative chunk size
     let chunks: Vec<String> = if text.len() > MAX_CHUNK_SIZE {
         text.split('\n')
             .collect::<Vec<&str>>()
@@ -1621,9 +1649,8 @@ Corrected text:",
             system_prompt, chunk
         );
 
-        // Send request to Google AI
-        let response = model.generate_content(prompt).await?;
-        let corrected = response.text();
+        // Send request to OpenRouter
+        let corrected = openrouter::complete(&api_key, &model, &prompt, 0.3).await?;
 
         // Clean up the response - remove any potential markdown formatting
         let cleaned = corrected
@@ -1652,7 +1679,7 @@ mod tests {
     #[test]
     fn test_resolve_outfile_paths_uses_preset_prefix() {
         let mut config = ConvocationsConfig::default();
-        config.active_preset = TUESDAY_7_PRESET_ID.to_string();
+        config.active_preset = TUESDAY_7_PRESET_NAME.to_string();
         config.rsm7 = true;
 
         let today = NaiveDate::from_ymd_opt(2025, 10, 16).unwrap(); // Thursday
@@ -1751,7 +1778,6 @@ mod tests {
         let mut config = ConvocationsConfig::default();
         // Set up a custom preset
         config.presets.push(PresetDefinition {
-            id: "custom".to_string(),
             name: "Custom Event".to_string(),
             weekday: "monday".to_string(),
             timezone: "America/New_York".to_string(),
@@ -1761,7 +1787,7 @@ mod tests {
             default_weeks_ago: 0,
             builtin: false,
         });
-        config.active_preset = "custom".to_string();
+        config.active_preset = "Custom Event".to_string();
 
         let prefix = derive_file_prefix(&config, &EventType::Saturday);
         assert_eq!(prefix, "custom-prefix");
@@ -1781,17 +1807,17 @@ mod tests {
     #[test]
     fn test_find_active_preset() {
         let mut config = ConvocationsConfig::default();
-        config.active_preset = TUESDAY_7_PRESET_ID.to_string();
+        config.active_preset = TUESDAY_7_PRESET_NAME.to_string();
 
         let preset = find_active_preset(&config);
         assert!(preset.is_some());
-        assert_eq!(preset.unwrap().id, TUESDAY_7_PRESET_ID);
+        assert_eq!(preset.unwrap().name, TUESDAY_7_PRESET_NAME);
     }
 
     #[test]
     fn test_resolve_default_duration_from_preset() {
         let mut config = ConvocationsConfig::default();
-        config.active_preset = SATURDAY_PRESET_ID.to_string();
+        config.active_preset = SATURDAY_PRESET_NAME.to_string();
 
         let duration = resolve_default_duration_minutes(&config, &EventType::Saturday);
         assert_eq!(duration, 145); // Saturday preset has 145 minutes

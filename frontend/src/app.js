@@ -483,120 +483,18 @@ function App() {
     return 'none';
   }, [config]);
 
-  const calculateEventDates = useCallback(async (eventType, weeksAgo = 0) => {
-    if (!baseUrl || eventType === 'none') {
-      return null;
-    }
-
-    try {
-      // Create a temporary config with the selected event type
-      const tempConfig = {
-        last: weeksAgo,
-        rsm7: eventType === 'rsm7',
-        rsm8: eventType === 'rsm8',
-        tp6: eventType === 'tp6',
-      };
-
-      const response = await fetch(`${baseUrl}/api/validate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(normalizeConfigForApi(tempConfig)),
-      });
-
-      if (!response.ok) {
-        return null;
-      }
-
-      const body = await response.json();
-      // The backend should return calculated date range in the validation response
-      // For now, we'll calculate on the frontend
-      return null;
-    } catch (err) {
-      console.error('[Convocations] Failed to calculate event dates', err);
-      return null;
-    }
-  }, [baseUrl]);
-
   const applyEventSelection = useCallback((value) => {
     setConfig((prev) => {
       if (!prev) {
         return prev;
       }
 
-      const newConfig = {
+      return {
         ...prev,
         rsm7: value === 'rsm7',
         rsm8: value === 'rsm8',
         tp6: value === 'tp6',
       };
-
-      // Calculate dates for the selected event type
-      if (value !== 'none') {
-        // Calculate date based on event type and weeks ago
-        const now = new Date();
-        let targetDay, targetHour, targetMinute;
-
-        switch (value) {
-          case 'rsm7':
-            targetDay = 2; // Tuesday
-            targetHour = 19; // 7 PM ET (converted to local time would need timezone lib)
-            targetMinute = 0;
-            break;
-          case 'rsm8':
-            targetDay = 2; // Tuesday
-            targetHour = 20; // 8 PM ET
-            targetMinute = 0;
-            break;
-          case 'tp6':
-            targetDay = 5; // Friday
-            targetHour = 18; // 6 PM ET
-            targetMinute = 0;
-            break;
-          case 'saturday':
-          default:
-            targetDay = 6; // Saturday
-            targetHour = 22; // 10 PM
-            targetMinute = 0;
-        }
-
-        // Find the most recent occurrence of the target day
-        const currentDay = now.getDay();
-        let daysBack = (currentDay - targetDay + 7) % 7;
-        if (daysBack === 0 && (now.getHours() < targetHour ||
-            (now.getHours() === targetHour && now.getMinutes() < targetMinute))) {
-          daysBack = 7; // Event hasn't occurred yet this week
-        }
-
-        // Add weeks offset
-        daysBack += prev.last * 7;
-
-        const startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - daysBack);
-        startDate.setHours(targetHour, targetMinute, 0, 0);
-
-        // Calculate end date (default 1 hour for non-Saturday events)
-        const endDate = new Date(startDate);
-        if (value === 'saturday') {
-          endDate.setHours(endDate.getHours() + 2, endDate.getMinutes() + 25);
-        } else {
-          endDate.setHours(endDate.getHours() + 1);
-        }
-
-        // Format as datetime-local string (YYYY-MM-DDTHH:MM)
-        const formatDateTimeLocal = (date) => {
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const hours = String(date.getHours()).padStart(2, '0');
-          const minutes = String(date.getMinutes()).padStart(2, '0');
-          return `${year}-${month}-${day}T${hours}:${minutes}`;
-        };
-
-        newConfig.start = formatDateTimeLocal(startDate);
-        newConfig.end = formatDateTimeLocal(endDate);
-      }
-
-      return newConfig;
     });
   }, []);
 
@@ -791,14 +689,57 @@ function App() {
     }
   }, [baseUrl, configLoaded, config?.free_models_only, fetchRecommendedModels]);
 
-  // Recalculate dates when "weeks ago" changes and an event preset is selected
+  // Auto-calculate and populate start/end dates when event selection, duration, or weeks ago changes
   useEffect(() => {
-    if (!config || eventSelection === 'none') {
+    if (!baseUrl || !config || eventSelection === 'none') {
       return;
     }
-    // Trigger recalculation by reapplying the event selection
-    applyEventSelection(eventSelection);
-  }, [config?.last]);
+
+    const controller = new AbortController();
+
+    async function calculateDates() {
+      try {
+        const request = {
+          rsm7: eventSelection === 'rsm7',
+          rsm8: eventSelection === 'rsm8',
+          tp6: eventSelection === 'tp6',
+          one_hour: Boolean(config.one_hour),
+          two_hours: Boolean(config.two_hours),
+          last: config.last ?? 0,
+        };
+
+        const response = await fetch(`${baseUrl}/api/calculate-dates`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(request),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          console.error('[Convocations] Failed to calculate dates', response.status);
+          return;
+        }
+
+        const { start, end } = await response.json();
+
+        setConfig((prev) => {
+          if (!prev) return prev;
+          return { ...prev, start, end };
+        });
+      } catch (err) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        console.error('[Convocations] Error calculating dates', err);
+      }
+    }
+
+    calculateDates();
+
+    return () => {
+      controller.abort();
+    };
+  }, [baseUrl, config?.last, config?.one_hour, config?.two_hours, eventSelection]);
 
   const handleSave = useCallback(async () => {
     if (!baseUrl || !config) {

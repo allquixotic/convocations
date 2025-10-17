@@ -1,0 +1,343 @@
+use serde::{Deserialize, Serialize};
+use std::error::Error as StdError;
+use std::fmt;
+
+/// Hardcoded recommended models (updated as of Jan 2025)
+pub const RECOMMENDED_MODELS: &[(&str, &str, bool)] = &[
+    // (model_id, display_name, is_free)
+    ("openai/gpt-5-nano", "GPT-5 Nano", false),
+    (
+        "google/gemini-2.5-flash-lite",
+        "Gemini 2.5 Flash Lite",
+        false,
+    ),
+    ("anthropic/claude-4.5-haiku", "Claude 4.5 Haiku", false),
+    ("x-ai/grok-4-fast", "Grok 4 Fast", false),
+    ("google/gemini-2.5-flash", "Gemini 2.5 Flash", false),
+];
+
+/// Preferred providers for free models
+pub const PREFERRED_FREE_PROVIDERS: &[&str] =
+    &["x-ai", "google", "openai", "anthropic", "moonshot"];
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelInfo {
+    pub id: String,
+    pub name: String,
+    pub pricing: ModelPricing,
+    pub context_length: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelPricing {
+    pub prompt: String,
+    pub completion: String,
+}
+
+impl ModelInfo {
+    pub fn is_free(&self) -> bool {
+        self.pricing.prompt == "0" && self.pricing.completion == "0"
+    }
+
+    pub fn provider(&self) -> &str {
+        self.id.split('/').next().unwrap_or(&self.id)
+    }
+}
+
+#[derive(Debug)]
+pub struct OpenRouterError {
+    message: String,
+}
+
+impl fmt::Display for OpenRouterError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "OpenRouter error: {}", self.message)
+    }
+}
+
+impl StdError for OpenRouterError {}
+
+impl From<String> for OpenRouterError {
+    fn from(msg: String) -> Self {
+        OpenRouterError { message: msg }
+    }
+}
+
+impl From<&str> for OpenRouterError {
+    fn from(msg: &str) -> Self {
+        OpenRouterError {
+            message: msg.to_string(),
+        }
+    }
+}
+
+impl From<reqwest::Error> for OpenRouterError {
+    fn from(err: reqwest::Error) -> Self {
+        OpenRouterError {
+            message: format!("HTTP error: {}", err),
+        }
+    }
+}
+
+/// Generate OAuth2 PKCE code verifier and challenge
+pub fn generate_pkce_pair() -> (String, String) {
+    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+    use rand::Rng;
+    use sha2::{Digest, Sha256};
+
+    // Generate code verifier (43-128 characters, base64url encoded)
+    let verifier_bytes: Vec<u8> = rand::thread_rng()
+        .sample_iter(rand::distributions::Standard)
+        .take(32)
+        .collect();
+    let code_verifier = URL_SAFE_NO_PAD.encode(&verifier_bytes);
+
+    // Generate code challenge (SHA256 hash of verifier, base64url encoded)
+    let mut hasher = Sha256::new();
+    hasher.update(code_verifier.as_bytes());
+    let challenge_bytes = hasher.finalize();
+    let code_challenge = URL_SAFE_NO_PAD.encode(&challenge_bytes);
+
+    (code_verifier, code_challenge)
+}
+
+/// Build OAuth2 authorization URL for OpenRouter
+pub fn build_oauth_url(code_challenge: &str, redirect_uri: &str) -> String {
+    format!(
+        "https://openrouter.ai/auth?response_type=code&client_id=convocations&redirect_uri={}&code_challenge={}&code_challenge_method=S256",
+        urlencoding::encode(redirect_uri),
+        urlencoding::encode(code_challenge)
+    )
+}
+
+/// Fetch the list of available models from OpenRouter API
+pub async fn fetch_models() -> Result<Vec<ModelInfo>, OpenRouterError> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://openrouter.ai/api/v1/models")
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(OpenRouterError::from(format!(
+            "Failed to fetch models: {}",
+            response.status()
+        )));
+    }
+
+    #[derive(Deserialize)]
+    struct ModelsResponse {
+        data: Vec<ApiModel>,
+    }
+
+    #[derive(Deserialize)]
+    struct ApiModel {
+        id: String,
+        name: Option<String>,
+        pricing: ApiPricing,
+        context_length: Option<u32>,
+    }
+
+    #[derive(Deserialize)]
+    struct ApiPricing {
+        prompt: String,
+        completion: String,
+    }
+
+    let body: ModelsResponse = response.json().await?;
+    let models = body
+        .data
+        .into_iter()
+        .map(|m| ModelInfo {
+            id: m.id.clone(),
+            name: m.name.unwrap_or(m.id),
+            pricing: ModelPricing {
+                prompt: m.pricing.prompt,
+                completion: m.pricing.completion,
+            },
+            context_length: m.context_length,
+        })
+        .collect();
+
+    Ok(models)
+}
+
+/// Filter models based on free/paid preference and preferred providers
+pub fn filter_models(models: Vec<ModelInfo>, free_only: bool) -> Vec<ModelInfo> {
+    let mut filtered: Vec<ModelInfo> = if free_only {
+        models.into_iter().filter(|m| m.is_free()).collect()
+    } else {
+        models
+    };
+
+    // Sort by preferred providers for free models, then alphabetically
+    if free_only {
+        filtered.sort_by(|a, b| {
+            let a_preferred = PREFERRED_FREE_PROVIDERS
+                .iter()
+                .position(|&p| p == a.provider());
+            let b_preferred = PREFERRED_FREE_PROVIDERS
+                .iter()
+                .position(|&p| p == b.provider());
+
+            match (a_preferred, b_preferred) {
+                (Some(a_pos), Some(b_pos)) => a_pos.cmp(&b_pos),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => a.name.cmp(&b.name),
+            }
+        });
+    } else {
+        filtered.sort_by(|a, b| a.name.cmp(&b.name));
+    }
+
+    filtered
+}
+
+/// Get recommended models as a static list
+pub fn get_recommended_models(free_only: bool) -> Vec<(String, String)> {
+    RECOMMENDED_MODELS
+        .iter()
+        .filter(|(_, _, is_free)| !free_only || *is_free)
+        .map(|(id, name, _)| (id.to_string(), name.to_string()))
+        .collect()
+}
+
+/// Send a completion request to OpenRouter
+pub async fn complete(
+    api_key: &str,
+    model: &str,
+    prompt: &str,
+    temperature: f32,
+) -> Result<String, OpenRouterError> {
+    #[derive(Serialize)]
+    struct CompletionRequest {
+        model: String,
+        messages: Vec<Message>,
+        temperature: f32,
+    }
+
+    #[derive(Serialize)]
+    struct Message {
+        role: String,
+        content: String,
+    }
+
+    #[derive(Deserialize)]
+    struct CompletionResponse {
+        choices: Vec<Choice>,
+    }
+
+    #[derive(Deserialize)]
+    struct Choice {
+        message: ResponseMessage,
+    }
+
+    #[derive(Deserialize)]
+    struct ResponseMessage {
+        content: String,
+    }
+
+    let client = reqwest::Client::new();
+
+    let request_body = CompletionRequest {
+        model: model.to_string(),
+        messages: vec![Message {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+        }],
+        temperature,
+    };
+
+    let response = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .json(&request_body)
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(OpenRouterError::from(format!(
+            "OpenRouter API error: {}",
+            response.status()
+        )));
+    }
+
+    let completion: CompletionResponse = response.json().await?;
+
+    if let Some(choice) = completion.choices.first() {
+        return Ok(choice.message.content.clone());
+    }
+
+    Err(OpenRouterError::from("No response content from OpenRouter"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pkce_generation() {
+        let (verifier, challenge) = generate_pkce_pair();
+        assert!(!verifier.is_empty());
+        assert!(!challenge.is_empty());
+        assert_ne!(verifier, challenge);
+    }
+
+    #[test]
+    fn test_oauth_url_generation() {
+        let url = build_oauth_url("test_challenge", "http://localhost:3000/callback");
+        assert!(url.contains("openrouter.ai/auth"));
+        assert!(url.contains("code_challenge=test_challenge"));
+        assert!(url.contains("redirect_uri="));
+    }
+
+    #[test]
+    fn test_recommended_models() {
+        let all = get_recommended_models(false);
+        assert!(!all.is_empty());
+
+        let free_only = get_recommended_models(true);
+        assert!(free_only.len() <= all.len());
+    }
+
+    #[test]
+    fn test_model_is_free() {
+        let free_model = ModelInfo {
+            id: "test/free".to_string(),
+            name: "Free Model".to_string(),
+            pricing: ModelPricing {
+                prompt: "0".to_string(),
+                completion: "0".to_string(),
+            },
+            context_length: None,
+        };
+        assert!(free_model.is_free());
+
+        let paid_model = ModelInfo {
+            id: "test/paid".to_string(),
+            name: "Paid Model".to_string(),
+            pricing: ModelPricing {
+                prompt: "0.001".to_string(),
+                completion: "0.002".to_string(),
+            },
+            context_length: None,
+        };
+        assert!(!paid_model.is_free());
+    }
+
+    #[test]
+    fn test_model_provider() {
+        let model = ModelInfo {
+            id: "openai/gpt-4".to_string(),
+            name: "GPT-4".to_string(),
+            pricing: ModelPricing {
+                prompt: "0.03".to_string(),
+                completion: "0.06".to_string(),
+            },
+            context_length: Some(8192),
+        };
+        assert_eq!(model.provider(), "openai");
+    }
+}

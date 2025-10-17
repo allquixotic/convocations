@@ -9,10 +9,10 @@ const CONFIG_DIR_NAME: &str = "convocations";
 const CONFIG_FILE_NAME: &str = "config.toml";
 const LEGACY_SETTINGS_FILE_NAME: &str = "settings.json";
 const CURRENT_SCHEMA_VERSION: u32 = 1;
-pub const SATURDAY_PRESET_ID: &str = "saturday-10pm-midnight";
-pub const TUESDAY_7_PRESET_ID: &str = "tuesday-7pm";
-pub const TUESDAY_8_PRESET_ID: &str = "tuesday-8pm";
-pub const FRIDAY_6_PRESET_ID: &str = "friday-6pm";
+pub const SATURDAY_PRESET_NAME: &str = "Saturday 10pm-midnight";
+pub const TUESDAY_7_PRESET_NAME: &str = "Tuesday 7pm";
+pub const TUESDAY_8_PRESET_NAME: &str = "Tuesday 8pm";
+pub const FRIDAY_6_PRESET_NAME: &str = "Friday 6pm";
 
 /// Result returned by [`load_config`], capturing the source and any non-fatal issues.
 #[derive(Debug, Clone)]
@@ -118,6 +118,12 @@ pub struct RuntimePreferences {
     pub outfile_override: Option<String>,
     #[serde(default)]
     pub duration_override: DurationOverride,
+    #[serde(default)]
+    pub openrouter_api_key: Option<String>,
+    #[serde(default)]
+    pub openrouter_model: Option<String>,
+    #[serde(default)]
+    pub free_models_only: bool,
 }
 
 impl Default for RuntimePreferences {
@@ -134,6 +140,9 @@ impl Default for RuntimePreferences {
             format_dialogue_enabled: true,
             outfile_override: None,
             duration_override: DurationOverride::default(),
+            openrouter_api_key: None,
+            openrouter_model: None,
+            free_models_only: false,
         }
     }
 }
@@ -144,7 +153,7 @@ impl RuntimePreferences {
     }
 
     fn default_active_preset() -> String {
-        SATURDAY_PRESET_ID.to_string()
+        SATURDAY_PRESET_NAME.to_string()
     }
 
     const fn default_use_ai_corrections() -> bool {
@@ -233,7 +242,6 @@ impl Default for ThemePreference {
 /// Preset definition shared between CLI and GUI.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresetDefinition {
-    pub id: String,
     pub name: String,
     pub weekday: String,
     pub timezone: String,
@@ -249,8 +257,7 @@ pub struct PresetDefinition {
 pub(crate) fn default_presets() -> Vec<PresetDefinition> {
     vec![
         PresetDefinition {
-            id: SATURDAY_PRESET_ID.to_string(),
-            name: "Saturday 10pm-midnight".to_string(),
+            name: SATURDAY_PRESET_NAME.to_string(),
             weekday: "saturday".to_string(),
             timezone: "America/New_York".to_string(),
             start_time: "22:00".to_string(),
@@ -260,8 +267,7 @@ pub(crate) fn default_presets() -> Vec<PresetDefinition> {
             builtin: true,
         },
         PresetDefinition {
-            id: TUESDAY_7_PRESET_ID.to_string(),
-            name: "Tuesday 7pm".to_string(),
+            name: TUESDAY_7_PRESET_NAME.to_string(),
             weekday: "tuesday".to_string(),
             timezone: "America/New_York".to_string(),
             start_time: "19:00".to_string(),
@@ -271,8 +277,7 @@ pub(crate) fn default_presets() -> Vec<PresetDefinition> {
             builtin: true,
         },
         PresetDefinition {
-            id: TUESDAY_8_PRESET_ID.to_string(),
-            name: "Tuesday 8pm".to_string(),
+            name: TUESDAY_8_PRESET_NAME.to_string(),
             weekday: "tuesday".to_string(),
             timezone: "America/New_York".to_string(),
             start_time: "20:00".to_string(),
@@ -282,8 +287,7 @@ pub(crate) fn default_presets() -> Vec<PresetDefinition> {
             builtin: true,
         },
         PresetDefinition {
-            id: FRIDAY_6_PRESET_ID.to_string(),
-            name: "Friday 6pm".to_string(),
+            name: FRIDAY_6_PRESET_NAME.to_string(),
             weekday: "friday".to_string(),
             timezone: "America/New_York".to_string(),
             start_time: "18:00".to_string(),
@@ -470,12 +474,12 @@ fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>) {
         return (config, warnings);
     }
 
-    let mut preset_ids = HashSet::new();
+    let mut preset_names = HashSet::new();
     let mut duplicates = HashSet::new();
 
     config.presets.retain(|preset| {
-        if !preset_ids.insert(preset.id.clone()) {
-            duplicates.insert(preset.id.clone());
+        if !preset_names.insert(preset.name.clone()) {
+            duplicates.insert(preset.name.clone());
             false
         } else {
             true
@@ -484,7 +488,7 @@ fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>) {
 
     if !duplicates.is_empty() {
         warnings.push(format!(
-            "Removed duplicate preset IDs: {}",
+            "Removed duplicate preset names: {}",
             duplicates.into_iter().collect::<Vec<_>>().join(", ")
         ));
     }
@@ -493,24 +497,24 @@ fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>) {
     let mut existing: HashMap<String, PresetDefinition> = config
         .presets
         .iter()
-        .map(|p| (p.id.clone(), p.clone()))
+        .map(|p| (p.name.clone(), p.clone()))
         .collect();
     for builtin in default_presets() {
-        existing.entry(builtin.id.clone()).or_insert(builtin);
+        existing.entry(builtin.name.clone()).or_insert(builtin);
     }
     config.presets = existing.into_values().collect();
-    config.presets.sort_by(|a, b| a.id.cmp(&b.id));
+    config.presets.sort_by(|a, b| a.name.cmp(&b.name));
 
     if !config
         .presets
         .iter()
-        .any(|preset| preset.id == config.runtime.active_preset)
+        .any(|preset| preset.name == config.runtime.active_preset)
     {
         warnings.push(format!(
             "Active preset '{}' not found. Resetting to default preset '{}'.",
-            config.runtime.active_preset, SATURDAY_PRESET_ID
+            config.runtime.active_preset, SATURDAY_PRESET_NAME
         ));
-        config.runtime.active_preset = SATURDAY_PRESET_ID.to_string();
+        config.runtime.active_preset = SATURDAY_PRESET_NAME.to_string();
     }
 
     // Validate preset definitions
@@ -518,17 +522,23 @@ fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>) {
         if preset.duration_minutes == 0 {
             warnings.push(format!(
                 "Preset '{}' has invalid duration_minutes (0). Resetting to 60.",
-                preset.id
+                preset.name
             ));
             preset.duration_minutes = 60;
         }
         if preset.file_prefix.trim().is_empty() {
             warnings.push(format!(
-                "Preset '{}' has empty file_prefix. Setting to preset ID.",
-                preset.id
+                "Preset '{}' has empty file_prefix. This preset will be removed.",
+                preset.name
             ));
-            preset.file_prefix = preset.id.clone();
         }
+    }
+
+    // Remove presets with empty file_prefix (now a hard requirement)
+    let initial_count = config.presets.len();
+    config.presets.retain(|p| !p.file_prefix.trim().is_empty());
+    if config.presets.len() < initial_count {
+        warnings.push("Removed presets with empty file_prefix (required field)".to_string());
     }
 
     let duration_hours = config.runtime.duration_override.hours;
@@ -597,13 +607,13 @@ fn migrate_legacy_config(legacy: ConvocationsConfig) -> FileConfig {
     };
 
     runtime.active_preset = if legacy.rsm7 {
-        TUESDAY_7_PRESET_ID.to_string()
+        TUESDAY_7_PRESET_NAME.to_string()
     } else if legacy.rsm8 {
-        TUESDAY_8_PRESET_ID.to_string()
+        TUESDAY_8_PRESET_NAME.to_string()
     } else if legacy.tp6 {
-        FRIDAY_6_PRESET_ID.to_string()
+        FRIDAY_6_PRESET_NAME.to_string()
     } else {
-        SATURDAY_PRESET_ID.to_string()
+        SATURDAY_PRESET_NAME.to_string()
     };
 
     FileConfig {
@@ -679,7 +689,7 @@ pub fn runtime_preferences_to_convocations(
 
 fn set_event_flags_for_preset(
     config: &mut ConvocationsConfig,
-    preset_id: &str,
+    preset_name: &str,
     presets: &[PresetDefinition],
     warnings: &mut Vec<String>,
 ) {
@@ -687,7 +697,7 @@ fn set_event_flags_for_preset(
     config.rsm8 = false;
     config.tp6 = false;
 
-    let preset = presets.iter().find(|preset| preset.id == preset_id);
+    let preset = presets.iter().find(|preset| preset.name == preset_name);
     match preset {
         Some(preset) => match preset.file_prefix.as_str() {
             "rsm7" => config.rsm7 = true,
@@ -696,12 +706,12 @@ fn set_event_flags_for_preset(
             "conv" => { /* default Saturday */ }
             other => warnings.push(format!(
                 "Preset '{}' uses unrecognised file prefix '{}'; falling back to Saturday configuration.",
-                preset_id, other
+                preset_name, other
             )),
         },
         None => warnings.push(format!(
             "Preset '{}' not found. Falling back to Saturday configuration.",
-            preset_id
+            preset_name
         )),
     }
 }
@@ -811,11 +821,11 @@ pub fn runtime_overrides_from_convocations(config: &ConvocationsConfig) -> Runti
     if config.active_preset != defaults.active_preset {
         overrides.active_preset = Some(config.active_preset.clone());
     } else if config.rsm7 && config.rsm7 != defaults.rsm7 {
-        overrides.active_preset = Some(TUESDAY_7_PRESET_ID.to_string());
+        overrides.active_preset = Some(TUESDAY_7_PRESET_NAME.to_string());
     } else if config.rsm8 && config.rsm8 != defaults.rsm8 {
-        overrides.active_preset = Some(TUESDAY_8_PRESET_ID.to_string());
+        overrides.active_preset = Some(TUESDAY_8_PRESET_NAME.to_string());
     } else if config.tp6 && config.tp6 != defaults.tp6 {
-        overrides.active_preset = Some(FRIDAY_6_PRESET_ID.to_string());
+        overrides.active_preset = Some(FRIDAY_6_PRESET_NAME.to_string());
     }
     if config.duration_override != defaults.duration_override {
         overrides.duration_override = Some(config.duration_override.clone());
@@ -868,8 +878,7 @@ mod tests {
         let mut config = FileConfig::default();
         // Add a duplicate preset
         config.presets.push(PresetDefinition {
-            id: SATURDAY_PRESET_ID.to_string(),
-            name: "Duplicate".to_string(),
+            name: SATURDAY_PRESET_NAME.to_string(),
             weekday: "saturday".to_string(),
             timezone: "America/New_York".to_string(),
             start_time: "22:00".to_string(),
@@ -886,7 +895,7 @@ mod tests {
             sanitized
                 .presets
                 .iter()
-                .filter(|p| p.id == SATURDAY_PRESET_ID)
+                .filter(|p| p.name == SATURDAY_PRESET_NAME)
                 .count(),
             1,
             "Should have exactly one instance of the Saturday preset"
@@ -895,7 +904,7 @@ mod tests {
         // Should have a warning about duplicates
         assert!(
             warnings.iter().any(|w| w.contains("duplicate")),
-            "Should warn about duplicate preset IDs"
+            "Should warn about duplicate preset names"
         );
     }
 
@@ -904,7 +913,6 @@ mod tests {
         let mut config = FileConfig::default();
         // Create a preset with zero duration
         config.presets.push(PresetDefinition {
-            id: "bad-preset".to_string(),
             name: "Bad Preset".to_string(),
             weekday: "monday".to_string(),
             timezone: "America/New_York".to_string(),
@@ -918,7 +926,7 @@ mod tests {
         let (sanitized, warnings) = sanitize_config(config);
 
         // Should have fixed the duration
-        let bad_preset = sanitized.presets.iter().find(|p| p.id == "bad-preset");
+        let bad_preset = sanitized.presets.iter().find(|p| p.name == "Bad Preset");
         assert!(bad_preset.is_some());
         assert_eq!(
             bad_preset.unwrap().duration_minutes,
@@ -930,7 +938,7 @@ mod tests {
         assert!(
             warnings
                 .iter()
-                .any(|w| w.contains("bad-preset") && w.contains("duration_minutes")),
+                .any(|w| w.contains("Bad Preset") && w.contains("duration_minutes")),
             "Should warn about zero duration"
         );
     }
@@ -940,7 +948,6 @@ mod tests {
         let mut config = FileConfig::default();
         // Create a preset with empty prefix
         config.presets.push(PresetDefinition {
-            id: "no-prefix".to_string(),
             name: "No Prefix".to_string(),
             weekday: "tuesday".to_string(),
             timezone: "America/New_York".to_string(),
@@ -953,20 +960,18 @@ mod tests {
 
         let (sanitized, warnings) = sanitize_config(config);
 
-        // Should have fixed the prefix
-        let preset = sanitized.presets.iter().find(|p| p.id == "no-prefix");
-        assert!(preset.is_some());
-        assert_eq!(
-            preset.unwrap().file_prefix,
-            "no-prefix",
-            "Should use preset ID"
+        // Should have removed the preset with empty prefix
+        let preset = sanitized.presets.iter().find(|p| p.name == "No Prefix");
+        assert!(
+            preset.is_none(),
+            "Preset with empty prefix should be removed"
         );
 
         // Should have a warning
         assert!(
             warnings
                 .iter()
-                .any(|w| w.contains("no-prefix") && w.contains("file_prefix")),
+                .any(|w| w.contains("No Prefix") && w.contains("file_prefix")),
             "Should warn about empty prefix"
         );
     }
@@ -1021,7 +1026,7 @@ mod tests {
         let (sanitized, warnings) = sanitize_config(config);
 
         // Should have reset to default
-        assert_eq!(sanitized.runtime.active_preset, SATURDAY_PRESET_ID);
+        assert_eq!(sanitized.runtime.active_preset, SATURDAY_PRESET_NAME);
 
         // Should have a warning
         assert!(
@@ -1085,7 +1090,6 @@ mod tests {
 
         // Add a custom user preset
         config.presets.push(PresetDefinition {
-            id: "custom-wednesday".to_string(),
             name: "Wednesday Event".to_string(),
             weekday: "wednesday".to_string(),
             timezone: "America/Los_Angeles".to_string(),
@@ -1103,7 +1107,7 @@ mod tests {
             sanitized
                 .presets
                 .iter()
-                .any(|p| p.id == "custom-wednesday"),
+                .any(|p| p.name == "Wednesday Event"),
             "Custom preset should be present"
         );
         assert!(warnings.is_empty(), "Should not generate warnings");
@@ -1115,7 +1119,6 @@ mod tests {
 
         // Add a custom preset
         config.presets.push(PresetDefinition {
-            id: "temporary-preset".to_string(),
             name: "Temporary".to_string(),
             weekday: "thursday".to_string(),
             timezone: "America/New_York".to_string(),
@@ -1127,15 +1130,12 @@ mod tests {
         });
 
         // Remove it (simulate deletion)
-        config.presets.retain(|p| p.id != "temporary-preset");
+        config.presets.retain(|p| p.name != "Temporary");
 
         let (sanitized, _) = sanitize_config(config);
 
         assert!(
-            !sanitized
-                .presets
-                .iter()
-                .any(|p| p.id == "temporary-preset"),
+            !sanitized.presets.iter().any(|p| p.name == "Temporary"),
             "Deleted preset should not be present"
         );
 
@@ -1144,7 +1144,7 @@ mod tests {
             sanitized
                 .presets
                 .iter()
-                .any(|p| p.id == SATURDAY_PRESET_ID),
+                .any(|p| p.name == SATURDAY_PRESET_NAME),
             "Built-in presets should remain"
         );
     }
@@ -1155,7 +1155,6 @@ mod tests {
 
         // Add a custom preset
         config.presets.push(PresetDefinition {
-            id: "editable-preset".to_string(),
             name: "Original Name".to_string(),
             weekday: "monday".to_string(),
             timezone: "America/New_York".to_string(),
@@ -1167,7 +1166,11 @@ mod tests {
         });
 
         // Edit it
-        if let Some(preset) = config.presets.iter_mut().find(|p| p.id == "editable-preset") {
+        if let Some(preset) = config
+            .presets
+            .iter_mut()
+            .find(|p| p.name == "Original Name")
+        {
             preset.name = "Updated Name".to_string();
             preset.duration_minutes = 120;
             preset.file_prefix = "updated".to_string();
@@ -1175,10 +1178,7 @@ mod tests {
 
         let (sanitized, warnings) = sanitize_config(config);
 
-        let edited = sanitized
-            .presets
-            .iter()
-            .find(|p| p.id == "editable-preset");
+        let edited = sanitized.presets.iter().find(|p| p.name == "Updated Name");
         assert!(edited.is_some());
         assert_eq!(edited.unwrap().name, "Updated Name");
         assert_eq!(edited.unwrap().duration_minutes, 120);
@@ -1245,7 +1245,10 @@ mod tests {
                     sanitized.runtime.duration_override.hours,
                     DurationOverride::default_hours()
                 );
-                assert!(!warnings.is_empty(), "Should have warnings for invalid hours");
+                assert!(
+                    !warnings.is_empty(),
+                    "Should have warnings for invalid hours"
+                );
             }
         }
     }
@@ -1276,14 +1279,14 @@ mod tests {
         let mut warnings = Vec::new();
 
         // Default should be Saturday
-        assert_eq!(config.active_preset, SATURDAY_PRESET_ID);
+        assert_eq!(config.active_preset, SATURDAY_PRESET_NAME);
 
         let mut overrides = RuntimeOverrides::default();
-        overrides.active_preset = Some(TUESDAY_7_PRESET_ID.to_string());
+        overrides.active_preset = Some(TUESDAY_7_PRESET_NAME.to_string());
 
         apply_runtime_overrides(&mut config, &overrides, &presets, &mut warnings);
 
-        assert_eq!(config.active_preset, TUESDAY_7_PRESET_ID);
+        assert_eq!(config.active_preset, TUESDAY_7_PRESET_NAME);
         assert!(config.rsm7, "RSM7 flag should be set");
         assert!(!config.rsm8, "RSM8 flag should not be set");
         assert!(!config.tp6, "TP6 flag should not be set");
@@ -1313,7 +1316,6 @@ mod tests {
 
         let mut new_presets = default_presets();
         new_presets.push(PresetDefinition {
-            id: "new-preset".to_string(),
             name: "New Preset".to_string(),
             weekday: "sunday".to_string(),
             timezone: "America/Chicago".to_string(),
@@ -1335,6 +1337,6 @@ mod tests {
 
         // UI and presets should be updated
         assert_eq!(config.ui.theme, ThemePreference::Light);
-        assert!(config.presets.iter().any(|p| p.id == "new-preset"));
+        assert!(config.presets.iter().any(|p| p.name == "New Preset"));
     }
 }

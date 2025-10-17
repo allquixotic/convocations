@@ -16,7 +16,7 @@ edition = "2024"
 chrono = "0"
 chrono-tz = "0"
 clap = { version = "4", features = ["derive"] }
-google-ai-rs = { version = "0", features = ["serde", "tls-native-roots"] }
+openrouter-rs = "0"
 regex = "1"
 shellexpand = "3"
 serde = { version = "1", features = ["derive"] }
@@ -25,6 +25,11 @@ termdiff = "4"
 tokio = { version = "1", features = ["full"] }
 toml = "0.9.8"
 dirs = "6"
+base64 = "0"
+sha2 = "0"
+rand = "0"
+reqwest = { version = "0", features = ["json"] }
+urlencoding = "2"
 
 [profile.dev]
 incremental = true
