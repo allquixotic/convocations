@@ -126,6 +126,8 @@ function App() {
   const [loadError, setLoadError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState(null);
+  const [ui, setUi] = useState({ theme: 'dark' });
+  const [presets, setPresets] = useState([]);
   const [derived, setDerived] = useState({ outfile: null });
   const [configLoaded, setConfigLoaded] = useState(false);
   const [validation, setValidation] = useState(null);
@@ -143,6 +145,12 @@ function App() {
   useEffect(() => {
     activeJobIdRef.current = processingState.jobId;
   }, [processingState.jobId]);
+
+  // Apply theme to document element
+  useEffect(() => {
+    const theme = ui?.theme?.toLowerCase() || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [ui]);
 
   const outputPlaceholder = useMemo(() => {
     if (derived?.outfile?.default) {
@@ -195,10 +203,13 @@ function App() {
           return;
         }
 
-        const configPayload = settingsBody?.config ?? settingsBody;
+        const fileConfig = settingsBody?.config ?? settingsBody;
+        const runtimeConfig = fileConfig?.runtime ?? fileConfig;
 
         setHealth(healthBody);
-        setConfig(deserializeConfig(configPayload));
+        setConfig(deserializeConfig(runtimeConfig));
+        setUi(fileConfig?.ui ?? { theme: 'dark' });
+        setPresets(fileConfig?.presets ?? []);
         setDerived({
           outfile: settingsBody?.outfile ?? null,
         });
@@ -452,17 +463,33 @@ function App() {
     [],
   );
 
+  const handleThemeToggle = useCallback(() => {
+    setUi((prev) => {
+      const currentTheme = prev?.theme?.toLowerCase() || 'dark';
+      const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      return { ...prev, theme: nextTheme };
+    });
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (!baseUrl || !config) {
       return;
     }
     try {
       setSaveState({ status: 'saving', message: null });
-      const payload = normalizeConfigForApi(config);
+
+      // Build FileConfig with runtime (ephemeral), ui (persisted), and presets (persisted)
+      const fileConfig = {
+        schema_version: 1,
+        runtime: normalizeConfigForApi(config),
+        ui: ui,
+        presets: presets,
+      };
+
       const response = await fetch(`${baseUrl}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(fileConfig),
       });
       if (!response.ok) {
         throw new Error(`Save failed (${response.status})`);
@@ -478,7 +505,7 @@ function App() {
         message: err.message ?? String(err),
       });
     }
-  }, [baseUrl, config]);
+  }, [baseUrl, config, ui, presets]);
 
   const handleProcess = useCallback(async () => {
     if (!baseUrl || !config) {
@@ -698,8 +725,27 @@ function App() {
     h(
       'section',
       { class: 'hero' },
-      h('h1', null, 'Convocations'),
-      h('p', null, 'An Elder Scrolls Online chat log formatter'),
+      h(
+        'div',
+        { style: 'display: flex; justify-content: space-between; align-items: center;' },
+        h(
+          'div',
+          null,
+          h('h1', null, 'Convocations'),
+          h('p', null, 'An Elder Scrolls Online chat log formatter'),
+        ),
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'button button--secondary',
+            onClick: handleThemeToggle,
+            title: 'Toggle theme',
+            style: 'padding: 8px 12px;',
+          },
+          ui?.theme?.toLowerCase() === 'dark' ? '☀️ Light' : '🌙 Dark',
+        ),
+      ),
     ),
     loading
       ? h(

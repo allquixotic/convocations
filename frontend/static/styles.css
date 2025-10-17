@@ -1,500 +1,325 @@
-:root {
-    color-scheme: light dark;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: radial-gradient(circle at top, #764ba2 0%, #3b3f7f 45%, #101225 100%);
-    min-height: 100vh;
-}
+/* Convocations custom styles - built on Pico CSS v2.1.1 */
 
-body {
-    margin: 0;
-    padding: 32px 16px 48px;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    color: #eef2ff;
-}
-
+/* Container layout */
 main.container {
-    width: min(960px, 100%);
-    background: rgba(15, 18, 40, 0.9);
-    backdrop-filter: blur(18px);
-    border-radius: 20px;
-    padding: 36px;
-    box-shadow: 0 18px 80px rgba(0, 0, 0, 0.45);
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--pico-spacing);
 }
 
-main.container > section + section {
-    margin-top: 0;
+/* Hero section */
+.hero {
+  margin-bottom: var(--pico-spacing);
 }
 
 .hero h1 {
-    margin-bottom: 8px;
-    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+  margin-bottom: 0.5rem;
 }
 
 .hero p {
-    margin-bottom: 24px;
-    color: rgba(226, 232, 255, 0.78);
+  margin-bottom: 0;
+  opacity: 0.8;
 }
 
-.status-card,
-.section-card {
-    background: linear-gradient(145deg, rgba(118, 75, 162, 0.22), rgba(74, 110, 224, 0.18));
-    padding: 24px;
-    border-radius: 16px;
-    border: 1px solid rgba(117, 82, 193, 0.25);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.status-card h2,
-.section-card h2 {
-    margin-top: 0;
-    margin-bottom: 12px;
-    font-size: 1.25rem;
-}
-
-.status-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    font-size: 0.9rem;
-    color: rgba(226, 232, 255, 0.75);
-}
-
-.status-line {
-    margin: 0;
-    font-weight: 600;
-    color: #f8fafc;
-}
-
-.status-line {
-    margin-bottom: 12px;
-}
-
-.status-json {
-    margin: 0;
-    background: rgba(7, 9, 22, 0.7);
-    border-radius: 12px;
-    padding: 16px;
-    font-size: 0.9rem;
-    color: #cbd5f5;
-    overflow-x: auto;
+/* Status indicators */
+.status-ok {
+  color: var(--pico-ins-color);
+  font-weight: 600;
 }
 
 .status-error {
-    margin: 12px 0 0;
-    color: #fca5a5;
-    font-weight: 600;
-}
-
-.status-ok {
-    color: #bbf7d0;
-    font-weight: 600;
+  color: var(--pico-del-color);
+  font-weight: 600;
 }
 
 .muted {
-    color: rgba(226, 232, 255, 0.65);
-    margin: 0;
+  opacity: 0.65;
+  margin: 0;
 }
 
-.config-form {
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
-}
-
+/* Form enhancements */
 .form-banner {
-    border-radius: 12px;
-    padding: 12px 16px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    border: 1px solid transparent;
-}
-
-.form-banner + .form-banner {
-    margin-top: 8px;
+  padding: calc(var(--pico-spacing) * 0.75);
+  border-radius: var(--pico-border-radius);
+  margin-bottom: var(--pico-spacing);
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .form-banner--pending {
-    background: rgba(14, 116, 144, 0.35);
-    border-color: rgba(6, 182, 212, 0.35);
-    color: #a5f3fc;
+  background-color: var(--pico-primary-background);
+  color: var(--pico-primary);
+  border: 1px solid var(--pico-primary);
 }
 
 .form-banner--error {
-    background: rgba(127, 29, 29, 0.35);
-    border-color: rgba(248, 113, 113, 0.45);
-    color: #fecaca;
+  background-color: var(--pico-del-background);
+  color: var(--pico-del-color);
+  border: 1px solid var(--pico-del-color);
 }
 
 .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+  margin-bottom: calc(var(--pico-spacing) * 1.5);
 }
 
 .group-title {
-    margin: 0;
-    font-size: 1.05rem;
-    color: rgba(226, 232, 255, 0.86);
+  font-size: 1.05rem;
+  margin-bottom: var(--pico-spacing);
+  opacity: 0.9;
 }
 
 .field-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--pico-spacing);
 }
 
 .field {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .field--full {
-    grid-column: 1 / -1;
+  grid-column: 1 / -1;
 }
 
 .field-label {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: rgba(226, 232, 255, 0.65);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+  font-weight: 600;
 }
 
-.field input,
-.field select {
-    border: 1px solid rgba(148, 163, 235, 0.35);
-    border-radius: 10px;
-    padding: 10px 12px;
-    background: rgba(12, 16, 40, 0.85);
-    color: #eef2ff;
-    font-size: 0.95rem;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
+.field-hint {
+  font-size: 0.8rem;
+  opacity: 0.6;
+  margin-top: 0.25rem;
 }
 
-.field input:focus,
-.field select:focus {
-    border-color: rgba(168, 196, 255, 0.9);
-    box-shadow: 0 0 0 2px rgba(168, 196, 255, 0.25);
+.field-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
 }
 
-.field--invalid .field-label {
-    color: #fecaca;
+.field-message {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.field-message--error {
+  color: var(--pico-del-color);
+}
+
+.field-message--warning {
+  color: var(--pico-color-amber-550);
 }
 
 .field--invalid input,
 .field--invalid select {
-    border-color: rgba(248, 113, 113, 0.65);
-    box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.25);
-}
-
-.field--warning .field-label {
-    color: #fcd34d;
+  border-color: var(--pico-del-color);
 }
 
 .field--warning input,
 .field--warning select {
-    border-color: rgba(252, 211, 77, 0.4);
-    box-shadow: 0 0 0 2px rgba(252, 211, 77, 0.15);
+  border-color: var(--pico-color-amber-550);
 }
 
-.field-messages {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 4px;
-}
-
-.field-message {
-    margin: 0;
-    font-size: 0.82rem;
-    line-height: 1.2;
-}
-
-.field-message--error {
-    color: #fecaca;
-    font-weight: 500;
-}
-
-.field-message--warning {
-    color: #fcd34d;
-    font-weight: 500;
-}
-
-.field-hint {
-    font-size: 0.8rem;
-    color: rgba(226, 232, 255, 0.6);
-}
-
+/* Checkbox grid */
 .checkbox-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: calc(var(--pico-spacing) * 0.75);
 }
 
 .checkbox-field {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: flex-start;
-    gap: 10px;
-    background: rgba(12, 16, 40, 0.65);
-    border: 1px solid rgba(148, 163, 235, 0.25);
-    border-radius: 10px;
-    padding: 10px 12px;
-    font-size: 0.95rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: calc(var(--pico-spacing) * 0.75);
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-card-background-color);
 }
 
 .checkbox-field input {
-    margin-top: 2px;
+  margin-top: 0.2rem;
 }
 
 .checkbox-field .field-messages {
-    margin-top: 6px;
-    width: 100%;
-    grid-column: 1 / -1;
+  grid-column: 1 / -1;
+  width: 100%;
 }
 
 .checkbox-field--invalid {
-    border-color: rgba(248, 113, 113, 0.55);
-    box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.25);
-}
-
-.checkbox-field--invalid span {
-    color: #fecaca;
+  border-color: var(--pico-del-color);
 }
 
 .checkbox-field--warning {
-    border-color: rgba(252, 211, 77, 0.6);
-    box-shadow: inset 0 0 0 1px rgba(253, 224, 71, 0.2);
-}
-
-.checkbox-field--warning span {
-    color: #fcd34d;
+  border-color: var(--pico-color-amber-550);
 }
 
 .checkbox-cluster {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
+/* Radio groups */
 .radio-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .radio-option {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: rgba(12, 16, 40, 0.55);
-    border: 1px solid rgba(148, 163, 235, 0.25);
-    font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-card-background-color);
+  border: 1px solid var(--pico-muted-border-color);
+  font-size: 0.9rem;
+  cursor: pointer;
 }
 
-.radio-option input {
-    accent-color: #a855f7;
+.radio-option:hover {
+  border-color: var(--pico-primary);
 }
 
-.field--invalid .radio-option {
-    border-color: rgba(248, 113, 113, 0.55);
-}
-
-.field--warning .radio-option {
-    border-color: rgba(252, 211, 77, 0.55);
-}
-
+/* Button enhancements */
 .button-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pico-spacing);
 }
 
-.button {
-    appearance: none;
-    border: none;
-    border-radius: 12px;
-    padding: 12px 18px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s;
-}
-
-.button--primary {
-    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
-    color: #f8fafc;
-    box-shadow: 0 10px 30px rgba(76, 29, 149, 0.45);
-}
-
-.button--secondary {
-    background: rgba(15, 23, 42, 0.8);
-    color: #e0e7ff;
-    border: 1px solid rgba(148, 163, 235, 0.45);
-}
-
-.button:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-    box-shadow: none;
-}
-
-.button:not(:disabled):hover {
-    transform: translateY(-1px);
-}
-
-.processing-status p {
-    margin: 4px 0;
-}
-
+/* Technical log */
 .technical-log {
-    gap: 20px;
+  margin-top: calc(var(--pico-spacing) * 2);
 }
 
 .technical-status-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--pico-spacing);
+  margin-bottom: var(--pico-spacing);
 }
 
 .technical-panel {
-    background: rgba(12, 16, 40, 0.65);
-    border: 1px solid rgba(148, 163, 235, 0.25);
-    border-radius: 12px;
-    padding: 16px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  padding: var(--pico-spacing);
+  background: var(--pico-card-background-color);
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
 }
 
 .technical-panel__title {
-    margin: 0;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: rgba(226, 232, 255, 0.6);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.6;
+  margin: 0 0 0.5rem 0;
+  font-weight: 600;
 }
 
 .technical-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    font-size: 0.82rem;
-    color: rgba(226, 232, 255, 0.7);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+  opacity: 0.8;
 }
 
 .technical-log-stream {
-    background: rgba(12, 16, 40, 0.55);
-    border: 1px solid rgba(148, 163, 235, 0.25);
-    border-radius: 14px;
-    padding: 16px;
+  background: var(--pico-card-background-color);
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  padding: var(--pico-spacing);
 }
 
 .progress-log {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    max-height: 260px;
-    overflow-y: auto;
-}
-
-.progress-log::-webkit-scrollbar {
-    width: 8px;
-}
-
-.progress-log::-webkit-scrollbar-thumb {
-    background: rgba(165, 180, 252, 0.35);
-    border-radius: 999px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 260px;
+  overflow-y: auto;
 }
 
 .log-entry {
-    background: rgba(15, 23, 42, 0.7);
-    border: 1px solid rgba(148, 163, 235, 0.2);
-    border-radius: 14px;
-    padding: 12px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-size: 0.92rem;
+  background: var(--pico-background-color);
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.92rem;
 }
 
 .log-entry--error {
-    border-color: rgba(248, 113, 113, 0.55);
-    background: rgba(127, 29, 29, 0.45);
+  border-color: var(--pico-del-color);
+  background: var(--pico-del-background);
 }
 
 .log-entry--success {
-    border-color: rgba(74, 222, 128, 0.45);
-    background: rgba(21, 128, 61, 0.35);
+  border-color: var(--pico-ins-color);
+  background: var(--pico-ins-background);
 }
 
 .log-header {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: rgba(226, 232, 255, 0.6);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
 }
 
 .log-message {
-    margin: 0;
+  margin: 0;
 }
 
 .log-error-message {
-    margin: 0;
-    color: #fecaca;
+  margin: 0;
+  color: var(--pico-del-color);
+  font-weight: 600;
 }
 
 .log-time {
-    font-weight: 600;
+  font-weight: 600;
 }
 
-.log-kind {
-    opacity: 0.75;
-}
-
+.log-kind,
 .log-job {
-    opacity: 0.6;
+  opacity: 0.8;
 }
 
-@media (max-width: 720px) {
-    body {
-        padding: 24px 12px 40px;
-    }
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .field-grid,
+  .checkbox-grid {
+    grid-template-columns: 1fr;
+  }
 
-    main.container {
-        padding: 28px 22px;
-    }
+  .radio-group {
+    flex-direction: column;
+  }
 
-    .field-grid {
-        grid-template-columns: 1fr;
-    }
+  .button-row {
+    flex-direction: column;
+  }
 
-    .checkbox-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .radio-group {
-        flex-direction: column;
-    }
-
-    .button-row {
-        flex-direction: column;
-    }
+  .button-row > * {
+    width: 100%;
+  }
 }
