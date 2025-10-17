@@ -209,6 +209,8 @@ function App() {
   const [presetError, setPresetError] = useState(null);
 
   const activeJobIdRef = useRef(null);
+  const technicalLogEndRef = useRef(null);
+
   useEffect(() => {
     activeJobIdRef.current = processingState.jobId;
   }, [processingState.jobId]);
@@ -218,6 +220,13 @@ function App() {
     const theme = ui?.theme?.toLowerCase() || 'dark';
     document.documentElement.setAttribute('data-theme', theme);
   }, [ui]);
+
+  // Auto-scroll technical log when new entries arrive (if follow is enabled)
+  useEffect(() => {
+    if (ui?.show_technical_log && ui?.follow_technical_log && technicalLogEndRef.current) {
+      technicalLogEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [progressLog, ui?.show_technical_log, ui?.follow_technical_log]);
 
   const outputPlaceholder = useMemo(() => {
     if (derived?.outfile?.default) {
@@ -537,6 +546,14 @@ function App() {
       return { ...prev, theme: nextTheme };
     });
   }, []);
+
+  const handleUiCheckbox = useCallback(
+    (field) => (event) => {
+      const checked = event.target.checked;
+      setUi((prev) => (prev ? { ...prev, [field]: checked } : prev));
+    },
+    [],
+  );
 
   const handleSave = useCallback(async () => {
     if (!baseUrl || !config) {
@@ -942,6 +959,7 @@ function App() {
             : null,
         ),
       ),
+      h('li', { ref: technicalLogEndRef, style: 'list-style: none; height: 0; padding: 0; margin: 0;' }),
     );
   };
 
@@ -1245,6 +1263,39 @@ function App() {
                 ),
               ),
             ),
+            h(
+              'div',
+              { class: 'form-group' },
+              h('h3', { class: 'group-title' }, 'UI Preferences'),
+              h(
+                'div',
+                { class: 'checkbox-grid' },
+                h(
+                  'label',
+                  { class: 'checkbox-field' },
+                  h('input', {
+                    type: 'checkbox',
+                    checked: Boolean(ui?.show_technical_log),
+                    onChange: handleUiCheckbox('show_technical_log'),
+                  }),
+                  h('span', null, 'Show technical log'),
+                ),
+                h(
+                  'label',
+                  {
+                    class: 'checkbox-field',
+                    style: ui?.show_technical_log ? '' : 'opacity: 0.5; pointer-events: none;',
+                  },
+                  h('input', {
+                    type: 'checkbox',
+                    checked: Boolean(ui?.follow_technical_log),
+                    onChange: handleUiCheckbox('follow_technical_log'),
+                    disabled: !ui?.show_technical_log,
+                  }),
+                  h('span', null, 'Auto-scroll technical log'),
+                ),
+              ),
+            ),
           ),
         )
       : null,
@@ -1518,10 +1569,11 @@ function App() {
         ? h('p', { class: 'status-error' }, saveState.message ?? 'Save failed.')
         : null,
     ),
-    h(
-      'section',
-      { class: 'section-card technical-log' },
-      h('h2', null, 'Technical Log'),
+    ui?.show_technical_log
+      ? h(
+          'section',
+          { class: 'section-card technical-log' },
+          h('h2', null, 'Technical Log'),
       h(
         'div',
         { class: 'technical-status-grid' },
@@ -1558,7 +1610,8 @@ function App() {
         { class: 'technical-log-stream' },
         renderProgressLog(),
       ),
-    ),
+        )
+      : null,
   );
 }
 
