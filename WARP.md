@@ -354,7 +354,6 @@ The wrapper script design provides:
 
 # THE CHECKLIST - MODIFY THESE!
 
-[ ] Refresh CLI surfaces in `crates/rconv-cli`: rename help text to talk about "AI corrections", wire preset CRUD to the expanded fields (weekday, prefix, default weeks, duration hours), and exercise the new runtime defaults via integration tests so CLI/GUI stay in lockstep.
 [ ] Rework the Tauri HTTP API (`src-tauri/src/main.rs`) to treat `FileConfig` as the contract: expose runtime/ui/presets blocks, persist only preset definitions (and explicit UI prefs like theme) when the GUI issues a save, keep session-only overrides ephemeral, and confirm CLI arguments still override config-derived values.
 [ ] Enhance the technical log plumbing: keep backend progress events, tap `console.*` in the frontend early to funnel browser logs into the same stream (with origin tags), and respect the existing follow/visibility preferences.
 [ ] Stand up a Bun-based frontend toolchain: add Bun project metadata, install dependencies (Preact, Pico CSS 2.1.1, etc.) after verifying latest versions via web search, configure bundling outputs to `frontend/dist`, and update `tools/frontend-runner` to invoke Bun for debug/release builds.
