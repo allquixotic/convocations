@@ -304,6 +304,98 @@ main.container {
   opacity: 0.8;
 }
 
+/* Preset management */
+.preset-list {
+  display: grid;
+  gap: var(--pico-spacing);
+  margin-top: var(--pico-spacing);
+}
+
+.preset-card {
+  border: 2px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  padding: var(--pico-spacing);
+  background: var(--pico-card-background-color);
+}
+
+.preset-card--builtin {
+  border-color: var(--pico-primary);
+  background: var(--pico-primary-background);
+}
+
+.preset-card--user {
+  border-color: var(--pico-secondary);
+}
+
+.preset-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+.preset-name {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.preset-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: var(--pico-primary);
+  color: var(--pico-primary-inverse);
+  border-radius: var(--pico-border-radius);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.preset-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.preset-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.preset-field {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.preset-label {
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.preset-form {
+  margin-top: var(--pico-spacing);
+}
+
+.button--small {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.button--danger {
+  background-color: var(--pico-del-color);
+  border-color: var(--pico-del-color);
+}
+
+.button--danger:hover {
+  background-color: var(--pico-del-color);
+  border-color: var(--pico-del-color);
+  opacity: 0.85;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .field-grid,
@@ -321,5 +413,15 @@ main.container {
 
   .button-row > * {
     width: 100%;
+  }
+
+  .preset-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .preset-details {
+    grid-template-columns: 1fr;
   }
 }

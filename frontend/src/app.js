@@ -194,6 +194,19 @@ function App() {
     error: null,
   });
   const [progressLog, setProgressLog] = useState([]);
+  const [presetFormMode, setPresetFormMode] = useState(null); // null, 'create', or 'edit'
+  const [editingPresetId, setEditingPresetId] = useState(null);
+  const [presetFormData, setPresetFormData] = useState({
+    id: '',
+    name: '',
+    weekday: 'saturday',
+    timezone: 'America/New_York',
+    start_time: '22:00',
+    duration_minutes: 60,
+    file_prefix: '',
+    default_weeks_ago: 0,
+  });
+  const [presetError, setPresetError] = useState(null);
 
   const activeJobIdRef = useRef(null);
   useEffect(() => {
@@ -636,6 +649,163 @@ function App() {
       });
     }
   }, [baseUrl, config, processingState.active, validation]);
+
+  const openCreatePresetForm = useCallback(() => {
+    setPresetFormMode('create');
+    setEditingPresetId(null);
+    setPresetFormData({
+      id: '',
+      name: '',
+      weekday: 'saturday',
+      timezone: 'America/New_York',
+      start_time: '22:00',
+      duration_minutes: 60,
+      file_prefix: '',
+      default_weeks_ago: 0,
+    });
+    setPresetError(null);
+  }, []);
+
+  const openEditPresetForm = useCallback((preset) => {
+    setPresetFormMode('edit');
+    setEditingPresetId(preset.id);
+    setPresetFormData({
+      id: preset.id,
+      name: preset.name,
+      weekday: preset.weekday,
+      timezone: preset.timezone,
+      start_time: preset.start_time,
+      duration_minutes: preset.duration_minutes,
+      file_prefix: preset.file_prefix,
+      default_weeks_ago: preset.default_weeks_ago,
+    });
+    setPresetError(null);
+  }, []);
+
+  const closePresetForm = useCallback(() => {
+    setPresetFormMode(null);
+    setEditingPresetId(null);
+    setPresetError(null);
+  }, []);
+
+  const handlePresetFormChange = useCallback((field) => (event) => {
+    const value = event.target.value;
+    setPresetFormData((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handlePresetFormNumberChange = useCallback((field) => (event) => {
+    const value = event.target.value;
+    const parsed = value === '' ? 0 : Math.max(0, Number.parseInt(value, 10) || 0);
+    setPresetFormData((prev) => ({ ...prev, [field]: parsed }));
+  }, []);
+
+  const handleCreatePreset = useCallback(async () => {
+    if (!baseUrl) {
+      return;
+    }
+    try {
+      setPresetError(null);
+      const preset = {
+        ...presetFormData,
+        builtin: false,
+      };
+      const response = await fetch(`${baseUrl}/api/presets/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preset }),
+      });
+      if (!response.ok) {
+        let message = `Create failed (${response.status})`;
+        try {
+          const body = await response.json();
+          if (body?.error) {
+            message = body.error;
+          }
+        } catch (_) {
+          // ignore
+        }
+        setPresetError(message);
+        return;
+      }
+      const created = await response.json();
+      setPresets((prev) => [...prev, created]);
+      closePresetForm();
+    } catch (err) {
+      console.error('[Convocations] create preset failed', err);
+      setPresetError(err.message ?? String(err));
+    }
+  }, [baseUrl, presetFormData, closePresetForm]);
+
+  const handleUpdatePreset = useCallback(async () => {
+    if (!baseUrl || !editingPresetId) {
+      return;
+    }
+    try {
+      setPresetError(null);
+      const preset = {
+        ...presetFormData,
+        builtin: false,
+      };
+      const response = await fetch(`${baseUrl}/api/presets/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingPresetId, preset }),
+      });
+      if (!response.ok) {
+        let message = `Update failed (${response.status})`;
+        try {
+          const body = await response.json();
+          if (body?.error) {
+            message = body.error;
+          }
+        } catch (_) {
+          // ignore
+        }
+        setPresetError(message);
+        return;
+      }
+      setPresets((prev) =>
+        prev.map((p) => (p.id === editingPresetId ? { ...preset, id: presetFormData.id } : p))
+      );
+      closePresetForm();
+    } catch (err) {
+      console.error('[Convocations] update preset failed', err);
+      setPresetError(err.message ?? String(err));
+    }
+  }, [baseUrl, editingPresetId, presetFormData, closePresetForm]);
+
+  const handleDeletePreset = useCallback(async (presetId) => {
+    if (!baseUrl) {
+      return;
+    }
+    if (!confirm(`Delete preset "${presetId}"? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      const response = await fetch(`${baseUrl}/api/presets/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: presetId }),
+      });
+      if (!response.ok) {
+        let message = `Delete failed (${response.status})`;
+        try {
+          const body = await response.json();
+          if (body?.error) {
+            message = body.error;
+          }
+        } catch (_) {
+          // ignore
+        }
+        alert(message);
+        return;
+      }
+      setPresets((prev) => prev.filter((p) => p.id !== presetId));
+    } catch (err) {
+      console.error('[Convocations] delete preset failed', err);
+      alert(err.message ?? String(err));
+    }
+  }, [baseUrl]);
 
   const runDisabled =
     processingState.active ||
@@ -1091,6 +1261,241 @@ function App() {
               ),
             ),
           ),
+        )
+      : null,
+    config
+      ? h(
+          'section',
+          { class: 'section-card' },
+          h('h2', null, 'Preset Management'),
+          h('p', { class: 'muted' }, 'Manage event presets for quick configuration'),
+          presetFormMode === null
+            ? h(
+                'div',
+                null,
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    class: 'button button--secondary',
+                    onClick: openCreatePresetForm,
+                    style: 'margin-bottom: 1rem;',
+                  },
+                  'Create New Preset',
+                ),
+                h(
+                  'div',
+                  { class: 'preset-list' },
+                  presets.length === 0
+                    ? h('p', { class: 'muted' }, 'No presets available.')
+                    : presets.map((preset) =>
+                        h(
+                          'div',
+                          {
+                            key: preset.id,
+                            class: preset.builtin
+                              ? 'preset-card preset-card--builtin'
+                              : 'preset-card preset-card--user',
+                          },
+                          h(
+                            'div',
+                            { class: 'preset-header' },
+                            h('h3', { class: 'preset-name' }, preset.name),
+                            preset.builtin
+                              ? h('span', { class: 'preset-badge' }, 'Built-in')
+                              : h(
+                                  'div',
+                                  { class: 'preset-actions' },
+                                  h(
+                                    'button',
+                                    {
+                                      type: 'button',
+                                      class: 'button button--small',
+                                      onClick: () => openEditPresetForm(preset),
+                                    },
+                                    'Edit',
+                                  ),
+                                  h(
+                                    'button',
+                                    {
+                                      type: 'button',
+                                      class: 'button button--small button--danger',
+                                      onClick: () => handleDeletePreset(preset.id),
+                                    },
+                                    'Delete',
+                                  ),
+                                ),
+                          ),
+                          h(
+                            'div',
+                            { class: 'preset-details' },
+                            h('div', { class: 'preset-field' }, [
+                              h('span', { class: 'preset-label' }, 'ID: '),
+                              h('code', null, preset.id),
+                            ]),
+                            h('div', { class: 'preset-field' }, [
+                              h('span', { class: 'preset-label' }, 'Weekday: '),
+                              h('span', null, preset.weekday),
+                            ]),
+                            h('div', { class: 'preset-field' }, [
+                              h('span', { class: 'preset-label' }, 'Time: '),
+                              h('span', null, preset.start_time),
+                            ]),
+                            h('div', { class: 'preset-field' }, [
+                              h('span', { class: 'preset-label' }, 'Duration: '),
+                              h('span', null, `${preset.duration_minutes} minutes`),
+                            ]),
+                            h('div', { class: 'preset-field' }, [
+                              h('span', { class: 'preset-label' }, 'File Prefix: '),
+                              h('code', null, preset.file_prefix),
+                            ]),
+                            h('div', { class: 'preset-field' }, [
+                              h('span', { class: 'preset-label' }, 'Default Weeks Ago: '),
+                              h('span', null, preset.default_weeks_ago),
+                            ]),
+                            h('div', { class: 'preset-field' }, [
+                              h('span', { class: 'preset-label' }, 'Timezone: '),
+                              h('span', null, preset.timezone),
+                            ]),
+                          ),
+                        ),
+                      ),
+                ),
+              )
+            : h(
+                'div',
+                { class: 'preset-form' },
+                h('h3', null, presetFormMode === 'create' ? 'Create Preset' : 'Edit Preset'),
+                presetError
+                  ? h('p', { class: 'status-error' }, presetError)
+                  : null,
+                h(
+                  'form',
+                  {
+                    onSubmit: (event) => event.preventDefault(),
+                    class: 'config-form',
+                  },
+                  h(
+                    'label',
+                    { class: 'field' },
+                    h('span', { class: 'field-label' }, 'Preset ID (unique identifier)'),
+                    h('input', {
+                      type: 'text',
+                      value: presetFormData.id,
+                      onInput: handlePresetFormChange('id'),
+                      placeholder: 'e.g., custom-event-1',
+                      required: true,
+                    }),
+                  ),
+                  h(
+                    'label',
+                    { class: 'field' },
+                    h('span', { class: 'field-label' }, 'Display Name'),
+                    h('input', {
+                      type: 'text',
+                      value: presetFormData.name,
+                      onInput: handlePresetFormChange('name'),
+                      placeholder: 'e.g., Custom Event',
+                      required: true,
+                    }),
+                  ),
+                  h(
+                    'label',
+                    { class: 'field' },
+                    h('span', { class: 'field-label' }, 'Weekday'),
+                    h(
+                      'select',
+                      {
+                        value: presetFormData.weekday,
+                        onChange: handlePresetFormChange('weekday'),
+                      },
+                      ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) =>
+                        h('option', { key: day, value: day }, day.charAt(0).toUpperCase() + day.slice(1)),
+                      ),
+                    ),
+                  ),
+                  h(
+                    'label',
+                    { class: 'field' },
+                    h('span', { class: 'field-label' }, 'Start Time (HH:MM)'),
+                    h('input', {
+                      type: 'time',
+                      value: presetFormData.start_time,
+                      onInput: handlePresetFormChange('start_time'),
+                      required: true,
+                    }),
+                  ),
+                  h(
+                    'label',
+                    { class: 'field' },
+                    h('span', { class: 'field-label' }, 'Duration (minutes)'),
+                    h('input', {
+                      type: 'number',
+                      min: 1,
+                      value: presetFormData.duration_minutes,
+                      onInput: handlePresetFormNumberChange('duration_minutes'),
+                      required: true,
+                    }),
+                  ),
+                  h(
+                    'label',
+                    { class: 'field' },
+                    h('span', { class: 'field-label' }, 'File Prefix'),
+                    h('input', {
+                      type: 'text',
+                      value: presetFormData.file_prefix,
+                      onInput: handlePresetFormChange('file_prefix'),
+                      placeholder: 'e.g., event',
+                      required: true,
+                    }),
+                  ),
+                  h(
+                    'label',
+                    { class: 'field' },
+                    h('span', { class: 'field-label' }, 'Default Weeks Ago'),
+                    h('input', {
+                      type: 'number',
+                      min: 0,
+                      value: presetFormData.default_weeks_ago,
+                      onInput: handlePresetFormNumberChange('default_weeks_ago'),
+                    }),
+                  ),
+                  h(
+                    'label',
+                    { class: 'field' },
+                    h('span', { class: 'field-label' }, 'Timezone'),
+                    h('input', {
+                      type: 'text',
+                      value: presetFormData.timezone,
+                      onInput: handlePresetFormChange('timezone'),
+                      placeholder: 'e.g., America/New_York',
+                      required: true,
+                    }),
+                  ),
+                  h(
+                    'div',
+                    { class: 'button-row', style: 'margin-top: 1rem;' },
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        class: 'button button--secondary',
+                        onClick: closePresetForm,
+                      },
+                      'Cancel',
+                    ),
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        class: 'button button--primary',
+                        onClick: presetFormMode === 'create' ? handleCreatePreset : handleUpdatePreset,
+                      },
+                      presetFormMode === 'create' ? 'Create' : 'Update',
+                    ),
+                  ),
+                ),
+              ),
         )
       : null,
     h(
