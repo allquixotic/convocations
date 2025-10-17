@@ -1,33 +1,31 @@
-# Unified Configuration Plan
+# Configuration Schema Reference
 
-## Current `settings.json` Usage
+## Overview
 
-- `src-tauri/src/main.rs` persists `ConvocationsConfig` verbatim as JSON at `~/.config/convocations/settings.json`, exposing it through `/api/settings`, `/api/validate`, and `/api/process`. The helpers `load_settings`, `save_settings`, and `validate_config` enforce the same invariants as the CLI.
-- `crates/rconv-core/src/runtime.rs` defines `ConvocationsConfig`, converts it to and from CLI `Args`, and drives the processing pipeline (mode selection, date math, stage toggles, LLM hooks, output naming). Defaults in `ConvocationsConfig::default()` mirror the CLI defaults so GUI and CLI stay identical.
+The Convocations Log Processor uses a TOML-based configuration system stored at `~/.config/convocations/config.toml`. This document describes the current implementation of the configuration schema (version 1).
 
-| Field | Default | Consumers |
-| --- | --- | --- |
-| `last: u32` | 0 | GUI/CLI weeks-ago selector → `calculate_dates_for_event` |
-| `dry_run: bool` | false | Short-circuits execution after logging computed paths |
-| `infile: String` | `~/Documents/.../ChatLog.log` | Source log path; validated in `validate_config`, used for IO |
-| `start` / `end: Option<String>` | `None` | Custom ISO date bounds; validated to prevent clashes with events |
-| `rsm7`, `rsm8`, `tp6: bool` | false | Mutually exclusive event presets; choose preset + timezone math |
-| `one_hour`, `two_hours: bool` | false | Duration overrides; validated for exclusivity |
-| `process_file: Option<String>` | `None` | Switches to pre-filtered mode and bypasses date filtering |
-| `format_dialogue: bool` | true | Enables formatting stage for filtered mode |
-| `cleanup: bool` | true | Keeps cleanup stage active (GUI exposes toggle) |
-| `use_llm: bool` | true | Turns Gemini corrections on/off; warnings if API key missing |
-| `keep_orig: bool` | false | Retains `_unedited` output when LLM is on |
-| `no_diff: bool` | false | Skips diff generation (GUI checkbox) |
-| `outfile: Option<String>` | `None` | Overrides generated path; validated for directory existence |
+## Migration from Legacy JSON
 
-## Proposed `config.toml` Schema
+The system automatically migrates from the legacy `settings.json` format:
+- On first launch, if `config.toml` doesn't exist but `settings.json` does, the JSON configuration is converted to TOML
+- The new TOML file is immediately persisted
+- Legacy JSON files are preserved for backward compatibility
 
-- Location: `~/.config/convocations/config.toml`.
-- File carries a `schema_version` so future migrations can be handled without guessing.
-- Runtime fields (shared with CLI) live under `[runtime]`. GUI-only state uses `[ui]`. Presets are described once under `[[presets]]` and referenced by identifier.
-- Duration override follows the upcoming "checkbox + hours picker" UX: `enabled` toggles the override, `hours` stores the numeric value.
-- Built-in presets adopt the new names ("Saturday 10pm-midnight", "Tuesday 7pm") while preserving their semantics (file prefix, timezone, default duration). User-defined presets share the same structure with `builtin = false`.
+## `config.toml` Schema
+
+**Location**: `~/.config/convocations/config.toml`
+
+**Structure**:
+- `schema_version`: Integer version for future migration handling (currently 1)
+- `[runtime]`: Runtime preferences shared between CLI and GUI
+- `[ui]`: GUI-only preferences (theme, technical log visibility, etc.)
+- `[[presets]]`: Array of preset definitions (both built-in and user-defined)
+
+**Duration Override**: The `duration_override` object has two fields:
+- `enabled`: Boolean toggle for the override
+- `hours`: Floating-point number representing duration (minimum 1.0)
+
+**Presets**: Built-in presets ("Saturday 10pm-midnight", "Tuesday 7pm", "Tuesday 8pm", "Friday 6pm") preserve their original semantics. User-defined presets use the same structure with `builtin = false`.
 
 ```toml
 schema_version = 1
@@ -87,18 +85,87 @@ default_weeks_ago = 1
 builtin = false
 ```
 
-### Section Notes
+## Field Descriptions
 
-- `runtime.chat_log_path` remains the single source for CLI + GUI default log path.
-- `use_ai_corrections`, `keep_original_output`, and `show_diff` map directly onto the existing processing switches (`use_llm`, `keep_orig`, `no_diff`) and give us room to rename the GUI labels.
-- `weeks_ago` persists the most recently selected offset so both interfaces can reopen with the same context.
-- `duration_minutes` avoids floating-point hours and makes cross-midnight durations explicit; runtime can translate to hours when needed.
-- GUI-only toggles (`show_technical_log`, `follow_technical_log`, future theme toggles) stay isolated from CLI state.
-- Preset identifiers allow CRUD operations: built-ins stay immutable, user presets can be edited/deleted without affecting the defaults.
+### `[runtime]` Section
 
-## Legacy Handling Strategy
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `chat_log_path` | string | `~/Documents/Elder Scrolls Online/live/Logs/ChatLog.log` | Path to the ESO ChatLog.log file |
+| `active_preset` | string | `saturday-10pm-midnight` | ID of the currently active preset |
+| `weeks_ago` | u32 | 0 | Number of weeks to look back (0 = current week) |
+| `dry_run` | bool | false | When true, shows what would be processed without creating output |
+| `use_ai_corrections` | bool | true | Enable Gemini AI corrections for spelling/grammar |
+| `keep_original_output` | bool | false | Retain `_unedited` file when LLM is enabled |
+| `show_diff` | bool | true | Display diff between pre-LLM and post-LLM output |
+| `cleanup_enabled` | bool | true | Remove OOC content and normalize punctuation |
+| `format_dialogue_enabled` | bool | true | Format dialogue with proper attribution |
+| `outfile_override` | Option<string> | None | Override automatic output filename |
+| `duration_override.enabled` | bool | false | Enable custom duration override |
+| `duration_override.hours` | f32 | 1.0 | Custom duration in hours (minimum 1.0) |
 
-1. On startup, prefer `config.toml`. If it is missing, attempt to read `settings.json` using the existing JSON loader.
-2. Successful JSON loads are converted into the new TOML structure (populate `[runtime]`, seed `[[presets]]` with the built-ins, map the stored CLI flags). Persist the TOML immediately and leave the JSON file untouched for a few releases.
-3. If JSON parsing fails, log a warning and fall back to default TOML content (per standing request to ignore malformed `settings.json` rather than erroring).
-4. Add a small `schema_version` gate so future migrations can evolve safely once additional GUI state lands.
+### `[ui]` Section
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `theme` | string | `dark` | UI theme: `light`, `dark`, or `system` |
+| `show_technical_log` | bool | false | Display technical processing log in GUI |
+| `follow_technical_log` | bool | true | Auto-scroll technical log as new entries appear |
+
+### `[[presets]]` Section
+
+Each preset defines a recurring RP event with specific timing and formatting:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique identifier for the preset |
+| `name` | string | Yes | Display name shown in GUI |
+| `weekday` | string | Yes | Day of week: `saturday`, `tuesday`, `friday`, etc. |
+| `timezone` | string | Yes | IANA timezone (e.g., `America/New_York`) |
+| `start_time` | string | Yes | Event start time in HH:MM format (24-hour) |
+| `duration_minutes` | u32 | Yes | Event duration in minutes |
+| `file_prefix` | string | Yes | Prefix for output files (e.g., `conv`, `rsm7`) |
+| `default_weeks_ago` | u32 | No | Default value for `weeks_ago` when preset is selected |
+| `builtin` | bool | No | If true, preset cannot be edited or deleted |
+
+## Implementation Notes
+
+- `chat_log_path`: Single source of truth for log file location across CLI and GUI
+- `use_ai_corrections`, `keep_original_output`, `show_diff`: Map to internal flags (`use_llm`, `keep_orig`, `!no_diff`)
+- `weeks_ago`: Persisted so both CLI and GUI remember the last selection
+- `duration_minutes`: Uses integer minutes to handle cross-midnight sessions precisely (e.g., 145 minutes = 2h 25m)
+- `active_preset`: References a preset by ID; must exist in the `presets` array
+- Built-in presets are automatically restored if missing during config load
+- Preset IDs must be unique; duplicates are removed with a warning
+
+## Configuration Loading Process
+
+The `load_config()` function in `crates/rconv-core/src/config.rs` follows this priority order:
+
+1. **Primary**: Attempt to load `config.toml`
+   - If valid, return the configuration with any sanitization warnings
+   - If parsing fails, log warning and continue to next step
+
+2. **Fallback**: Attempt to migrate from `settings.json`
+   - If valid JSON is found, convert to TOML structure
+   - Immediately persist the new `config.toml`
+   - Legacy JSON file is preserved
+   - If parsing fails, log warning and continue to next step
+
+3. **Default**: Return default configuration
+   - Built-in presets are included
+   - All settings use documented defaults
+
+## Configuration Validation
+
+The `sanitize_config()` function enforces these invariants:
+
+- **Schema version**: Must match current version (1), otherwise reset to defaults
+- **Preset uniqueness**: Duplicate preset IDs are removed with warnings
+- **Built-in presets**: Missing built-ins are automatically restored
+- **Active preset**: Must reference an existing preset ID
+- **Duration validation**: Hours must be finite and ≥ 1.0
+- **Preset validation**: duration_minutes must be non-zero, file_prefix must be non-empty
+- **Runtime validation**: Applies `validate_config()` from runtime.rs to catch contradictory settings
+
+Warnings are collected and returned with the sanitized configuration for display to the user.
