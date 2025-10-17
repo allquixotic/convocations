@@ -107,6 +107,9 @@ function normalizeConfigForApi(config) {
     keep_orig: Boolean(config.keep_orig),
     no_diff: Boolean(config.no_diff),
     outfile: trimOrNull(config.outfile),
+    openrouter_api_key: trimOrNull(config.openrouter_api_key),
+    openrouter_model: trimOrNull(config.openrouter_model),
+    free_models_only: Boolean(config.free_models_only),
   };
 }
 
@@ -195,9 +198,8 @@ function App() {
   });
   const [progressLog, setProgressLog] = useState([]);
   const [presetFormMode, setPresetFormMode] = useState(null); // null, 'create', or 'edit'
-  const [editingPresetId, setEditingPresetId] = useState(null);
+  const [editingPresetName, setEditingPresetName] = useState(null);
   const [presetFormData, setPresetFormData] = useState({
-    id: '',
     name: '',
     weekday: 'saturday',
     timezone: 'America/New_York',
@@ -207,6 +209,10 @@ function App() {
     default_weeks_ago: 0,
   });
   const [presetError, setPresetError] = useState(null);
+  const [models, setModels] = useState([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [recommendedModels, setRecommendedModels] = useState([]);
+  const [oauthInProgress, setOauthInProgress] = useState(false);
 
   const activeJobIdRef = useRef(null);
   const technicalLogEndRef = useRef(null);
@@ -463,7 +469,7 @@ function App() {
 
   const eventSelection = useMemo(() => {
     if (!config) {
-      return 'saturday';
+      return 'none';
     }
     if (config.rsm7) {
       return 'rsm7';
@@ -474,20 +480,123 @@ function App() {
     if (config.tp6) {
       return 'tp6';
     }
-    return 'saturday';
+    return 'none';
   }, [config]);
+
+  const calculateEventDates = useCallback(async (eventType, weeksAgo = 0) => {
+    if (!baseUrl || eventType === 'none') {
+      return null;
+    }
+
+    try {
+      // Create a temporary config with the selected event type
+      const tempConfig = {
+        last: weeksAgo,
+        rsm7: eventType === 'rsm7',
+        rsm8: eventType === 'rsm8',
+        tp6: eventType === 'tp6',
+      };
+
+      const response = await fetch(`${baseUrl}/api/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(normalizeConfigForApi(tempConfig)),
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const body = await response.json();
+      // The backend should return calculated date range in the validation response
+      // For now, we'll calculate on the frontend
+      return null;
+    } catch (err) {
+      console.error('[Convocations] Failed to calculate event dates', err);
+      return null;
+    }
+  }, [baseUrl]);
 
   const applyEventSelection = useCallback((value) => {
     setConfig((prev) => {
       if (!prev) {
         return prev;
       }
-      return {
+
+      const newConfig = {
         ...prev,
         rsm7: value === 'rsm7',
         rsm8: value === 'rsm8',
         tp6: value === 'tp6',
       };
+
+      // Calculate dates for the selected event type
+      if (value !== 'none') {
+        // Calculate date based on event type and weeks ago
+        const now = new Date();
+        let targetDay, targetHour, targetMinute;
+
+        switch (value) {
+          case 'rsm7':
+            targetDay = 2; // Tuesday
+            targetHour = 19; // 7 PM ET (converted to local time would need timezone lib)
+            targetMinute = 0;
+            break;
+          case 'rsm8':
+            targetDay = 2; // Tuesday
+            targetHour = 20; // 8 PM ET
+            targetMinute = 0;
+            break;
+          case 'tp6':
+            targetDay = 5; // Friday
+            targetHour = 18; // 6 PM ET
+            targetMinute = 0;
+            break;
+          case 'saturday':
+          default:
+            targetDay = 6; // Saturday
+            targetHour = 22; // 10 PM
+            targetMinute = 0;
+        }
+
+        // Find the most recent occurrence of the target day
+        const currentDay = now.getDay();
+        let daysBack = (currentDay - targetDay + 7) % 7;
+        if (daysBack === 0 && (now.getHours() < targetHour ||
+            (now.getHours() === targetHour && now.getMinutes() < targetMinute))) {
+          daysBack = 7; // Event hasn't occurred yet this week
+        }
+
+        // Add weeks offset
+        daysBack += prev.last * 7;
+
+        const startDate = new Date(now);
+        startDate.setDate(startDate.getDate() - daysBack);
+        startDate.setHours(targetHour, targetMinute, 0, 0);
+
+        // Calculate end date (default 1 hour for non-Saturday events)
+        const endDate = new Date(startDate);
+        if (value === 'saturday') {
+          endDate.setHours(endDate.getHours() + 2, endDate.getMinutes() + 25);
+        } else {
+          endDate.setHours(endDate.getHours() + 1);
+        }
+
+        // Format as datetime-local string (YYYY-MM-DDTHH:MM)
+        const formatDateTimeLocal = (date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          return `${year}-${month}-${day}T${hours}:${minutes}`;
+        };
+
+        newConfig.start = formatDateTimeLocal(startDate);
+        newConfig.end = formatDateTimeLocal(endDate);
+      }
+
+      return newConfig;
     });
   }, []);
 
@@ -524,9 +633,35 @@ function App() {
   const handleText = useCallback(
     (field) => (event) => {
       const value = event.target.value;
-      setConfig((prev) => (prev ? { ...prev, [field]: value } : prev));
+      setConfig((prev) => {
+        if (!prev) {
+          return prev;
+        }
+
+        const newConfig = { ...prev, [field]: value };
+
+        // Auto-calculate end date when start date changes and event is "none"
+        if (field === 'start' && eventSelection === 'none' && value) {
+          try {
+            const startDate = new Date(value);
+            const endDate = new Date(startDate);
+            endDate.setHours(endDate.getHours() + 1);
+
+            const year = endDate.getFullYear();
+            const month = String(endDate.getMonth() + 1).padStart(2, '0');
+            const day = String(endDate.getDate()).padStart(2, '0');
+            const hours = String(endDate.getHours()).padStart(2, '0');
+            const minutes = String(endDate.getMinutes()).padStart(2, '0');
+            newConfig.end = `${year}-${month}-${day}T${hours}:${minutes}`;
+          } catch (err) {
+            // Invalid date, ignore
+          }
+        }
+
+        return newConfig;
+      });
     },
-    [],
+    [eventSelection],
   );
 
   const handleNumber = useCallback(
@@ -554,6 +689,116 @@ function App() {
     },
     [],
   );
+
+  const fetchModels = useCallback(async () => {
+    if (!baseUrl) {
+      return;
+    }
+    try {
+      setLoadingModels(true);
+      const response = await fetch(`${baseUrl}/api/openrouter/models`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch models (${response.status})`);
+      }
+      const body = await response.json();
+      setModels(body.models ?? []);
+    } catch (err) {
+      console.error('[Convocations] Failed to fetch models', err);
+    } finally {
+      setLoadingModels(false);
+    }
+  }, [baseUrl]);
+
+  const fetchRecommendedModels = useCallback(async () => {
+    if (!baseUrl) {
+      return;
+    }
+    try {
+      const response = await fetch(`${baseUrl}/api/openrouter/recommended`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ free_only: Boolean(config?.free_models_only) }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch recommended models (${response.status})`);
+      }
+      const recommendations = await response.json();
+      setRecommendedModels(recommendations ?? []);
+    } catch (err) {
+      console.error('[Convocations] Failed to fetch recommended models', err);
+    }
+  }, [baseUrl, config?.free_models_only]);
+
+  const handleOAuthLogin = useCallback(async () => {
+    if (!baseUrl) {
+      return;
+    }
+    try {
+      setOauthInProgress(true);
+
+      // Generate PKCE pair
+      const pkceResponse = await fetch(`${baseUrl}/api/openrouter/pkce`);
+      if (!pkceResponse.ok) {
+        throw new Error(`Failed to generate PKCE pair (${pkceResponse.status})`);
+      }
+      const { verifier, challenge } = await pkceResponse.json();
+
+      // Store verifier for later use
+      sessionStorage.setItem('openrouter_verifier', verifier);
+
+      // Build OAuth URL
+      const redirectUri = `${window.location.origin}/oauth/callback`;
+      const urlResponse = await fetch(`${baseUrl}/api/openrouter/oauth-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code_challenge: challenge,
+          redirect_uri: redirectUri,
+        }),
+      });
+      if (!urlResponse.ok) {
+        throw new Error(`Failed to build OAuth URL (${urlResponse.status})`);
+      }
+      const { url } = await urlResponse.json();
+
+      // Open OAuth URL in new window
+      const width = 600;
+      const height = 700;
+      const left = window.screen.width / 2 - width / 2;
+      const top = window.screen.height / 2 - height / 2;
+      window.open(
+        url,
+        'OpenRouter OAuth',
+        `width=${width},height=${height},left=${left},top=${top}`,
+      );
+
+      // Note: In a real implementation, you'd need to handle the callback
+      // and exchange the authorization code for an access token
+      alert(
+        'OAuth window opened. This is a demonstration - full OAuth flow requires additional callback handling.',
+      );
+    } catch (err) {
+      console.error('[Convocations] OAuth flow failed', err);
+      alert(`OAuth login failed: ${err.message}`);
+    } finally {
+      setOauthInProgress(false);
+    }
+  }, [baseUrl]);
+
+  useEffect(() => {
+    if (baseUrl && configLoaded) {
+      fetchRecommendedModels();
+    }
+  }, [baseUrl, configLoaded, config?.free_models_only, fetchRecommendedModels]);
+
+  // Recalculate dates when "weeks ago" changes and an event preset is selected
+  useEffect(() => {
+    if (!config || eventSelection === 'none') {
+      return;
+    }
+    // Trigger recalculation by reapplying the event selection
+    applyEventSelection(eventSelection);
+  }, [config?.last]);
 
   const handleSave = useCallback(async () => {
     if (!baseUrl || !config) {
@@ -669,9 +914,8 @@ function App() {
 
   const openCreatePresetForm = useCallback(() => {
     setPresetFormMode('create');
-    setEditingPresetId(null);
+    setEditingPresetName(null);
     setPresetFormData({
-      id: '',
       name: '',
       weekday: 'saturday',
       timezone: 'America/New_York',
@@ -685,9 +929,8 @@ function App() {
 
   const openEditPresetForm = useCallback((preset) => {
     setPresetFormMode('edit');
-    setEditingPresetId(preset.id);
+    setEditingPresetName(preset.name);
     setPresetFormData({
-      id: preset.id,
       name: preset.name,
       weekday: preset.weekday,
       timezone: preset.timezone,
@@ -701,7 +944,7 @@ function App() {
 
   const closePresetForm = useCallback(() => {
     setPresetFormMode(null);
-    setEditingPresetId(null);
+    setEditingPresetName(null);
     setPresetError(null);
   }, []);
 
@@ -754,7 +997,7 @@ function App() {
   }, [baseUrl, presetFormData, closePresetForm]);
 
   const handleUpdatePreset = useCallback(async () => {
-    if (!baseUrl || !editingPresetId) {
+    if (!baseUrl || !editingPresetName) {
       return;
     }
     try {
@@ -766,7 +1009,7 @@ function App() {
       const response = await fetch(`${baseUrl}/api/presets/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editingPresetId, preset }),
+        body: JSON.stringify({ name: editingPresetName, preset }),
       });
       if (!response.ok) {
         let message = `Update failed (${response.status})`;
@@ -782,27 +1025,27 @@ function App() {
         return;
       }
       setPresets((prev) =>
-        prev.map((p) => (p.id === editingPresetId ? { ...preset, id: presetFormData.id } : p))
+        prev.map((p) => (p.name === editingPresetName ? preset : p))
       );
       closePresetForm();
     } catch (err) {
       console.error('[Convocations] update preset failed', err);
       setPresetError(err.message ?? String(err));
     }
-  }, [baseUrl, editingPresetId, presetFormData, closePresetForm]);
+  }, [baseUrl, editingPresetName, presetFormData, closePresetForm]);
 
-  const handleDeletePreset = useCallback(async (presetId) => {
+  const handleDeletePreset = useCallback(async (presetName) => {
     if (!baseUrl) {
       return;
     }
-    if (!confirm(`Delete preset "${presetId}"? This cannot be undone.`)) {
+    if (!confirm(`Delete preset "${presetName}"? This cannot be undone.`)) {
       return;
     }
     try {
       const response = await fetch(`${baseUrl}/api/presets/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: presetId }),
+        body: JSON.stringify({ name: presetName }),
       });
       if (!response.ok) {
         let message = `Delete failed (${response.status})`;
@@ -817,7 +1060,7 @@ function App() {
         alert(message);
         return;
       }
-      setPresets((prev) => prev.filter((p) => p.id !== presetId));
+      setPresets((prev) => prev.filter((p) => p.name !== presetName));
     } catch (err) {
       console.error('[Convocations] delete preset failed', err);
       alert(err.message ?? String(err));
@@ -830,6 +1073,7 @@ function App() {
     (validation && validation.valid === false);
 
   const eventOptions = [
+    { value: 'none', label: 'None (Manual Date Selection)' },
     { value: 'saturday', label: 'Saturday Night (default)' },
     { value: 'rsm7', label: 'RSM7 – Tuesday 7PM ET' },
     { value: 'rsm8', label: 'RSM8 – Tuesday 8PM ET' },
@@ -1028,7 +1272,7 @@ function App() {
                 'div',
                 { class: 'field-grid' },
                 h(
-                  'div',
+                  'label',
                   {
                     class: fieldClasses('field field--full', [
                       'rsm7',
@@ -1036,22 +1280,16 @@ function App() {
                       'tp6',
                     ]),
                   },
-                  h('span', { class: 'field-label' }, 'Event'),
+                  h('span', { class: 'field-label' }, 'Event Preset'),
                   h(
-                    'div',
-                    { class: 'radio-group' },
+                    'select',
+                    {
+                      value: eventSelection,
+                      onChange: (event) => applyEventSelection(event.target.value),
+                      style: 'width: 100%;',
+                    },
                     eventOptions.map((option) =>
-                      h(
-                        'label',
-                        { key: option.value, class: 'radio-option' },
-                        h('input', {
-                          type: 'radio',
-                          name: 'event-selection',
-                          checked: eventSelection === option.value,
-                          onChange: () => applyEventSelection(option.value),
-                        }),
-                        h('span', null, option.label),
-                      ),
+                      h('option', { key: option.value, value: option.value }, option.label),
                     ),
                   ),
                   renderFieldMessages(['rsm7', 'rsm8', 'tp6']),
@@ -1059,7 +1297,7 @@ function App() {
                 h(
                   'label',
                   { class: fieldClasses('field', 'last') },
-                  h('span', { class: 'field-label' }, 'Weeks Ago (--last)'),
+                  h('span', { class: 'field-label' }, 'Weeks Ago'),
                   h('input', {
                     type: 'number',
                     min: 0,
@@ -1076,7 +1314,6 @@ function App() {
                     type: 'datetime-local',
                     value: config.start ?? '',
                     onInput: handleText('start'),
-                    disabled: eventSelection !== 'saturday',
                   }),
                   renderFieldMessages('start'),
                 ),
@@ -1088,7 +1325,6 @@ function App() {
                     type: 'datetime-local',
                     value: config.end ?? '',
                     onInput: handleText('end'),
-                    disabled: eventSelection !== 'saturday',
                   }),
                   renderFieldMessages('end'),
                 ),
@@ -1157,7 +1393,7 @@ function App() {
                 h(
                   'label',
                   { class: fieldClasses('field field--full', 'infile') },
-                  h('span', { class: 'field-label' }, 'ChatLog Path (--infile)'),
+                  h('span', { class: 'field-label' }, 'ChatLog Path'),
                   h('input', {
                     type: 'text',
                     value: config.infile ?? '',
@@ -1171,7 +1407,7 @@ function App() {
                   h(
                     'span',
                     { class: 'field-label' },
-                    'Processed Input (--process-file)',
+                    'Processed Input',
                   ),
                   h('input', {
                     type: 'text',
@@ -1184,7 +1420,7 @@ function App() {
                 h(
                   'label',
                   { class: fieldClasses('field field--full', 'outfile') },
-                  h('span', { class: 'field-label' }, 'Output File (--outfile)'),
+                  h('span', { class: 'field-label' }, 'Output File'),
                   h('input', {
                     type: 'text',
                     placeholder: outputPlaceholder,
@@ -1243,7 +1479,7 @@ function App() {
                     onChange: handleCheckbox('keep_orig'),
                     disabled: !config.use_llm,
                   }),
-                  h('span', null, 'Keep original output (--keep-orig)'),
+                  h('span', null, 'Keep original output'),
                   renderFieldMessages('keep_orig'),
                 ),
                 h(
@@ -1258,8 +1494,145 @@ function App() {
                     onChange: handleCheckbox('no_diff'),
                     disabled: !config.use_llm,
                   }),
-                  h('span', null, 'Disable diff generation (--no-diff)'),
+                  h('span', null, 'Disable diff generation'),
                   renderFieldMessages('no_diff'),
+                ),
+              ),
+            ),
+            h(
+              'div',
+              { class: 'form-group' },
+              h('h3', { class: 'group-title' }, 'OpenRouter AI Configuration'),
+              h('p', { class: 'muted', style: 'margin-bottom: 1rem;' }, 'Configure OpenRouter API for AI-powered corrections'),
+              h(
+                'div',
+                { class: 'field-grid' },
+                h(
+                  'label',
+                  { class: fieldClasses('field field--full', 'openrouter_api_key') },
+                  h('span', { class: 'field-label' }, 'OpenRouter API Key'),
+                  h(
+                    'div',
+                    { style: 'display: flex; gap: 0.5rem; align-items: center;' },
+                    h('input', {
+                      type: 'password',
+                      placeholder: 'sk-or-v1-...',
+                      value: config.openrouter_api_key ?? '',
+                      onInput: handleText('openrouter_api_key'),
+                      style: 'flex: 1;',
+                    }),
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        class: 'button button--secondary',
+                        onClick: handleOAuthLogin,
+                        disabled: oauthInProgress,
+                        style: 'white-space: nowrap; padding: 8px 12px;',
+                      },
+                      oauthInProgress ? 'Opening...' : 'OAuth Login',
+                    ),
+                  ),
+                  h('span', { class: 'field-hint' }, 'Get your API key from openrouter.ai/keys or use OAuth'),
+                  renderFieldMessages('openrouter_api_key'),
+                ),
+              ),
+              h(
+                'div',
+                { class: 'checkbox-grid' },
+                h(
+                  'label',
+                  { class: checkboxClasses('free_models_only') },
+                  h('input', {
+                    type: 'checkbox',
+                    checked: Boolean(config.free_models_only),
+                    onChange: handleCheckbox('free_models_only'),
+                  }),
+                  h('span', null, 'Show only free models'),
+                  renderFieldMessages('free_models_only'),
+                ),
+              ),
+              recommendedModels.length > 0
+                ? h(
+                    'div',
+                    { style: 'margin-top: 1rem;' },
+                    h('h4', { style: 'margin-bottom: 0.5rem; font-size: 0.9rem;' }, 'Recommended Models'),
+                    h(
+                      'div',
+                      { style: 'display: flex; flex-wrap: wrap; gap: 0.5rem;' },
+                      recommendedModels.map(([modelId, displayName]) =>
+                        h(
+                          'button',
+                          {
+                            key: modelId,
+                            type: 'button',
+                            class: 'button button--small button--secondary',
+                            onClick: () => {
+                              setConfig((prev) =>
+                                prev ? { ...prev, openrouter_model: modelId } : prev
+                              );
+                            },
+                            style: config.openrouter_model === modelId
+                              ? 'background: var(--color-primary); color: var(--color-bg);'
+                              : '',
+                          },
+                          displayName,
+                        ),
+                      ),
+                    ),
+                  )
+                : null,
+              h(
+                'div',
+                { class: 'field-grid', style: 'margin-top: 1rem;' },
+                h(
+                  'label',
+                  { class: fieldClasses('field field--full', 'openrouter_model') },
+                  h(
+                    'span',
+                    { class: 'field-label' },
+                    'Model ',
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        class: 'button button--small button--secondary',
+                        onClick: fetchModels,
+                        disabled: loadingModels,
+                        style: 'margin-left: 0.5rem; padding: 4px 8px; font-size: 0.8rem;',
+                      },
+                      loadingModels ? 'Loading...' : 'Load Models',
+                    ),
+                  ),
+                  models.length > 0
+                    ? h(
+                        'select',
+                        {
+                          value: config.openrouter_model ?? '',
+                          onChange: handleText('openrouter_model'),
+                          style: 'width: 100%;',
+                        },
+                        h('option', { value: '' }, 'Select a model or use default'),
+                        models
+                          .filter((model) =>
+                            config.free_models_only ? model.pricing.prompt === '0' && model.pricing.completion === '0' : true
+                          )
+                          .map((model) =>
+                            h(
+                              'option',
+                              { key: model.id, value: model.id },
+                              `${model.name} (${model.id})${model.pricing.prompt === '0' && model.pricing.completion === '0' ? ' - FREE' : ''}`,
+                            ),
+                          ),
+                      )
+                    : h('input', {
+                        type: 'text',
+                        placeholder: 'google/gemini-2.5-flash-lite',
+                        value: config.openrouter_model ?? '',
+                        onInput: handleText('openrouter_model'),
+                      }),
+                  h('span', { class: 'field-hint' }, models.length > 0 ? 'Select a model from the dropdown' : 'Click "Load Models" to see available options, or enter manually'),
+                  renderFieldMessages('openrouter_model'),
                 ),
               ),
             ),
@@ -1328,7 +1701,7 @@ function App() {
                         h(
                           'div',
                           {
-                            key: preset.id,
+                            key: preset.name,
                             class: preset.builtin
                               ? 'preset-card preset-card--builtin'
                               : 'preset-card preset-card--user',
@@ -1356,7 +1729,7 @@ function App() {
                                     {
                                       type: 'button',
                                       class: 'button button--small button--danger',
-                                      onClick: () => handleDeletePreset(preset.id),
+                                      onClick: () => handleDeletePreset(preset.name),
                                     },
                                     'Delete',
                                   ),
@@ -1365,10 +1738,6 @@ function App() {
                           h(
                             'div',
                             { class: 'preset-details' },
-                            h('div', { class: 'preset-field' }, [
-                              h('span', { class: 'preset-label' }, 'ID: '),
-                              h('code', null, preset.id),
-                            ]),
                             h('div', { class: 'preset-field' }, [
                               h('span', { class: 'preset-label' }, 'Weekday: '),
                               h('span', null, preset.weekday),
@@ -1414,19 +1783,7 @@ function App() {
                   h(
                     'label',
                     { class: 'field' },
-                    h('span', { class: 'field-label' }, 'Preset ID (unique identifier)'),
-                    h('input', {
-                      type: 'text',
-                      value: presetFormData.id,
-                      onInput: handlePresetFormChange('id'),
-                      placeholder: 'e.g., custom-event-1',
-                      required: true,
-                    }),
-                  ),
-                  h(
-                    'label',
-                    { class: 'field' },
-                    h('span', { class: 'field-label' }, 'Display Name'),
+                    h('span', { class: 'field-label' }, 'Preset Name (unique identifier)'),
                     h('input', {
                       type: 'text',
                       value: presetFormData.name,
