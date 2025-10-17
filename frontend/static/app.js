@@ -11,23 +11,58 @@ const apiBasePromise = window.__TAURI__?.core?.invoke('get_api_base_url');
 const VALIDATION_DEBOUNCE_MS = 250;
 const DEFAULT_STATUS = 'Idle';
 
-function deserializeConfig(payload) {
+function deserializeFileConfig(payload) {
   if (!payload) {
     return null;
   }
+
+  // Ensure all nested structures exist with defaults
+  const runtime = payload.runtime ?? {};
+  const ui = payload.ui ?? {};
+  const presets = payload.presets ?? [];
+
   return {
-    ...payload,
-    start: payload.start ?? '',
-    end: payload.end ?? '',
-    process_file: payload.process_file ?? '',
-    outfile: payload.outfile ?? '',
+    schema_version: payload.schema_version ?? 1,
+    runtime: {
+      chat_log_path: runtime.chat_log_path ?? '',
+      active_preset: runtime.active_preset ?? 'saturday-10pm-midnight',
+      weeks_ago: runtime.weeks_ago ?? 0,
+      dry_run: runtime.dry_run ?? false,
+      use_ai_corrections: runtime.use_ai_corrections ?? true,
+      keep_original_output: runtime.keep_original_output ?? false,
+      show_diff: runtime.show_diff ?? true,
+      cleanup_enabled: runtime.cleanup_enabled ?? true,
+      format_dialogue_enabled: runtime.format_dialogue_enabled ?? true,
+      outfile_override: runtime.outfile_override ?? null,
+      duration_override: {
+        enabled: runtime.duration_override?.enabled ?? false,
+        hours: runtime.duration_override?.hours ?? 1.0,
+      },
+    },
+    ui: {
+      theme: ui.theme ?? 'dark',
+      show_technical_log: ui.show_technical_log ?? false,
+      follow_technical_log: ui.follow_technical_log ?? true,
+    },
+    presets: presets.map(p => ({
+      id: p.id ?? '',
+      name: p.name ?? '',
+      weekday: p.weekday ?? '',
+      timezone: p.timezone ?? '',
+      start_time: p.start_time ?? '',
+      duration_minutes: p.duration_minutes ?? 60,
+      file_prefix: p.file_prefix ?? '',
+      default_weeks_ago: p.default_weeks_ago ?? 0,
+      builtin: p.builtin ?? false,
+    })),
   };
 }
 
-function normalizeConfigForApi(config) {
-  if (!config) {
+function normalizeFileConfigForApi(fileConfig) {
+  if (!fileConfig) {
     return null;
   }
+
   const trimOrNull = (value) => {
     if (typeof value !== 'string') {
       return value ?? null;
@@ -37,23 +72,41 @@ function normalizeConfigForApi(config) {
   };
 
   return {
-    last: Number.isFinite(config.last) ? Number(config.last) : 0,
-    dry_run: Boolean(config.dry_run),
-    infile: trimOrNull(config.infile) ?? '',
-    start: trimOrNull(config.start),
-    end: trimOrNull(config.end),
-    rsm7: Boolean(config.rsm7),
-    rsm8: Boolean(config.rsm8),
-    tp6: Boolean(config.tp6),
-    one_hour: Boolean(config.one_hour),
-    two_hours: Boolean(config.two_hours),
-    process_file: trimOrNull(config.process_file),
-    format_dialogue: Boolean(config.format_dialogue),
-    cleanup: Boolean(config.cleanup),
-    use_llm: Boolean(config.use_llm),
-    keep_orig: Boolean(config.keep_orig),
-    no_diff: Boolean(config.no_diff),
-    outfile: trimOrNull(config.outfile),
+    schema_version: fileConfig.schema_version ?? 1,
+    runtime: {
+      chat_log_path: trimOrNull(fileConfig.runtime.chat_log_path) ?? '',
+      active_preset: trimOrNull(fileConfig.runtime.active_preset) ?? 'saturday-10pm-midnight',
+      weeks_ago: Number.isFinite(fileConfig.runtime.weeks_ago) ? Number(fileConfig.runtime.weeks_ago) : 0,
+      dry_run: Boolean(fileConfig.runtime.dry_run),
+      use_ai_corrections: Boolean(fileConfig.runtime.use_ai_corrections),
+      keep_original_output: Boolean(fileConfig.runtime.keep_original_output),
+      show_diff: Boolean(fileConfig.runtime.show_diff),
+      cleanup_enabled: Boolean(fileConfig.runtime.cleanup_enabled),
+      format_dialogue_enabled: Boolean(fileConfig.runtime.format_dialogue_enabled),
+      outfile_override: trimOrNull(fileConfig.runtime.outfile_override),
+      duration_override: {
+        enabled: Boolean(fileConfig.runtime.duration_override?.enabled),
+        hours: Number.isFinite(fileConfig.runtime.duration_override?.hours)
+          ? Number(fileConfig.runtime.duration_override.hours)
+          : 1.0,
+      },
+    },
+    ui: {
+      theme: fileConfig.ui.theme ?? 'dark',
+      show_technical_log: Boolean(fileConfig.ui.show_technical_log),
+      follow_technical_log: Boolean(fileConfig.ui.follow_technical_log),
+    },
+    presets: (fileConfig.presets ?? []).map(p => ({
+      id: p.id ?? '',
+      name: p.name ?? '',
+      weekday: p.weekday ?? '',
+      timezone: p.timezone ?? '',
+      start_time: p.start_time ?? '',
+      duration_minutes: Number.isFinite(p.duration_minutes) ? Number(p.duration_minutes) : 60,
+      file_prefix: p.file_prefix ?? '',
+      default_weeks_ago: Number.isFinite(p.default_weeks_ago) ? Number(p.default_weeks_ago) : 0,
+      builtin: Boolean(p.builtin),
+    })),
   };
 }
 
@@ -198,7 +251,7 @@ function App() {
         const configPayload = settingsBody?.config ?? settingsBody;
 
         setHealth(healthBody);
-        setConfig(deserializeConfig(configPayload));
+        setConfig(deserializeFileConfig(configPayload));
         setDerived({
           outfile: settingsBody?.outfile ?? null,
         });
@@ -332,7 +385,7 @@ function App() {
 
     const timer = setTimeout(async () => {
       try {
-        const payload = normalizeConfigForApi(config);
+        const payload = normalizeFileConfigForApi(config);
         const response = await fetch(`${baseUrl}/api/validate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -375,19 +428,10 @@ function App() {
   }, [baseUrl, config, configLoaded]);
 
   const eventSelection = useMemo(() => {
-    if (!config) {
-      return 'saturday';
+    if (!config?.runtime?.active_preset) {
+      return 'saturday-10pm-midnight';
     }
-    if (config.rsm7) {
-      return 'rsm7';
-    }
-    if (config.rsm8) {
-      return 'rsm8';
-    }
-    if (config.tp6) {
-      return 'tp6';
-    }
-    return 'saturday';
+    return config.runtime.active_preset;
   }, [config]);
 
   const applyEventSelection = useCallback((value) => {
@@ -397,9 +441,10 @@ function App() {
       }
       return {
         ...prev,
-        rsm7: value === 'rsm7',
-        rsm8: value === 'rsm8',
-        tp6: value === 'tp6',
+        runtime: {
+          ...prev.runtime,
+          active_preset: value,
+        },
       };
     });
   }, []);
@@ -407,37 +452,61 @@ function App() {
   const handleCheckbox = useCallback(
     (field) => (event) => {
       const checked = event.target.checked;
-      setConfig((prev) => (prev ? { ...prev, [field]: checked } : prev));
+      setConfig((prev) =>
+        prev ? {
+          ...prev,
+          runtime: { ...prev.runtime, [field]: checked },
+        } : prev
+      );
     },
     [],
   );
 
-  const handleDurationToggle = useCallback(
-    (field) => (event) => {
-      const checked = event.target.checked;
-      setConfig((prev) => {
-        if (!prev) {
-          return prev;
-        }
-        if (!checked) {
-          return { ...prev, [field]: false };
-        }
-        if (field === 'one_hour') {
-          return { ...prev, one_hour: true, two_hours: false };
-        }
-        if (field === 'two_hours') {
-          return { ...prev, one_hour: false, two_hours: true };
-        }
+  const handleDurationToggle = useCallback((enabled) => {
+    setConfig((prev) => {
+      if (!prev) {
         return prev;
-      });
-    },
-    [],
-  );
+      }
+      return {
+        ...prev,
+        runtime: {
+          ...prev.runtime,
+          duration_override: {
+            ...prev.runtime.duration_override,
+            enabled,
+          },
+        },
+      };
+    });
+  }, []);
+
+  const handleDurationHours = useCallback((hours) => {
+    setConfig((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      return {
+        ...prev,
+        runtime: {
+          ...prev.runtime,
+          duration_override: {
+            ...prev.runtime.duration_override,
+            hours,
+          },
+        },
+      };
+    });
+  }, []);
 
   const handleText = useCallback(
     (field) => (event) => {
       const value = event.target.value;
-      setConfig((prev) => (prev ? { ...prev, [field]: value } : prev));
+      setConfig((prev) =>
+        prev ? {
+          ...prev,
+          runtime: { ...prev.runtime, [field]: value },
+        } : prev
+      );
     },
     [],
   );
@@ -447,7 +516,12 @@ function App() {
       const value = event.target.value;
       const parsed =
         value === '' ? 0 : Math.max(0, Number.parseInt(value, 10) || 0);
-      setConfig((prev) => (prev ? { ...prev, [field]: parsed } : prev));
+      setConfig((prev) =>
+        prev ? {
+          ...prev,
+          runtime: { ...prev.runtime, [field]: parsed },
+        } : prev
+      );
     },
     [],
   );
@@ -458,7 +532,7 @@ function App() {
     }
     try {
       setSaveState({ status: 'saving', message: null });
-      const payload = normalizeConfigForApi(config);
+      const payload = normalizeFileConfigForApi(config);
       const response = await fetch(`${baseUrl}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -499,7 +573,7 @@ function App() {
       return;
     }
 
-    const payload = normalizeConfigForApi(config);
+    const payload = normalizeFileConfigForApi(config);
     setProcessingState({
       active: true,
       jobId: null,
@@ -562,10 +636,10 @@ function App() {
     (validation && validation.valid === false);
 
   const eventOptions = [
-    { value: 'saturday', label: 'Saturday Night (default)' },
-    { value: 'rsm7', label: 'RSM7 – Tuesday 7PM ET' },
-    { value: 'rsm8', label: 'RSM8 – Tuesday 8PM ET' },
-    { value: 'tp6', label: 'TP6 – Friday 6PM ET' },
+    { value: 'saturday-10pm-midnight', label: 'Saturday 10pm-midnight' },
+    { value: 'tuesday-7pm', label: 'Tuesday 7pm' },
+    { value: 'tuesday-8pm', label: 'Tuesday 8pm' },
+    { value: 'friday-6pm', label: 'Friday 6pm' },
   ];
 
   const fieldErrors = validation?.field_errors ?? {};
@@ -796,8 +870,8 @@ function App() {
                   h('input', {
                     type: 'number',
                     min: 0,
-                    value: config.last ?? 0,
-                    onInput: handleNumber('last'),
+                    value: config.runtime.weeks_ago ?? 0,
+                    onInput: handleNumber('weeks_ago'),
                   }),
                   renderFieldMessages('last'),
                 ),
@@ -808,8 +882,8 @@ function App() {
                   h('input', {
                     type: 'text',
                     placeholder: 'YYYY-MM-DDTHH:MM',
-                    value: config.start ?? '',
-                    onInput: handleText('start'),
+                    disabled: true,
+                    value: '(Not yet implemented)',
                   }),
                   renderFieldMessages('start'),
                 ),
@@ -820,8 +894,8 @@ function App() {
                   h('input', {
                     type: 'text',
                     placeholder: 'YYYY-MM-DDTHH:MM',
-                    value: config.end ?? '',
-                    onInput: handleText('end'),
+                    disabled: true,
+                    value: '(Not yet implemented)',
                   }),
                   renderFieldMessages('end'),
                 ),
@@ -830,31 +904,40 @@ function App() {
                   {
                     class: fieldClasses(
                       'field checkbox-cluster',
-                      ['one_hour', 'two_hours'],
+                      ['duration_override'],
                     ),
                   },
-                  h('span', { class: 'field-label' }, 'Duration Overrides'),
+                  h('span', { class: 'field-label' }, 'Duration Override'),
                   h(
                     'label',
-                    { class: checkboxClasses('one_hour') },
+                    { class: checkboxClasses('duration_override') },
                     h('input', {
                       type: 'checkbox',
-                      checked: Boolean(config.one_hour),
-                      onChange: handleDurationToggle('one_hour'),
+                      checked: Boolean(config.runtime.duration_override?.enabled),
+                      onChange: (e) => handleDurationToggle(e.target.checked),
                     }),
-                    h('span', null, 'Force 1 hour (--1h)'),
+                    h('span', null, 'Override duration'),
                   ),
-                  h(
-                    'label',
-                    { class: checkboxClasses('two_hours') },
-                    h('input', {
-                      type: 'checkbox',
-                      checked: Boolean(config.two_hours),
-                      onChange: handleDurationToggle('two_hours'),
-                    }),
-                    h('span', null, 'Force 2 hours (--2h)'),
-                  ),
-                  renderFieldMessages(['one_hour', 'two_hours']),
+                  config.runtime.duration_override?.enabled
+                    ? h(
+                        'label',
+                        { class: 'field' },
+                        h('span', { class: 'field-label' }, 'Hours'),
+                        h('input', {
+                          type: 'number',
+                          min: 1,
+                          step: 0.5,
+                          value: config.runtime.duration_override?.hours ?? 1.0,
+                          onInput: (e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value) && value >= 1) {
+                              handleDurationHours(value);
+                            }
+                          },
+                        }),
+                      )
+                    : null,
+                  renderFieldMessages(['duration_override']),
                 ),
               ),
             ),
@@ -868,11 +951,11 @@ function App() {
                 h(
                   'label',
                   { class: fieldClasses('field field--full', 'infile') },
-                  h('span', { class: 'field-label' }, 'ChatLog Path (--infile)'),
+                  h('span', { class: 'field-label' }, 'ChatLog Path'),
                   h('input', {
                     type: 'text',
-                    value: config.infile ?? '',
-                    onInput: handleText('infile'),
+                    value: config.runtime.chat_log_path ?? '',
+                    onInput: handleText('chat_log_path'),
                   }),
                   renderFieldMessages('infile'),
                 ),
@@ -882,25 +965,25 @@ function App() {
                   h(
                     'span',
                     { class: 'field-label' },
-                    'Processed Input (--process-file)',
+                    'Processed Input (not yet implemented)',
                   ),
                   h('input', {
                     type: 'text',
                     placeholder: 'Optional pre-filtered file',
-                    value: config.process_file ?? '',
-                    onInput: handleText('process_file'),
+                    disabled: true,
+                    value: '(Not yet implemented)',
                   }),
                   renderFieldMessages('process_file'),
                 ),
                 h(
                   'label',
                   { class: fieldClasses('field field--full', 'outfile') },
-                  h('span', { class: 'field-label' }, 'Output File (--outfile)'),
+                  h('span', { class: 'field-label' }, 'Output File Override'),
                   h('input', {
                     type: 'text',
                     placeholder: outputPlaceholder,
-                    value: config.outfile ?? '',
-                    onInput: handleText('outfile'),
+                    value: config.runtime.outfile_override ?? '',
+                    onInput: handleText('outfile_override'),
                   }),
                   renderFieldMessages('outfile'),
                   outfileHint
@@ -916,7 +999,7 @@ function App() {
                   { class: checkboxClasses('dry_run') },
                   h('input', {
                     type: 'checkbox',
-                    checked: Boolean(config.dry_run),
+                    checked: Boolean(config.runtime.dry_run),
                     onChange: handleCheckbox('dry_run'),
                   }),
                   h('span', null, 'Dry run (print command only)'),
@@ -933,57 +1016,57 @@ function App() {
                 { class: 'checkbox-grid' },
                 h(
                   'label',
-                  { class: checkboxClasses('format_dialogue') },
+                  { class: checkboxClasses('format_dialogue_enabled') },
                   h('input', {
                     type: 'checkbox',
-                    checked: Boolean(config.format_dialogue),
-                    onChange: handleCheckbox('format_dialogue'),
+                    checked: Boolean(config.runtime.format_dialogue_enabled),
+                    onChange: handleCheckbox('format_dialogue_enabled'),
                   }),
                   h('span', null, 'Format dialogue'),
                   renderFieldMessages('format_dialogue'),
                 ),
                 h(
                   'label',
-                  { class: checkboxClasses('cleanup') },
+                  { class: checkboxClasses('cleanup_enabled') },
                   h('input', {
                     type: 'checkbox',
-                    checked: Boolean(config.cleanup),
-                    onChange: handleCheckbox('cleanup'),
+                    checked: Boolean(config.runtime.cleanup_enabled),
+                    onChange: handleCheckbox('cleanup_enabled'),
                   }),
                   h('span', null, 'Cleanup middle stage'),
                   renderFieldMessages('cleanup'),
                 ),
                 h(
                   'label',
-                  { class: checkboxClasses('use_llm') },
+                  { class: checkboxClasses('use_ai_corrections') },
                   h('input', {
                     type: 'checkbox',
-                    checked: Boolean(config.use_llm),
-                    onChange: handleCheckbox('use_llm'),
+                    checked: Boolean(config.runtime.use_ai_corrections),
+                    onChange: handleCheckbox('use_ai_corrections'),
                   }),
-                  h('span', null, 'Use LLM corrections'),
+                  h('span', null, 'Use AI corrections'),
                   renderFieldMessages('use_llm'),
                 ),
                 h(
                   'label',
-                  { class: checkboxClasses('keep_orig') },
+                  { class: checkboxClasses('keep_original_output') },
                   h('input', {
                     type: 'checkbox',
-                    checked: Boolean(config.keep_orig),
-                    onChange: handleCheckbox('keep_orig'),
+                    checked: Boolean(config.runtime.keep_original_output),
+                    onChange: handleCheckbox('keep_original_output'),
                   }),
-                  h('span', null, 'Keep original output (--keep-orig)'),
+                  h('span', null, 'Keep original output'),
                   renderFieldMessages('keep_orig'),
                 ),
                 h(
                   'label',
-                  { class: checkboxClasses('no_diff') },
+                  { class: checkboxClasses('show_diff') },
                   h('input', {
                     type: 'checkbox',
-                    checked: Boolean(config.no_diff),
-                    onChange: handleCheckbox('no_diff'),
+                    checked: Boolean(config.runtime.show_diff),
+                    onChange: handleCheckbox('show_diff'),
                   }),
-                  h('span', null, 'Disable diff generation (--no-diff)'),
+                  h('span', null, 'Show diff'),
                   renderFieldMessages('no_diff'),
                 ),
               ),
