@@ -978,13 +978,8 @@ fn main() {
             let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
 
             // Load tray icon explicitly for reliable dev mode support
-            let icon_bytes: &[u8] = if cfg!(target_os = "macos") {
-                include_bytes!("../icons/icon.icns")
-            } else if cfg!(target_os = "windows") {
-                include_bytes!("../icons/icon.ico")
-            } else {
-                include_bytes!("../icons/32x32.png")
-            };
+            // Use PNG for all platforms as it's universally supported
+            let icon_bytes: &[u8] = include_bytes!("../icons/icon.png");
             let tray_icon = tauri::image::Image::from_bytes(icon_bytes)?;
 
             let _tray = TrayIconBuilder::new()
