@@ -2,10 +2,9 @@ mod cli_args;
 
 use clap::Parser;
 use cli_args::{Cli, Command, PresetCommand};
-use rconv_core::config::SATURDAY_PRESET_ID;
 use rconv_core::{
     apply_runtime_overrides, config::PresetDefinition, load_config, run_cli,
-    runtime_preferences_to_convocations, save_config,
+    runtime_preferences_to_convocations, save_presets_and_ui_only,
 };
 
 #[tokio::main]
@@ -82,7 +81,8 @@ fn handle_preset_command(command: PresetCommand) -> Result<(), String> {
             };
             config.presets.push(preset);
             config.presets.sort_by(|a, b| a.id.cmp(&b.id));
-            save_config(&config).map_err(|err| err.to_string())?;
+            // Save only presets and UI preferences; runtime preferences are session-only
+            save_presets_and_ui_only(&config.presets, &config.ui).map_err(|err| err.to_string())?;
             println!("Created preset '{}' ({})", args.name, args.id);
             Ok(())
         }
@@ -115,7 +115,8 @@ fn handle_preset_command(command: PresetCommand) -> Result<(), String> {
                 preset.default_weeks_ago = weeks_ago;
             }
 
-            save_config(&config).map_err(|err| err.to_string())?;
+            // Save only presets and UI preferences; runtime preferences are session-only
+            save_presets_and_ui_only(&config.presets, &config.ui).map_err(|err| err.to_string())?;
             println!("Updated preset '{}'", args.id);
             Ok(())
         }
@@ -132,13 +133,11 @@ fn handle_preset_command(command: PresetCommand) -> Result<(), String> {
                 ));
             }
 
-            let was_active = config.runtime.active_preset == args.id;
             config.presets.remove(position);
-            if was_active {
-                config.runtime.active_preset = SATURDAY_PRESET_ID.to_string();
-            }
 
-            save_config(&config).map_err(|err| err.to_string())?;
+            // Save only presets and UI preferences; runtime preferences are session-only
+            // Note: If the deleted preset was active, sanitize_config will reset it on next load
+            save_presets_and_ui_only(&config.presets, &config.ui).map_err(|err| err.to_string())?;
             println!("Deleted preset '{}'", args.id);
             Ok(())
         }

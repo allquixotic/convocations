@@ -15,7 +15,7 @@ use axum::{Json, Router};
 use rconv_core::{
     ConvocationsConfig, FileConfig, PresetDefinition, StageProgressCallback, StageProgressEvent,
     StageProgressEventKind, load_config, resolve_outfile_paths, run_with_config_with_progress,
-    runtime_preferences_to_convocations, save_config,
+    runtime_preferences_to_convocations, save_presets_and_ui_only,
 };
 use serde::Serialize;
 use tauri::async_runtime::RwLock;
@@ -376,7 +376,9 @@ async fn get_settings_handler() -> Result<Json<SettingsResponse>, ApiError> {
 }
 
 async fn save_settings_handler(Json(config): Json<FileConfig>) -> Result<StatusCode, ApiError> {
-    save_config(&config).map_err(|err| ApiError::from(format!("{}", err)))?;
+    // Only persist presets and UI preferences; runtime preferences are session-only
+    save_presets_and_ui_only(&config.presets, &config.ui)
+        .map_err(|err| ApiError::from(format!("{}", err)))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -772,8 +774,9 @@ async fn create_preset_handler(
     // Add the preset
     config.presets.push(new_preset.clone());
 
-    // Save the config
-    save_config(&config).map_err(|err| ApiError::from(format!("{}", err)))?;
+    // Save only presets and UI preferences
+    save_presets_and_ui_only(&config.presets, &config.ui)
+        .map_err(|err| ApiError::from(format!("{}", err)))?;
 
     Ok((StatusCode::CREATED, Json(new_preset)))
 }
@@ -825,8 +828,9 @@ async fn update_preset_handler(
 
     config.presets[preset_index] = updated_preset;
 
-    // Save the config
-    save_config(&config).map_err(|err| ApiError::from(format!("{}", err)))?;
+    // Save only presets and UI preferences
+    save_presets_and_ui_only(&config.presets, &config.ui)
+        .map_err(|err| ApiError::from(format!("{}", err)))?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -855,13 +859,10 @@ async fn delete_preset_handler(
     // Remove the preset
     config.presets.remove(preset_index);
 
-    // If the deleted preset was active, reset to default
-    if config.runtime.active_preset == request.id {
-        config.runtime.active_preset = rconv_core::SATURDAY_PRESET_ID.to_string();
-    }
-
-    // Save the config
-    save_config(&config).map_err(|err| ApiError::from(format!("{}", err)))?;
+    // Save only presets and UI preferences
+    // Note: If the deleted preset was active, sanitize_config will reset it on next load
+    save_presets_and_ui_only(&config.presets, &config.ui)
+        .map_err(|err| ApiError::from(format!("{}", err)))?;
 
     Ok(StatusCode::NO_CONTENT)
 }

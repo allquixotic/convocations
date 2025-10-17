@@ -1659,7 +1659,11 @@ mod tests {
         let result = resolve_outfile_paths(&config, None, Some(today)).unwrap();
 
         // Should use "rsm7" prefix from the preset
-        assert!(result.default.contains("rsm7-"), "Expected preset prefix 'rsm7' in filename: {}", result.default);
+        assert!(
+            result.default.contains("rsm7-"),
+            "Expected preset prefix 'rsm7' in filename: {}",
+            result.default
+        );
         assert!(!result.was_overridden);
     }
 
@@ -1672,7 +1676,11 @@ mod tests {
         let result = resolve_outfile_paths(&config, Some(working_dir), Some(today)).unwrap();
 
         // Should use working directory
-        assert!(result.default.starts_with("/tmp/test/"), "Expected working dir in path: {}", result.default);
+        assert!(
+            result.default.starts_with("/tmp/test/"),
+            "Expected working dir in path: {}",
+            result.default
+        );
     }
 
     #[test]
@@ -1700,7 +1708,11 @@ mod tests {
         );
 
         // Should calculate most recent Saturday (Oct 11)
-        assert!(file_date == "101125", "Expected file date 101125, got {}", file_date);
+        assert!(
+            file_date == "101125",
+            "Expected file date 101125, got {}",
+            file_date
+        );
     }
 
     #[test]
@@ -1714,21 +1726,24 @@ mod tests {
         );
 
         // Should calculate Saturday one week before most recent (Oct 4)
-        assert!(file_date == "100425", "Expected file date 100425, got {}", file_date);
+        assert!(
+            file_date == "100425",
+            "Expected file date 100425, got {}",
+            file_date
+        );
     }
 
     #[test]
     fn test_calculate_dates_tuesday_rsm7() {
         let today = NaiveDate::from_ymd_opt(2025, 10, 16).unwrap(); // Thursday
-        let (_, _, file_date) = calculate_dates_for_event(
-            today,
-            0,
-            &EventType::Rsm7,
-            60,
-        );
+        let (_, _, file_date) = calculate_dates_for_event(today, 0, &EventType::Rsm7, 60);
 
         // Should calculate most recent Tuesday (Oct 14)
-        assert!(file_date == "101425", "Expected file date 101425, got {}", file_date);
+        assert!(
+            file_date == "101425",
+            "Expected file date 101425, got {}",
+            file_date
+        );
     }
 
     #[test]

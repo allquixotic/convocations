@@ -442,6 +442,22 @@ pub fn save_config(config: &FileConfig) -> Result<(), ConfigError> {
     Ok(())
 }
 
+/// Persist only presets and UI preferences, preserving existing runtime preferences from disk.
+/// This is used by GUI save operations and preset CRUD to keep runtime preferences ephemeral.
+pub fn save_presets_and_ui_only(
+    presets: &[PresetDefinition],
+    ui: &UiPreferences,
+) -> Result<(), ConfigError> {
+    let load_result = load_config();
+    let mut config = load_result.config;
+
+    // Replace only presets and UI, keep existing runtime preferences
+    config.presets = presets.to_vec();
+    config.ui = ui.clone();
+
+    save_config(&config)
+}
+
 fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>) {
     let mut warnings = Vec::new();
 
@@ -867,7 +883,11 @@ mod tests {
 
         // Should have removed the duplicate
         assert_eq!(
-            sanitized.presets.iter().filter(|p| p.id == SATURDAY_PRESET_ID).count(),
+            sanitized
+                .presets
+                .iter()
+                .filter(|p| p.id == SATURDAY_PRESET_ID)
+                .count(),
             1,
             "Should have exactly one instance of the Saturday preset"
         );
@@ -900,11 +920,17 @@ mod tests {
         // Should have fixed the duration
         let bad_preset = sanitized.presets.iter().find(|p| p.id == "bad-preset");
         assert!(bad_preset.is_some());
-        assert_eq!(bad_preset.unwrap().duration_minutes, 60, "Should reset to 60");
+        assert_eq!(
+            bad_preset.unwrap().duration_minutes,
+            60,
+            "Should reset to 60"
+        );
 
         // Should have a warning
         assert!(
-            warnings.iter().any(|w| w.contains("bad-preset") && w.contains("duration_minutes")),
+            warnings
+                .iter()
+                .any(|w| w.contains("bad-preset") && w.contains("duration_minutes")),
             "Should warn about zero duration"
         );
     }
@@ -930,11 +956,17 @@ mod tests {
         // Should have fixed the prefix
         let preset = sanitized.presets.iter().find(|p| p.id == "no-prefix");
         assert!(preset.is_some());
-        assert_eq!(preset.unwrap().file_prefix, "no-prefix", "Should use preset ID");
+        assert_eq!(
+            preset.unwrap().file_prefix,
+            "no-prefix",
+            "Should use preset ID"
+        );
 
         // Should have a warning
         assert!(
-            warnings.iter().any(|w| w.contains("no-prefix") && w.contains("file_prefix")),
+            warnings
+                .iter()
+                .any(|w| w.contains("no-prefix") && w.contains("file_prefix")),
             "Should warn about empty prefix"
         );
     }
@@ -993,7 +1025,9 @@ mod tests {
 
         // Should have a warning
         assert!(
-            warnings.iter().any(|w| w.contains("nonexistent-preset") && w.contains("not found")),
+            warnings
+                .iter()
+                .any(|w| w.contains("nonexistent-preset") && w.contains("not found")),
             "Should warn about missing preset"
         );
     }

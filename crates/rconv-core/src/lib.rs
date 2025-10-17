@@ -9,6 +9,7 @@ pub use config::{
     TUESDAY_7_PRESET_ID, TUESDAY_8_PRESET_ID, ThemePreference, UiPreferences,
     apply_runtime_overrides, config_directory, config_path, load_config,
     runtime_overrides_from_convocations, runtime_preferences_to_convocations, save_config,
+    save_presets_and_ui_only,
 };
 pub use runtime::{
     ConvocationsConfig, OutfileResolution, StageProgressCallback, StageProgressEvent,

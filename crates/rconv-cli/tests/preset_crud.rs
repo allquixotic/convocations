@@ -1,6 +1,6 @@
 use rconv_core::config::{
-    FileConfig, PresetDefinition, RuntimePreferences, UiPreferences, FRIDAY_6_PRESET_ID,
-    SATURDAY_PRESET_ID, TUESDAY_7_PRESET_ID, TUESDAY_8_PRESET_ID,
+    FRIDAY_6_PRESET_ID, FileConfig, PresetDefinition, RuntimePreferences, SATURDAY_PRESET_ID,
+    TUESDAY_7_PRESET_ID, TUESDAY_8_PRESET_ID, UiPreferences,
 };
 
 #[test]
@@ -44,7 +44,10 @@ fn test_default_presets_exist() {
         .iter()
         .find(|p| p.id == SATURDAY_PRESET_ID)
         .unwrap();
-    assert!(!saturday_preset.name.is_empty(), "Preset should have a name");
+    assert!(
+        !saturday_preset.name.is_empty(),
+        "Preset should have a name"
+    );
     assert!(
         !saturday_preset.weekday.is_empty(),
         "Preset should have a weekday"
@@ -182,8 +185,7 @@ fn test_runtime_defaults() {
 
     // Verify default values
     assert_eq!(
-        runtime.chat_log_path,
-        "~/Documents/Elder Scrolls Online/live/Logs/ChatLog.log",
+        runtime.chat_log_path, "~/Documents/Elder Scrolls Online/live/Logs/ChatLog.log",
         "Default chat log path should be correct"
     );
     assert_eq!(
@@ -200,10 +202,7 @@ fn test_runtime_defaults() {
         !runtime.keep_original_output,
         "Default keep_original_output should be false"
     );
-    assert!(
-        runtime.show_diff,
-        "Default show_diff should be true"
-    );
+    assert!(runtime.show_diff, "Default show_diff should be true");
     assert!(
         runtime.cleanup_enabled,
         "Default cleanup_enabled should be true"
@@ -236,7 +235,10 @@ fn test_ui_defaults() {
         rconv_core::config::ThemePreference::Dark,
         "Default theme should be Dark"
     );
-    assert!(!ui.show_technical_log, "Default show_technical_log should be false");
+    assert!(
+        !ui.show_technical_log,
+        "Default show_technical_log should be false"
+    );
     assert!(
         ui.follow_technical_log,
         "Default follow_technical_log should be true"

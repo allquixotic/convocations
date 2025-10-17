@@ -353,8 +353,6 @@ The wrapper script design provides:
 8. The command "Fix shit" means: identify to-do items or known issues that are about *broken* code or design, i.e. things that have been left incomplete, code that doesn't compile (errors), or problems that need to be solved, then go solve them, then update this document and do a Git commit. Do NOT push.
 
 # THE CHECKLIST - MODIFY THESE!
-
-[ ] Rework the Tauri HTTP API (`src-tauri/src/main.rs`) to treat `FileConfig` as the contract: expose runtime/ui/presets blocks, persist only preset definitions (and explicit UI prefs like theme) when the GUI issues a save, keep session-only overrides ephemeral, and confirm CLI arguments still override config-derived values.
 [ ] Enhance the technical log plumbing: keep backend progress events, tap `console.*` in the frontend early to funnel browser logs into the same stream (with origin tags), and respect the existing follow/visibility preferences.
 [ ] Stand up a Bun-based frontend toolchain: add Bun project metadata, install dependencies (Preact, Pico CSS 2.1.1, etc.) after verifying latest versions via web search, configure bundling outputs to `frontend/dist`, and update `tools/frontend-runner` to invoke Bun for debug/release builds.
 [ ] Refactor the frontend data layer to operate on `FileConfig`: track `runtime`, `ui`, and `presets` separately, adjust fetch/save/validate payloads, and keep form state synced while maintaining immutable copies for session overrides.
