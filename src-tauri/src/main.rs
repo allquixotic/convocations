@@ -936,8 +936,18 @@ fn main() {
             let show_item = MenuItem::with_id(app, "show", "Show Window", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
 
+            // Load tray icon explicitly for reliable dev mode support
+            let icon_bytes: &[u8] = if cfg!(target_os = "macos") {
+                include_bytes!("../icons/icon.icns")
+            } else if cfg!(target_os = "windows") {
+                include_bytes!("../icons/icon.ico")
+            } else {
+                include_bytes!("../icons/32x32.png")
+            };
+            let tray_icon = tauri::image::Image::from_bytes(icon_bytes)?;
+
             let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+                .icon(tray_icon)
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
