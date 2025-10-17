@@ -354,7 +354,6 @@ The wrapper script design provides:
 
 # THE CHECKLIST - MODIFY THESE!
 [ ] Enhance the technical log plumbing: keep backend progress events, tap `console.*` in the frontend early to funnel browser logs into the same stream (with origin tags), and respect the existing follow/visibility preferences.
-[ ] Stand up a Bun-based frontend toolchain: add Bun project metadata, install dependencies (Preact, Pico CSS 2.1.1, etc.) after verifying latest versions via web search, configure bundling outputs to `frontend/dist`, and update `tools/frontend-runner` to invoke Bun for debug/release builds.
 [ ] Refactor the frontend data layer to operate on `FileConfig`: track `runtime`, `ui`, and `presets` separately, adjust fetch/save/validate payloads, and keep form state synced while maintaining immutable copies for session overrides.
 [ ] Replace bespoke styling with Pico CSS v2.1.1: import via the Bun pipeline, introduce a theme toggle defaulting to dark that maps to `UiPreferences.theme`, and add any minimal custom overrides required for the app layout.
 [ ] Build the preset management UX: surface built-in (read-only) presets with the new display names, add create/update/delete flows for user-defined presets (including weeks-ago and file-prefix controls), and wire the "Save" button to persist only preset changes via the updated API.

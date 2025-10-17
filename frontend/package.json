@@ -1,0 +1,15 @@
+{
+  "name": "rconv-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun run build.js",
+    "build:release": "bun run build.js --release"
+  },
+  "dependencies": {
+    "@picocss/pico": "^2.1.1",
+    "preact": "^10.27.2"
+  },
+  "devDependencies": {}
+}

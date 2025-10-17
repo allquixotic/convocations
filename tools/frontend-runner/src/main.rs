@@ -6,7 +6,6 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use walkdir::WalkDir;
 
 fn main() -> Result<()> {
     let mut args = env::args().skip(1);
@@ -43,28 +42,33 @@ fn print_help() {
 
 fn build_frontend(profile: BuildProfile) -> Result<()> {
     let root = workspace_root();
-    let static_dir = root.join("frontend/static");
-    if !static_dir.exists() {
+    let frontend_dir = root.join("frontend");
+
+    if !frontend_dir.exists() {
         bail!(
-            "expected static assets at {} – ensure frontend/static exists",
-            static_dir.display()
+            "expected frontend directory at {} – ensure frontend/ exists",
+            frontend_dir.display()
         );
     }
 
-    let dist_dir = root.join("frontend/dist");
-    if dist_dir.exists() {
-        fs::remove_dir_all(&dist_dir)
-            .with_context(|| format!("failed to clear {}", dist_dir.display()))?;
-    }
-    fs::create_dir_all(&dist_dir)
-        .with_context(|| format!("failed to create {}", dist_dir.display()))?;
-
-    copy_directory(&static_dir, &dist_dir)?;
+    // Run bun build via the build script
+    let mut command = Command::new("bun");
+    command
+        .current_dir(&frontend_dir)
+        .args(["run", "build.js"])
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
 
     if matches!(profile, BuildProfile::Release) {
-        println!("Frontend assets copied (release profile).");
+        command.arg("--release");
+    }
+
+    run(&mut command)?;
+
+    if matches!(profile, BuildProfile::Release) {
+        println!("Frontend built with Bun (release profile).");
     } else {
-        println!("Frontend assets copied (debug profile).");
+        println!("Frontend built with Bun (debug profile).");
     }
 
     Ok(())
@@ -182,28 +186,3 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn copy_directory(from: &Path, to: &Path) -> Result<()> {
-    for entry in WalkDir::new(from) {
-        let entry = entry?;
-        let relative = entry.path().strip_prefix(from).expect("strip prefix");
-        let dest_path = to.join(relative);
-
-        if entry.file_type().is_dir() {
-            fs::create_dir_all(&dest_path)
-                .with_context(|| format!("failed to create directory {}", dest_path.display()))?;
-        } else {
-            if let Some(parent) = dest_path.parent() {
-                fs::create_dir_all(parent)
-                    .with_context(|| format!("failed to create {}", parent.display()))?;
-            }
-            fs::copy(entry.path(), &dest_path).with_context(|| {
-                format!(
-                    "failed to copy {} to {}",
-                    entry.path().display(),
-                    dest_path.display()
-                )
-            })?;
-        }
-    }
-    Ok(())
-}
