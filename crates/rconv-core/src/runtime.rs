@@ -316,7 +316,7 @@ fn hours_to_minutes(hours: f32) -> Result<i64, String> {
     Ok(minutes as i64)
 }
 
-fn validate_config(config: &ConvocationsConfig) -> Result<(), String> {
+pub(crate) fn validate_config(config: &ConvocationsConfig) -> Result<(), String> {
     // Check for multiple event types
     let event_count = [config.rsm7, config.rsm8, config.tp6]
         .iter()

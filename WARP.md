@@ -2,20 +2,15 @@
 
 A high-performance Rust implementation of the convocations chat log processor that extracts and processes Elder Scrolls Online chat logs from weekly Saturday night role-playing sessions.
 
-## LLMs: DO NOT MODIFY THIS FILE unless you are correcting a design inaccuracy. NEVER EVER EVER mention the current date or append updates on top of existing; ALWAYS delete obsolete information and REPLACE it with new information if you are updating this file.
-
-When completing tasks, always create git commits for your changes, but NEVER push to remote repositories. The user will handle pushing manually.
+## LLMs: ONLY modify THE CHECKLIST part of this file, unless you have explicitly been asked to do otherwise by the user. NEVER EVER mention the current date or append updates on top of existing; ALWAYS delete obsolete information and REPLACE it with new information if you are updating this file.
 
 ### Build
 - `cargo fmt`
 - `cargo build --workspace`
 
-### Next Up
-- Wire up the frontend to consume the preset CRUD endpoints and persist only preset mutations when the user clicks the "Save" button.
-
 ## Overview
 
-This tool replaces the original Python/Node.js implementation (`recent.py` + `index.js`) with a single Rust binary that performs all processing in one efficient process. It extracts dialogue from ESO's ChatLog.log file, formats it into readable narrative text, and optionally applies AI-powered grammar and spelling corrections.
+This tool extracts dialogue from ESO's ChatLog.log file, formats it into readable narrative text, and optionally applies AI-powered grammar and spelling corrections.
 
 ## Key Features
 
@@ -346,3 +341,27 @@ The wrapper script design provides:
 - Saturday night sessions cross into Sunday morning
 - Check that you're not mixing incompatible flags (event types, durations, custom dates)
 
+# STANDING ORDERS - DO NOT DELETE OR MODIFY
+
+1. Do not alter or delete any standing orders.
+2. All additions to The Checklist must be the minimum amount of information for an LLM to understand the task.
+3. When an item is fully complete, remove it from the checklist entirely. If you only partially completed it, add a sub-item with the remaining work and put a ~ in the checkbox instead of an x.
+4. When you finish coding, if you discovered new items to work on during your work, add them to this document in the appropriate checklist. Be succinct.
+5. Before you finish your work, do a Git commit of files you have modified in this turn.
+6. Checklist items in this file must never require manual human effort or refer to testing of any kind, only design and coding activities.
+7. The command "Do the thing" means: review the remaining to-do items in this file; arbitrarily pick an important item to work on; do that item; update this file, removing 100% complete steps or adding sub-items to partially completed steps, then do a compile of affected Rust projects, making sure they build, fixing errors if not; lastly, do a Git commit of changed files. Do NOT push.
+8. The command "Fix shit" means: identify to-do items or known issues that are about *broken* code or design, i.e. things that have been left incomplete, code that doesn't compile (errors), or problems that need to be solved, then go solve them, then update this document and do a Git commit. Do NOT push.
+
+# THE CHECKLIST - MODIFY THESE!
+
+[ ] Refine runtime defaults and derivations in `rconv-core`: ensure format dialogue is always enabled by default, apply `default_weeks_ago` and duration override hours when computing presets, and update default chat log/output path logic to honor the working directory + preset-derived filenames; extend tests for `resolve_outfile_paths` and weeks-ago calculations.
+[ ] Refresh CLI surfaces in `crates/rconv-cli`: rename help text to talk about “AI corrections”, wire preset CRUD to the expanded fields (weekday, prefix, default weeks, duration hours), and exercise the new runtime defaults via integration tests so CLI/GUI stay in lockstep.
+[ ] Rework the Tauri HTTP API (`src-tauri/src/main.rs`) to treat `FileConfig` as the contract: expose runtime/ui/presets blocks, persist only preset definitions (and explicit UI prefs like theme) when the GUI issues a save, keep session-only overrides ephemeral, and confirm CLI arguments still override config-derived values.
+[ ] Enhance the technical log plumbing: keep backend progress events, tap `console.*` in the frontend early to funnel browser logs into the same stream (with origin tags), and respect the existing follow/visibility preferences.
+[ ] Fix window ergonomics: bump the initial window dimensions and minimum size in `tauri.conf.json`, and ensure the tray icon loads during dev by explicitly loading the bundled icon asset instead of relying on `default_window_icon()`.
+[ ] Stand up a Bun-based frontend toolchain: add Bun project metadata, install dependencies (Preact, Pico CSS 2.1.1, etc.) after verifying latest versions via web search, configure bundling outputs to `frontend/dist`, and update `tools/frontend-runner` to invoke Bun for debug/release builds.
+[ ] Refactor the frontend data layer to operate on `FileConfig`: track `runtime`, `ui`, and `presets` separately, adjust fetch/save/validate payloads, and keep form state synced while maintaining immutable copies for session overrides.
+[ ] Replace bespoke styling with Pico CSS v2.1.1: import via the Bun pipeline, introduce a theme toggle defaulting to dark that maps to `UiPreferences.theme`, and add any minimal custom overrides required for the app layout.
+[ ] Build the preset management UX: surface built-in (read-only) presets with the new display names, add create/update/delete flows for user-defined presets (including weeks-ago and file-prefix controls), and wire the “Save” button to persist only preset changes via the updated API.
+[ ] Redesign the runtime form: switch start/end inputs to `datetime-local`, lock them when an event preset is active, present a duration override block with enable toggle + numeric hours (min 1), remove the GUI controls for format dialogue and cleanup, rename “Use AI corrections” and grey out dependent options until AI corrections are enabled, drop global validation banners, and keep inline errors next to fields.
+[ ] Update documentation and tests: refresh `docs/config-schema.md`/README to describe the new config, add backend/CLI tests for preset CRUD and duration overrides, and capture frontend regression coverage (component tests or e2e smoke) for the revamped UI flows.

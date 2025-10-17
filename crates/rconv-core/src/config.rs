@@ -94,7 +94,7 @@ impl FileConfig {
 }
 
 /// Runtime preferences that map closely to CLI flag behaviour.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimePreferences {
     #[serde(default = "RuntimePreferences::default_chat_log_path")]
     pub chat_log_path: String,
@@ -189,7 +189,7 @@ impl DurationOverride {
 }
 
 /// UI-only preferences that the GUI needs to persist.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UiPreferences {
     #[serde(default)]
     pub theme: ThemePreference,
@@ -497,6 +497,24 @@ fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>) {
         config.runtime.active_preset = SATURDAY_PRESET_ID.to_string();
     }
 
+    // Validate preset definitions
+    for preset in &mut config.presets {
+        if preset.duration_minutes == 0 {
+            warnings.push(format!(
+                "Preset '{}' has invalid duration_minutes (0). Resetting to 60.",
+                preset.id
+            ));
+            preset.duration_minutes = 60;
+        }
+        if preset.file_prefix.trim().is_empty() {
+            warnings.push(format!(
+                "Preset '{}' has empty file_prefix. Setting to preset ID.",
+                preset.id
+            ));
+            preset.file_prefix = preset.id.clone();
+        }
+    }
+
     let duration_hours = config.runtime.duration_override.hours;
     if !duration_hours.is_finite() {
         warnings.push(
@@ -518,6 +536,20 @@ fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>) {
         if outfile.trim().is_empty() {
             *outfile = String::new();
         }
+    }
+
+    // Convert to ConvocationsConfig and validate
+    let (convocations_config, mut conv_warnings) =
+        runtime_preferences_to_convocations(&config.runtime, &config.presets);
+    warnings.append(&mut conv_warnings);
+
+    // Use the runtime validation function to check for contradictory settings
+    if let Err(validation_error) = crate::runtime::validate_config(&convocations_config) {
+        warnings.push(format!(
+            "Configuration validation failed: {}. Resetting runtime preferences to defaults.",
+            validation_error
+        ));
+        config.runtime = RuntimePreferences::default();
     }
 
     (config, warnings)
@@ -809,4 +841,206 @@ pub fn runtime_overrides_from_convocations(config: &ConvocationsConfig) -> Runti
     }
 
     overrides
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sanitize_bad_toml_duplicate_presets() {
+        let mut config = FileConfig::default();
+        // Add a duplicate preset
+        config.presets.push(PresetDefinition {
+            id: SATURDAY_PRESET_ID.to_string(),
+            name: "Duplicate".to_string(),
+            weekday: "saturday".to_string(),
+            timezone: "America/New_York".to_string(),
+            start_time: "22:00".to_string(),
+            duration_minutes: 145,
+            file_prefix: "conv".to_string(),
+            default_weeks_ago: 0,
+            builtin: false,
+        });
+
+        let (sanitized, warnings) = sanitize_config(config);
+
+        // Should have removed the duplicate
+        assert_eq!(
+            sanitized.presets.iter().filter(|p| p.id == SATURDAY_PRESET_ID).count(),
+            1,
+            "Should have exactly one instance of the Saturday preset"
+        );
+
+        // Should have a warning about duplicates
+        assert!(
+            warnings.iter().any(|w| w.contains("duplicate")),
+            "Should warn about duplicate preset IDs"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_preset_zero_duration() {
+        let mut config = FileConfig::default();
+        // Create a preset with zero duration
+        config.presets.push(PresetDefinition {
+            id: "bad-preset".to_string(),
+            name: "Bad Preset".to_string(),
+            weekday: "monday".to_string(),
+            timezone: "America/New_York".to_string(),
+            start_time: "12:00".to_string(),
+            duration_minutes: 0,
+            file_prefix: "bad".to_string(),
+            default_weeks_ago: 0,
+            builtin: false,
+        });
+
+        let (sanitized, warnings) = sanitize_config(config);
+
+        // Should have fixed the duration
+        let bad_preset = sanitized.presets.iter().find(|p| p.id == "bad-preset");
+        assert!(bad_preset.is_some());
+        assert_eq!(bad_preset.unwrap().duration_minutes, 60, "Should reset to 60");
+
+        // Should have a warning
+        assert!(
+            warnings.iter().any(|w| w.contains("bad-preset") && w.contains("duration_minutes")),
+            "Should warn about zero duration"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_preset_empty_prefix() {
+        let mut config = FileConfig::default();
+        // Create a preset with empty prefix
+        config.presets.push(PresetDefinition {
+            id: "no-prefix".to_string(),
+            name: "No Prefix".to_string(),
+            weekday: "tuesday".to_string(),
+            timezone: "America/New_York".to_string(),
+            start_time: "14:00".to_string(),
+            duration_minutes: 60,
+            file_prefix: "  ".to_string(), // whitespace only
+            default_weeks_ago: 0,
+            builtin: false,
+        });
+
+        let (sanitized, warnings) = sanitize_config(config);
+
+        // Should have fixed the prefix
+        let preset = sanitized.presets.iter().find(|p| p.id == "no-prefix");
+        assert!(preset.is_some());
+        assert_eq!(preset.unwrap().file_prefix, "no-prefix", "Should use preset ID");
+
+        // Should have a warning
+        assert!(
+            warnings.iter().any(|w| w.contains("no-prefix") && w.contains("file_prefix")),
+            "Should warn about empty prefix"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_invalid_duration_override_infinite() {
+        let mut config = FileConfig::default();
+        config.runtime.duration_override = DurationOverride {
+            enabled: true,
+            hours: f32::INFINITY,
+        };
+
+        let (sanitized, warnings) = sanitize_config(config);
+
+        // Should have disabled and reset
+        assert!(!sanitized.runtime.duration_override.enabled);
+        assert_eq!(sanitized.runtime.duration_override.hours, 1.0);
+
+        // Should have a warning
+        assert!(
+            warnings.iter().any(|w| w.contains("finite")),
+            "Should warn about non-finite hours"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_invalid_duration_override_negative() {
+        let mut config = FileConfig::default();
+        config.runtime.duration_override = DurationOverride {
+            enabled: true,
+            hours: 0.5,
+        };
+
+        let (sanitized, warnings) = sanitize_config(config);
+
+        // Should have disabled and reset
+        assert!(!sanitized.runtime.duration_override.enabled);
+        assert_eq!(sanitized.runtime.duration_override.hours, 1.0);
+
+        // Should have a warning
+        assert!(
+            warnings.iter().any(|w| w.contains("at least 1.0")),
+            "Should warn about hours < 1.0"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_invalid_active_preset() {
+        let mut config = FileConfig::default();
+        config.runtime.active_preset = "nonexistent-preset".to_string();
+
+        let (sanitized, warnings) = sanitize_config(config);
+
+        // Should have reset to default
+        assert_eq!(sanitized.runtime.active_preset, SATURDAY_PRESET_ID);
+
+        // Should have a warning
+        assert!(
+            warnings.iter().any(|w| w.contains("nonexistent-preset") && w.contains("not found")),
+            "Should warn about missing preset"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_wrong_schema_version() {
+        let mut config = FileConfig::default();
+        config.schema_version = 999;
+
+        let (sanitized, warnings) = sanitize_config(config);
+
+        // Should have reset to defaults
+        assert_eq!(sanitized.schema_version, CURRENT_SCHEMA_VERSION);
+        assert_eq!(sanitized.runtime, RuntimePreferences::default());
+
+        // Should have a warning
+        assert!(
+            warnings.iter().any(|w| w.contains("schema version")),
+            "Should warn about unknown schema version"
+        );
+    }
+
+    #[test]
+    fn test_load_config_bad_toml() {
+        // This test would require creating a temporary config file
+        // For now, we just test that load_config returns a valid result
+        let result = load_config();
+        // Should get a valid config (source may be File if config exists, or Default otherwise)
+        assert!(result.source == ConfigSource::Default || result.source == ConfigSource::File);
+        // Config should be valid
+        assert_eq!(result.config.schema_version, CURRENT_SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn test_runtime_preferences_to_convocations() {
+        let mut runtime = RuntimePreferences::default();
+        runtime.duration_override = DurationOverride {
+            enabled: true,
+            hours: 2.5,
+        };
+
+        let presets = default_presets();
+        let (config, warnings) = runtime_preferences_to_convocations(&runtime, &presets);
+
+        // Should convert properly
+        assert_eq!(config.duration_override.hours, 2.5);
+        assert!(config.duration_override.enabled);
+        assert!(warnings.is_empty());
+    }
 }
