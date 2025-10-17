@@ -21,7 +21,7 @@ use serde::Serialize;
 use tauri::async_runtime::RwLock;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager, State as TauriState};
+use tauri::{AppHandle, Emitter, Listener, Manager, State as TauriState};
 use tokio::sync::mpsc;
 use tokio::time::sleep;
 use tower_http::cors::{Any, CorsLayer};
@@ -90,6 +90,13 @@ struct ProcessEventPayload {
     stage_elapsed_ms: Option<f64>,
     message: Option<String>,
     error: Option<String>,
+    #[serde(default = "default_origin")]
+    origin: String,
+}
+
+#[allow(dead_code)]
+fn default_origin() -> String {
+    "backend".to_string()
 }
 
 impl ProcessEventPayload {
@@ -102,6 +109,7 @@ impl ProcessEventPayload {
             stage_elapsed_ms: None,
             message: Some("Job queued".to_string()),
             error: None,
+            origin: "backend".to_string(),
         }
     }
 
@@ -115,6 +123,7 @@ impl ProcessEventPayload {
                 stage_elapsed_ms: event.stage_elapsed_ms,
                 message: event.message.clone(),
                 error: None,
+                origin: "backend".to_string(),
             },
             StageProgressEventKind::End => Self {
                 job_id: job_id.to_string(),
@@ -124,6 +133,7 @@ impl ProcessEventPayload {
                 stage_elapsed_ms: event.stage_elapsed_ms,
                 message: event.message.clone(),
                 error: None,
+                origin: "backend".to_string(),
             },
             StageProgressEventKind::Note | StageProgressEventKind::Progress => Self {
                 job_id: job_id.to_string(),
@@ -133,6 +143,7 @@ impl ProcessEventPayload {
                 stage_elapsed_ms: event.stage_elapsed_ms,
                 message: event.message.clone(),
                 error: None,
+                origin: "backend".to_string(),
             },
         }
     }
@@ -146,6 +157,7 @@ impl ProcessEventPayload {
             stage_elapsed_ms: None,
             message: Some("Processing completed".to_string()),
             error: None,
+            origin: "backend".to_string(),
         }
     }
 
@@ -158,6 +170,32 @@ impl ProcessEventPayload {
             stage_elapsed_ms: None,
             message: None,
             error: Some(error.into()),
+            origin: "backend".to_string(),
+        }
+    }
+
+    fn from_frontend_log(level: &str, message: String) -> Self {
+        let kind = match level {
+            "error" => ProcessEventKind::Failed,
+            "warn" => ProcessEventKind::Info,
+            _ => ProcessEventKind::Info,
+        };
+
+        let error = if level == "error" {
+            Some(message.clone())
+        } else {
+            None
+        };
+
+        Self {
+            job_id: "frontend".to_string(),
+            kind,
+            stage: None,
+            elapsed_ms: None,
+            stage_elapsed_ms: None,
+            message: Some(message),
+            error,
+            origin: "frontend".to_string(),
         }
     }
 }
@@ -272,7 +310,8 @@ impl ConsolePipe {
 }
 
 fn format_console_line(payload: &ProcessEventPayload) -> String {
-    let mut parts = Vec::with_capacity(6);
+    let mut parts = Vec::with_capacity(8);
+    parts.push(format!("[{}]", payload.origin));
     parts.push(format!("job {}", payload.job_id));
     parts.push(format!("kind {}", payload.kind.as_str()));
     if let Some(stage) = &payload.stage {
@@ -321,6 +360,7 @@ impl HttpContext {
             stage_elapsed_ms: None,
             message: Some(message.into()),
             error: None,
+            origin: "backend".to_string(),
         });
     }
 }
@@ -977,6 +1017,24 @@ fn main() {
                     }
                 })
                 .build(app)?;
+
+            // Set up frontend log listener
+            let app_handle_for_logs = app.handle().clone();
+            app.listen("frontend-log", move |event| {
+                #[derive(serde::Deserialize)]
+                #[allow(dead_code)]
+                struct FrontendLog {
+                    origin: String,
+                    level: String,
+                    message: String,
+                    timestamp: String,
+                }
+
+                if let Ok(log) = serde_json::from_str::<FrontendLog>(event.payload()) {
+                    let payload = ProcessEventPayload::from_frontend_log(&log.level, log.message);
+                    emit_progress(&app_handle_for_logs, payload);
+                }
+            });
 
             // Launch HTTP server
             let shared = app.state::<Arc<ApiServerState>>().inner().clone();

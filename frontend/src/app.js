@@ -11,6 +11,59 @@ const apiBasePromise = window.__TAURI__?.core?.invoke('get_api_base_url');
 const VALIDATION_DEBOUNCE_MS = 250;
 const DEFAULT_STATUS = 'Idle';
 
+// Console interception: funnel browser logs to backend with origin tags
+function interceptConsole() {
+  if (!window.__TAURI__?.event?.emit) {
+    return; // Not in Tauri environment
+  }
+
+  const originalConsole = {
+    log: console.log,
+    error: console.error,
+    warn: console.warn,
+    debug: console.debug,
+    info: console.info,
+  };
+
+  const createInterceptor = (level, original) => {
+    return function (...args) {
+      // Call original console method
+      original.apply(console, args);
+
+      // Format message
+      const message = args
+        .map((arg) => {
+          if (typeof arg === 'object') {
+            try {
+              return JSON.stringify(arg);
+            } catch {
+              return String(arg);
+            }
+          }
+          return String(arg);
+        })
+        .join(' ');
+
+      // Emit to backend with origin tag
+      window.__TAURI__.event.emit('frontend-log', {
+        origin: 'frontend',
+        level,
+        message,
+        timestamp: new Date().toISOString(),
+      });
+    };
+  };
+
+  console.log = createInterceptor('log', originalConsole.log);
+  console.error = createInterceptor('error', originalConsole.error);
+  console.warn = createInterceptor('warn', originalConsole.warn);
+  console.debug = createInterceptor('debug', originalConsole.debug);
+  console.info = createInterceptor('info', originalConsole.info);
+}
+
+// Install console interception early
+interceptConsole();
+
 function deserializeConfig(payload) {
   if (!payload) {
     return null;
@@ -116,6 +169,7 @@ function buildProgressEntry(payload) {
     message: pieces.join(' · '),
     error: payload.error ?? null,
     timestamp: new Date().toISOString(),
+    origin: payload.origin ?? 'backend',
   };
 }
 
@@ -700,11 +754,13 @@ function App() {
                 : entry.kind === 'completed'
                   ? 'log-entry log-entry--success'
                   : 'log-entry',
+            'data-origin': entry.origin,
           },
           h(
             'div',
             { class: 'log-header' },
             h('span', { class: 'log-time' }, formatClockTime(new Date(entry.timestamp))),
+            h('span', { class: 'log-origin', title: 'Origin' }, `[${entry.origin}]`),
             h('span', { class: 'log-kind' }, entry.kind),
             entry.jobId
               ? h('span', { class: 'log-job' }, `Job ${entry.jobId.slice(0, 8)}`)

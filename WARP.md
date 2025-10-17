@@ -353,8 +353,8 @@ The wrapper script design provides:
 8. The command "Fix shit" means: identify to-do items or known issues that are about *broken* code or design, i.e. things that have been left incomplete, code that doesn't compile (errors), or problems that need to be solved, then go solve them, then update this document and do a Git commit. Do NOT push.
 
 # THE CHECKLIST - MODIFY THESE!
-[ ] Enhance the technical log plumbing: keep backend progress events, tap `console.*` in the frontend early to funnel browser logs into the same stream (with origin tags), and respect the existing follow/visibility preferences.
 [ ] Refactor the frontend data layer to operate on `FileConfig`: track `runtime`, `ui`, and `presets` separately, adjust fetch/save/validate payloads, and keep form state synced while maintaining immutable copies for session overrides.
 [ ] Build the preset management UX: surface built-in (read-only) presets with the new display names, add create/update/delete flows for user-defined presets (including weeks-ago and file-prefix controls), and wire the "Save" button to persist only preset changes via the updated API.
 [ ] Redesign the runtime form: switch start/end inputs to `datetime-local`, lock them when an event preset is active, present a duration override block with enable toggle + numeric hours (min 1), remove the GUI controls for format dialogue and cleanup, rename "Use AI corrections" and grey out dependent options until AI corrections are enabled, drop global validation banners, and keep inline errors next to fields.
+[ ] Wire UI controls for technical log visibility and follow preferences to config backend and apply filtering/auto-scroll behavior in the log display.
 [ ] Update documentation and tests: refresh `docs/config-schema.md`/README to describe the new config, add backend/CLI tests for preset CRUD and duration overrides, and capture frontend regression coverage (component tests or e2e smoke) for the revamped UI flows.
