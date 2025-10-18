@@ -289,8 +289,21 @@ function App() {
         const fileConfig = settingsBody?.config ?? settingsBody;
         const runtimeConfig = fileConfig?.runtime ?? fileConfig;
 
+        // Get default ChatLog path from backend if infile is empty
+        let finalConfig = deserializeConfig(runtimeConfig);
+        if (!finalConfig.infile || finalConfig.infile.trim() === '') {
+          try {
+            const defaultPath = await window.__TAURI__?.core?.invoke('get_default_chatlog_path');
+            if (defaultPath) {
+              finalConfig.infile = defaultPath;
+            }
+          } catch (err) {
+            console.warn('[Convocations] Failed to get default ChatLog path:', err);
+          }
+        }
+
         setHealth(healthBody);
-        setConfig(deserializeConfig(runtimeConfig));
+        setConfig(finalConfig);
         setUi(fileConfig?.ui ?? { theme: 'dark' });
         setPresets(fileConfig?.presets ?? []);
         setDerived({
@@ -586,6 +599,28 @@ function App() {
     (field) => (event) => {
       const checked = event.target.checked;
       setUi((prev) => (prev ? { ...prev, [field]: checked } : prev));
+    },
+    [],
+  );
+
+  const handleBrowseFile = useCallback(
+    (field, title) => async () => {
+      if (!window.__TAURI__?.core?.invoke) {
+        console.warn('[Convocations] File browsing not available (not in Tauri environment)');
+        return;
+      }
+
+      try {
+        const selectedPath = await window.__TAURI__.core.invoke('open_file_dialog', {
+          title: title || 'Select File',
+        });
+
+        if (selectedPath) {
+          setConfig((prev) => (prev ? { ...prev, [field]: selectedPath } : prev));
+        }
+      } catch (err) {
+        console.error('[Convocations] Failed to open file dialog:', err);
+      }
     },
     [],
   );
@@ -1337,11 +1372,26 @@ function App() {
                   'label',
                   { class: fieldClasses('field field--full', 'infile') },
                   h('span', { class: 'field-label' }, 'ChatLog Path'),
-                  h('input', {
-                    type: 'text',
-                    value: config.infile ?? '',
-                    onInput: handleText('infile'),
-                  }),
+                  h(
+                    'div',
+                    { style: 'display: flex; gap: 0.5rem;' },
+                    h('input', {
+                      type: 'text',
+                      value: config.infile ?? '',
+                      onInput: handleText('infile'),
+                      style: 'flex: 1;',
+                    }),
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        class: 'button button--secondary',
+                        onClick: handleBrowseFile('infile', 'Select ChatLog.log'),
+                        style: 'white-space: nowrap; padding: 8px 12px;',
+                      },
+                      'Browse',
+                    ),
+                  ),
                   renderFieldMessages('infile'),
                 ),
                 h(
@@ -1352,24 +1402,54 @@ function App() {
                     { class: 'field-label' },
                     'Processed Input',
                   ),
-                  h('input', {
-                    type: 'text',
-                    placeholder: 'Optional pre-filtered file',
-                    value: config.process_file ?? '',
-                    onInput: handleText('process_file'),
-                  }),
+                  h(
+                    'div',
+                    { style: 'display: flex; gap: 0.5rem;' },
+                    h('input', {
+                      type: 'text',
+                      placeholder: 'Optional pre-filtered file',
+                      value: config.process_file ?? '',
+                      onInput: handleText('process_file'),
+                      style: 'flex: 1;',
+                    }),
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        class: 'button button--secondary',
+                        onClick: handleBrowseFile('process_file', 'Select Pre-filtered File'),
+                        style: 'white-space: nowrap; padding: 8px 12px;',
+                      },
+                      'Browse',
+                    ),
+                  ),
                   renderFieldMessages('process_file'),
                 ),
                 h(
                   'label',
                   { class: fieldClasses('field field--full', 'outfile') },
                   h('span', { class: 'field-label' }, 'Output File'),
-                  h('input', {
-                    type: 'text',
-                    placeholder: outputPlaceholder,
-                    value: config.outfile ?? '',
-                    onInput: handleText('outfile'),
-                  }),
+                  h(
+                    'div',
+                    { style: 'display: flex; gap: 0.5rem;' },
+                    h('input', {
+                      type: 'text',
+                      placeholder: outputPlaceholder,
+                      value: config.outfile ?? '',
+                      onInput: handleText('outfile'),
+                      style: 'flex: 1;',
+                    }),
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        class: 'button button--secondary',
+                        onClick: handleBrowseFile('outfile', 'Select Output File'),
+                        style: 'white-space: nowrap; padding: 8px 12px;',
+                      },
+                      'Browse',
+                    ),
+                  ),
                   renderFieldMessages('outfile'),
                   outfileHint
                     ? h('span', { class: 'field-hint' }, outfileHint)

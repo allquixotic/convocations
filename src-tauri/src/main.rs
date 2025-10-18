@@ -390,6 +390,34 @@ async fn get_api_base_url(state: TauriState<'_, Arc<ApiServerState>>) -> Result<
     }
 }
 
+#[tauri::command]
+async fn open_file_dialog(_app: AppHandle, title: Option<String>) -> Result<Option<String>, String> {
+    // Spawn a blocking task to avoid blocking the async runtime
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        use rfd::FileDialog;
+
+        let mut dialog = FileDialog::new();
+        if let Some(title_str) = title {
+            dialog = dialog.set_title(&title_str);
+        }
+
+        dialog.pick_file()
+    })
+    .await
+    .map_err(|e| format!("Failed to open file dialog: {}", e))?;
+
+    match result {
+        Some(path) => Ok(Some(path.to_string_lossy().to_string())),
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
+async fn get_default_chatlog_path() -> Result<String, String> {
+    // Use the same default path as defined in rconv-core
+    Ok("~/Documents/Elder Scrolls Online/live/Logs/ChatLog.log".to_string())
+}
+
 #[derive(Serialize)]
 struct HealthResponse {
     status: &'static str,
@@ -1161,7 +1189,11 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_api_base_url])
+        .invoke_handler(tauri::generate_handler![
+            get_api_base_url,
+            open_file_dialog,
+            get_default_chatlog_path
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
