@@ -70,6 +70,7 @@ function deserializeConfig(payload) {
   }
   return {
     ...payload,
+    chat_log_path: payload.chat_log_path ?? '',
     start: payload.start ?? '',
     end: payload.end ?? '',
     process_file: payload.process_file ?? '',
@@ -90,23 +91,20 @@ function normalizeConfigForApi(config) {
   };
 
   return {
-    last: Number.isFinite(config.last) ? Number(config.last) : 0,
+    chat_log_path: trimOrNull(config.chat_log_path) ?? '',
+    active_preset: trimOrNull(config.active_preset) ?? 'Saturday 10pm-midnight',
+    weeks_ago: Number.isFinite(config.last) ? Number(config.last) : 0,
     dry_run: Boolean(config.dry_run),
-    infile: trimOrNull(config.infile) ?? '',
-    start: trimOrNull(config.start),
-    end: trimOrNull(config.end),
-    rsm7: Boolean(config.rsm7),
-    rsm8: Boolean(config.rsm8),
-    tp6: Boolean(config.tp6),
-    one_hour: Boolean(config.one_hour),
-    two_hours: Boolean(config.two_hours),
-    process_file: trimOrNull(config.process_file),
-    format_dialogue: Boolean(config.format_dialogue),
-    cleanup: Boolean(config.cleanup),
-    use_llm: Boolean(config.use_llm),
-    keep_orig: Boolean(config.keep_orig),
-    no_diff: Boolean(config.no_diff),
-    outfile: trimOrNull(config.outfile),
+    use_ai_corrections: Boolean(config.use_llm),
+    keep_original_output: Boolean(config.keep_orig),
+    show_diff: Boolean(!config.no_diff),
+    cleanup_enabled: Boolean(config.cleanup),
+    format_dialogue_enabled: Boolean(config.format_dialogue),
+    outfile_override: trimOrNull(config.outfile),
+    duration_override: {
+      enabled: Boolean(config.one_hour || config.two_hours),
+      hours: config.two_hours ? 2.0 : config.one_hour ? 1.0 : 1.0,
+    },
     openrouter_api_key: trimOrNull(config.openrouter_api_key),
     openrouter_model: trimOrNull(config.openrouter_model),
     free_models_only: Boolean(config.free_models_only),
@@ -289,13 +287,13 @@ function App() {
         const fileConfig = settingsBody?.config ?? settingsBody;
         const runtimeConfig = fileConfig?.runtime ?? fileConfig;
 
-        // Get default ChatLog path from backend if infile is empty
+        // Get default ChatLog path from backend if chat_log_path is empty
         let finalConfig = deserializeConfig(runtimeConfig);
-        if (!finalConfig.infile || finalConfig.infile.trim() === '') {
+        if (!finalConfig.chat_log_path || finalConfig.chat_log_path.trim() === '') {
           try {
             const defaultPath = await window.__TAURI__?.core?.invoke('get_default_chatlog_path');
             if (defaultPath) {
-              finalConfig.infile = defaultPath;
+              finalConfig.chat_log_path = defaultPath;
             }
           } catch (err) {
             console.warn('[Convocations] Failed to get default ChatLog path:', err);
@@ -1370,15 +1368,15 @@ function App() {
                 { class: 'field-grid' },
                 h(
                   'label',
-                  { class: fieldClasses('field field--full', 'infile') },
+                  { class: fieldClasses('field field--full', 'chat_log_path') },
                   h('span', { class: 'field-label' }, 'ChatLog Path'),
                   h(
                     'div',
                     { style: 'display: flex; gap: 0.5rem;' },
                     h('input', {
                       type: 'text',
-                      value: config.infile ?? '',
-                      onInput: handleText('infile'),
+                      value: config.chat_log_path ?? '',
+                      onInput: handleText('chat_log_path'),
                       style: 'flex: 1;',
                     }),
                     h(
@@ -1386,13 +1384,13 @@ function App() {
                       {
                         type: 'button',
                         class: 'button button--secondary',
-                        onClick: handleBrowseFile('infile', 'Select ChatLog.log'),
+                        onClick: handleBrowseFile('chat_log_path', 'Select ChatLog.log'),
                         style: 'white-space: nowrap; padding: 8px 12px;',
                       },
                       'Browse',
                     ),
                   ),
-                  renderFieldMessages('infile'),
+                  renderFieldMessages('chat_log_path'),
                 ),
                 h(
                   'label',

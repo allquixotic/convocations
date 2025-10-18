@@ -445,8 +445,8 @@ async fn get_settings_handler() -> Result<Json<SettingsResponse>, ApiError> {
 }
 
 async fn save_settings_handler(Json(config): Json<FileConfig>) -> Result<StatusCode, ApiError> {
-    // Only persist presets and UI preferences; runtime preferences are session-only
-    save_presets_and_ui_only(&config.presets, &config.ui)
+    // Persist the full config including runtime preferences
+    rconv_core::save_config(&config)
         .map_err(|err| ApiError::from(format!("{}", err)))?;
     Ok(StatusCode::NO_CONTENT)
 }
