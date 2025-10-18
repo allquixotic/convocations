@@ -12,12 +12,13 @@ shellexpand.workspace = true
 tokio.workspace = true
 tauri = { version = "2", features = ["wry", "tray-icon", "image-png"] }
 dirs = "6"
-axum = { version = "0.7", default-features = false, features = ["json", "tokio", "http1"] }
+axum = { version = "0.7", default-features = false, features = ["json", "tokio", "http1", "query"] }
 anyhow = "1"
 uuid = { version = "1", features = ["v4"] }
 tower-http = { version = "0.5", features = ["cors"] }
 chrono.workspace = true
 rfd = "0.15"
+url = "2.5"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

@@ -354,5 +354,5 @@ Secrets are managed by the core crate:
 [~] Add automated tests across `rconv-core`, CLI, and UI layers to exercise snapshot loading, model selection wiring, and fallback behavior.
     [x] Extend CLI tests to ensure flag/config interplay picks curated models correctly.
     [x] Add `rconv-core` curator module unit tests covering snapshot parsing and discovery helpers.
-    [ ] Add async tests for curator module covering missing snapshot and API failure scenarios (use mocks).
-    [ ] Add frontend/unit or component test verifying dropdown renders curated options and handles empty state.
+    [x] Add async tests for curator module covering missing snapshot and API failure scenarios (use mocks).
+    [x] Add frontend/unit or component test verifying dropdown renders curated options and handles empty state.

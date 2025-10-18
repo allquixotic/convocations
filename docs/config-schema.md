@@ -32,38 +32,44 @@ schema_version = 1
 
 [runtime]
 chat_log_path = "~/Documents/Elder Scrolls Online/live/Logs/ChatLog.log"
-active_preset = "saturday-10pm-midnight"
-weeks_ago = 0                       # persisted GUI/CLI selection
+active_preset = "Saturday 10pm-midnight"
+weeks_ago = 0
 dry_run = false
-use_ai_corrections = true           # replaces `use_llm`
-keep_original_output = false        # inverse of `keep_orig`
-show_diff = true                    # mirror of `!no_diff`
+use_ai_corrections = true
+keep_original_output = false
+show_diff = true
 cleanup_enabled = true
-format_dialogue_enabled = true      # internal flag kept for CLI parity
-outfile_override = ""               # empty string = derive automatically
+format_dialogue_enabled = true
+outfile_override = ""
+output_target = "file"
+output_directory_override = ""
+openrouter_model = "google/gemini-2.5-flash-lite"
+free_models_only = false
+
+[runtime.openrouter_api_key]
+backend = "keyring"
+account = "convocations-openrouter_api_key"
 
 [runtime.duration_override]
 enabled = false
 hours = 1.0
 
 [ui]
-theme = "dark"                      # allowed: "light", "dark", "system"
+theme = "dark"
 show_technical_log = false
-follow_technical_log = true         # auto-scroll behaviour
+follow_technical_log = true
 
 [[presets]]
-id = "saturday-10pm-midnight"
 name = "Saturday 10pm-midnight"
 weekday = "saturday"
 timezone = "America/New_York"
 start_time = "22:00"
-duration_minutes = 145              # 2h 25m window, crosses midnight
+duration_minutes = 145
 file_prefix = "conv"
 default_weeks_ago = 0
 builtin = true
 
 [[presets]]
-id = "tuesday-7pm"
 name = "Tuesday 7pm"
 weekday = "tuesday"
 timezone = "America/New_York"
@@ -74,7 +80,6 @@ default_weeks_ago = 0
 builtin = true
 
 [[presets]]
-id = "user-..."
 name = "Custom preset name"
 weekday = "friday"
 timezone = "America/New_York"
@@ -92,7 +97,7 @@ builtin = false
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `chat_log_path` | string | `~/Documents/Elder Scrolls Online/live/Logs/ChatLog.log` | Path to the ESO ChatLog.log file |
-| `active_preset` | string | `saturday-10pm-midnight` | ID of the currently active preset |
+| `active_preset` | string | `Saturday 10pm-midnight` | Name of the currently active preset |
 | `weeks_ago` | u32 | 0 | Number of weeks to look back (0 = current week) |
 | `dry_run` | bool | false | When true, shows what would be processed without creating output |
 | `use_ai_corrections` | bool | true | Enable Gemini AI corrections for spelling/grammar |
@@ -101,8 +106,15 @@ builtin = false
 | `cleanup_enabled` | bool | true | Remove OOC content and normalize punctuation |
 | `format_dialogue_enabled` | bool | true | Format dialogue with proper attribution |
 | `outfile_override` | Option<string> | None | Override automatic output filename |
+| `output_target` | string | `"file"` | Either `"file"` or `"directory"`; chooses which output widget the GUI exposes |
+| `output_directory_override` | Option<string> | None | Remembered directory path used when `output_target = "directory"` |
 | `duration_override.enabled` | bool | false | Enable custom duration override |
 | `duration_override.hours` | f32 | 1.0 | Custom duration in hours (minimum 1.0) |
+| `openrouter_model` | Option<string> | `google/gemini-2.5-flash-lite` | Default OpenRouter model used for AI corrections |
+| `openrouter_api_key` | secret reference | n/a | Secure reference describing where the OpenRouter key is stored (`{ backend = \"keyring\", account = \"...\" }` or `{ backend = \"local-encrypted\", nonce = \"...\", ciphertext = \"...\" }`). Managed automatically—do not edit manually. |
+| `free_models_only` | bool | false | When true, restricts the recommended model list to free OpenRouter models |
+
+`openrouter_api_key` always resolves to a `SecretValue`. Plaintext entries are migrated during load; if the keyring backend is unavailable, the encrypted fallback uses the master key at `~/.config/convocations/secret.key` (0600 permissions).
 
 ### `[ui]` Section
 
@@ -118,7 +130,6 @@ Each preset defines a recurring RP event with specific timing and formatting:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | string | Yes | Unique identifier for the preset |
 | `name` | string | Yes | Display name shown in GUI |
 | `weekday` | string | Yes | Day of week: `saturday`, `tuesday`, `friday`, etc. |
 | `timezone` | string | Yes | IANA timezone (e.g., `America/New_York`) |
@@ -134,9 +145,11 @@ Each preset defines a recurring RP event with specific timing and formatting:
 - `use_ai_corrections`, `keep_original_output`, `show_diff`: Map to internal flags (`use_llm`, `keep_orig`, `!no_diff`)
 - `weeks_ago`: Persisted so both CLI and GUI remember the last selection
 - `duration_minutes`: Uses integer minutes to handle cross-midnight sessions precisely (e.g., 145 minutes = 2h 25m)
-- `active_preset`: References a preset by ID; must exist in the `presets` array
+- `active_preset`: References a preset by name; must exist in the `presets` array
+- `openrouter_api_key`: Stored as a secure reference, not plaintext; Convocations writes the actual secret to the OS keyring when possible or encrypts it locally with the per-device master key mentioned above
+- `output_target` / `output_directory_override`: Maintain the GUI toggle between "Output File" and "Output Directory" and keep the companion value for each mode
 - Built-in presets are automatically restored if missing during config load
-- Preset IDs must be unique; duplicates are removed with a warning
+- Preset names must be unique; duplicates are removed with a warning
 
 ## Configuration Loading Process
 
@@ -161,9 +174,9 @@ The `load_config()` function in `crates/rconv-core/src/config.rs` follows this p
 The `sanitize_config()` function enforces these invariants:
 
 - **Schema version**: Must match current version (1), otherwise reset to defaults
-- **Preset uniqueness**: Duplicate preset IDs are removed with warnings
+- **Preset uniqueness**: Duplicate preset names are removed with warnings
 - **Built-in presets**: Missing built-ins are automatically restored
-- **Active preset**: Must reference an existing preset ID
+- **Active preset**: Must reference an existing preset name
 - **Duration validation**: Hours must be finite and ≥ 1.0
 - **Preset validation**: duration_minutes must be non-zero, file_prefix must be non-empty
 - **Runtime validation**: Applies `validate_config()` from runtime.rs to catch contradictory settings

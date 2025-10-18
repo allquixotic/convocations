@@ -82,14 +82,13 @@ impl From<reqwest::Error> for OpenRouterError {
 /// Generate OAuth2 PKCE code verifier and challenge
 pub fn generate_pkce_pair() -> (String, String) {
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-    use rand::Rng;
+    use rand::RngCore;
     use sha2::{Digest, Sha256};
 
     // Generate code verifier (43-128 characters, base64url encoded)
-    let verifier_bytes: Vec<u8> = rand::thread_rng()
-        .sample_iter(rand::distributions::Standard)
-        .take(32)
-        .collect();
+    let mut verifier_bytes = [0u8; 32];
+    let mut rng = rand::rng();
+    rng.fill_bytes(&mut verifier_bytes);
     let code_verifier = URL_SAFE_NO_PAD.encode(&verifier_bytes);
 
     // Generate code challenge (SHA256 hash of verifier, base64url encoded)
@@ -102,12 +101,74 @@ pub fn generate_pkce_pair() -> (String, String) {
 }
 
 /// Build OAuth2 authorization URL for OpenRouter
-pub fn build_oauth_url(code_challenge: &str, redirect_uri: &str) -> String {
-    format!(
-        "https://openrouter.ai/auth?response_type=code&client_id=convocations&redirect_uri={}&code_challenge={}&code_challenge_method=S256",
-        urlencoding::encode(redirect_uri),
-        urlencoding::encode(code_challenge)
-    )
+pub fn build_oauth_url(
+    code_challenge: &str,
+    callback_url: &str,
+    state: Option<&str>,
+    referrer: Option<&str>,
+) -> String {
+    let mut params = vec![
+        ("response_type", "code"),
+        ("client_id", "convocations"),
+        ("callback_url", callback_url),
+        ("code_challenge", code_challenge),
+        ("code_challenge_method", "S256"),
+    ];
+
+    if let Some(state_value) = state {
+        params.push(("state", state_value));
+    }
+
+    if let Some(referrer_value) = referrer {
+        params.push(("referrer", referrer_value));
+    }
+
+    let query = params
+        .into_iter()
+        .map(|(key, value)| format!("{key}={}", urlencoding::encode(value)))
+        .collect::<Vec<_>>()
+        .join("&");
+
+    format!("https://openrouter.ai/auth?{query}")
+}
+
+/// Exchange an authorization code for an OpenRouter API key.
+pub async fn exchange_code_for_api_key(
+    code: &str,
+    code_verifier: &str,
+) -> Result<String, OpenRouterError> {
+    #[derive(Serialize)]
+    struct ExchangeRequest<'a> {
+        code: &'a str,
+        code_verifier: &'a str,
+        code_challenge_method: &'a str,
+    }
+
+    #[derive(Deserialize)]
+    struct ExchangeResponse {
+        key: String,
+    }
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post("https://openrouter.ai/api/v1/auth/keys")
+        .json(&ExchangeRequest {
+            code,
+            code_verifier,
+            code_challenge_method: "S256",
+        })
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(OpenRouterError::from(format!(
+            "Failed to exchange code: {}",
+            response.status()
+        )));
+    }
+
+    let body: ExchangeResponse = response.json().await?;
+    Ok(body.key)
 }
 
 /// Fetch the list of available models from OpenRouter API
@@ -287,10 +348,16 @@ mod tests {
 
     #[test]
     fn test_oauth_url_generation() {
-        let url = build_oauth_url("test_challenge", "http://localhost:3000/callback");
+        let url = build_oauth_url(
+            "test_challenge",
+            "http://localhost:3000/callback",
+            Some("abc123"),
+            None,
+        );
         assert!(url.contains("openrouter.ai/auth"));
         assert!(url.contains("code_challenge=test_challenge"));
-        assert!(url.contains("redirect_uri="));
+        assert!(url.contains("callback_url=http%3A%2F%2Flocalhost%3A3000%2Fcallback"));
+        assert!(url.contains("state=abc123"));
     }
 
     #[test]

@@ -11,5 +11,7 @@
     "@picocss/pico": "^2.1.1",
     "preact": "^10.27.2"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "preact-render-to-string": "^6.6.2"
+  }
 }

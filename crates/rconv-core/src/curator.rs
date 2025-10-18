@@ -1,7 +1,11 @@
+#[cfg(test)]
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+#[cfg(test)]
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -14,6 +18,65 @@ use crate::openrouter::ModelInfo;
 const SNAPSHOT_SCHEMA_VERSION: u32 = 1;
 const SNAPSHOT_ENV: &str = "CONVOCATIONS_MODEL_SNAPSHOT";
 const EMBEDDED_SNAPSHOT: &str = include_str!("../../../static/model_snapshot.json");
+
+#[cfg(test)]
+type CatalogMock = Arc<dyn Fn() -> Result<CuratedCatalog, CuratorError> + Send + Sync + 'static>;
+#[cfg(test)]
+thread_local! {
+    static LOAD_CATALOG_MOCK: RefCell<Option<CatalogMock>> = RefCell::new(None);
+}
+
+#[cfg(test)]
+type FetchModelsMock =
+    Arc<dyn Fn() -> Result<Vec<ModelInfo>, openrouter::OpenRouterError> + Send + Sync + 'static>;
+#[cfg(test)]
+thread_local! {
+    static FETCH_MODELS_MOCK: RefCell<Option<FetchModelsMock>> = RefCell::new(None);
+}
+
+#[cfg(test)]
+fn load_catalog_mock() -> Option<CatalogMock> {
+    LOAD_CATALOG_MOCK.with(|slot| slot.borrow().as_ref().map(Arc::clone))
+}
+
+#[cfg(test)]
+pub(super) fn set_load_catalog_mock<F>(mock: F)
+where
+    F: Fn() -> Result<CuratedCatalog, CuratorError> + Send + Sync + 'static,
+{
+    LOAD_CATALOG_MOCK.with(|slot| {
+        *slot.borrow_mut() = Some(Arc::new(mock));
+    });
+}
+
+#[cfg(test)]
+pub(super) fn reset_load_catalog_mock() {
+    LOAD_CATALOG_MOCK.with(|slot| {
+        *slot.borrow_mut() = None;
+    });
+}
+
+#[cfg(test)]
+fn fetch_models_mock() -> Option<FetchModelsMock> {
+    FETCH_MODELS_MOCK.with(|slot| slot.borrow().as_ref().map(Arc::clone))
+}
+
+#[cfg(test)]
+pub(super) fn set_fetch_models_mock<F>(mock: F)
+where
+    F: Fn() -> Result<Vec<ModelInfo>, openrouter::OpenRouterError> + Send + Sync + 'static,
+{
+    FETCH_MODELS_MOCK.with(|slot| {
+        *slot.borrow_mut() = Some(Arc::new(mock));
+    });
+}
+
+#[cfg(test)]
+pub(super) fn reset_fetch_models_mock() {
+    FETCH_MODELS_MOCK.with(|slot| {
+        *slot.borrow_mut() = None;
+    });
+}
 
 /// Preference encoded in configuration/CLI for curated model selection.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -219,6 +282,11 @@ impl CuratedResolution {
 }
 
 pub fn load_catalog() -> Result<CuratedCatalog, CuratorError> {
+    #[cfg(test)]
+    if let Some(mock) = load_catalog_mock() {
+        return mock();
+    }
+
     for path in candidate_paths() {
         if path.exists() {
             match fs::read_to_string(&path) {
@@ -264,6 +332,15 @@ fn candidate_paths() -> Vec<PathBuf> {
     candidates
 }
 
+async fn fetch_live_models() -> Result<Vec<ModelInfo>, openrouter::OpenRouterError> {
+    #[cfg(test)]
+    if let Some(mock) = fetch_models_mock() {
+        return mock();
+    }
+
+    openrouter::fetch_models().await
+}
+
 pub async fn resolve_preference(
     preference: &ModelPreference,
     free_only: bool,
@@ -279,7 +356,7 @@ pub async fn resolve_preference(
         }
     };
 
-    let live_models = match openrouter::fetch_models().await {
+    let live_models = match fetch_live_models().await {
         Ok(models) => Some(models),
         Err(err) => {
             eprintln!("[curator] failed to fetch live OpenRouter models: {}", err);
@@ -501,6 +578,19 @@ pub fn catalog_for_testing(raw: &str) -> Result<CuratedCatalog, CuratorError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io;
+    use std::sync::Mutex;
+
+    static TEST_MUTEX: Mutex<()> = Mutex::new(());
+
+    struct MockGuard;
+
+    impl Drop for MockGuard {
+        fn drop(&mut self) {
+            reset_load_catalog_mock();
+            reset_fetch_models_mock();
+        }
+    }
 
     const SAMPLE_SNAPSHOT: &str = r#"{
       "schema_version": 1,
@@ -568,5 +658,47 @@ mod tests {
         let catalog = catalog_for_testing(SAMPLE_SNAPSHOT).expect("catalog");
         let entry = catalog.find("provider/pro-cheap").expect("entry");
         assert_eq!(entry.display_name, "Cheap Model");
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn resolve_preference_falls_back_when_snapshot_missing() {
+        let _test_guard = TEST_MUTEX.lock().unwrap();
+        let _mock_guard = MockGuard;
+
+        set_load_catalog_mock(|| {
+            Err(CuratorError::Io(io::Error::new(
+                io::ErrorKind::NotFound,
+                "missing snapshot",
+            )))
+        });
+        set_fetch_models_mock(|| panic!("fetch_models should not be called without a snapshot"));
+
+        let result = resolve_preference(&ModelPreference::Auto, false, None).await;
+
+        assert_eq!(result.source, ResolutionSource::FallbackNoSnapshot);
+        assert!(result.entry.is_none());
+        assert_eq!(result.model_slug, crate::config::DEFAULT_OPENROUTER_MODEL);
+        assert!(
+            result.message.contains("no snapshot available"),
+            "unexpected message: {}",
+            result.message
+        );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn resolve_preference_handles_fetch_failure() {
+        let _test_guard = TEST_MUTEX.lock().unwrap();
+        let _mock_guard = MockGuard;
+
+        set_load_catalog_mock(|| catalog_for_testing(SAMPLE_SNAPSHOT));
+        set_fetch_models_mock(|| Err(openrouter::OpenRouterError::from("network failure")));
+
+        let result = resolve_preference(&ModelPreference::Auto, false, None).await;
+
+        assert_eq!(result.source, ResolutionSource::CuratedAuto);
+        let entry = result.entry.expect("expected curated entry");
+        assert_eq!(entry.slug, "provider/pro-cheap");
+        assert_eq!(result.model_slug, entry.slug);
+        assert!(result.message.is_empty());
     }
 }

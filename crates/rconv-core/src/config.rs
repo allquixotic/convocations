@@ -909,12 +909,6 @@ pub fn runtime_preferences_to_convocations(
         }
         Ok(None) => {
             config.openrouter_api_key = None;
-            if config.use_llm {
-                warnings.push(
-                    "OpenRouter API key not configured; AI corrections will be skipped."
-                        .to_string(),
-                );
-            }
         }
         Err(err) => {
             config.openrouter_api_key = None;
@@ -1347,7 +1341,7 @@ mod tests {
         // Should convert properly
         assert_eq!(config.duration_override.hours, 2.5);
         assert!(config.duration_override.enabled);
-        assert!(warnings.is_empty());
+        assert!(warnings.is_empty(), "unexpected warnings: {:?}", warnings);
     }
 
     #[test]
@@ -1377,7 +1371,11 @@ mod tests {
                 .any(|p| p.name == "Wednesday Event"),
             "Custom preset should be present"
         );
-        assert!(warnings.is_empty(), "Should not generate warnings");
+        assert!(
+            warnings.is_empty(),
+            "Should not generate warnings: {:?}",
+            warnings
+        );
     }
 
     #[test]
@@ -1450,7 +1448,11 @@ mod tests {
         assert_eq!(edited.unwrap().name, "Updated Name");
         assert_eq!(edited.unwrap().duration_minutes, 120);
         assert_eq!(edited.unwrap().file_prefix, "updated");
-        assert!(warnings.is_empty());
+        assert!(
+            warnings.is_empty(),
+            "Should not generate warnings: {:?}",
+            warnings
+        );
     }
 
     #[test]

@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from 'preact/hooks';
+import { CuratedModelSelect } from './components/curated-model-select.js';
 
 const apiBasePromise = window.__TAURI__?.core?.invoke('get_api_base_url');
 const VALIDATION_DEBOUNCE_MS = 250;
@@ -2043,44 +2044,14 @@ function App() {
                   renderFieldMessages('free_models_only'),
                 ),
               ),
-              curatedModels.length > 0
-                ? h(
-                    'div',
-                    { class: 'field-grid', style: 'margin-top: 1rem;' },
-                    h(
-                      'label',
-                      { class: fieldClasses('field field--full', 'curated_model') },
-                      h('span', { class: 'field-label' }, 'Curated Models'),
-                      h(
-                        'select',
-                        {
-                          value: curatedSelectValue,
-                          onChange: handleCuratedSelect,
-                          style: 'width: 100%;',
-                        },
-                        h('option', { value: CURATED_AUTO_VALUE }, 'Automatic (recommended)'),
-                        curatedModels.map((model) => {
-                          const priceNote = model.price_in_per_million != null
-                            ? ` · $${model.price_in_per_million.toFixed(2)}/1M`
-                            : '';
-                          const tierLabel = model.tier === 'free' ? 'Free' : 'Cheap';
-                          const label = `${tierLabel} · ${model.display_name} (${model.slug}) · AAII ${model.aaii.toFixed(1)}${priceNote}`;
-                          return h(
-                            'option',
-                            { key: model.slug, value: model.slug, title: label },
-                            label,
-                          );
-                        }),
-                        h('option', { value: CURATED_MANUAL_VALUE }, 'Manual selection'),
-                      ),
-                      h(
-                        'span',
-                        { class: 'field-hint' },
-                        'Choose a curated model or switch to manual entry below.',
-                      ),
-                    ),
-                  )
-                : null,
+              h(CuratedModelSelect, {
+                curatedModels,
+                value: curatedSelectValue,
+                onChange: handleCuratedSelect,
+                fieldClass: fieldClasses('field field--full', 'curated_model'),
+                autoValue: CURATED_AUTO_VALUE,
+                manualValue: CURATED_MANUAL_VALUE,
+              }),
               recommendedModels.length > 0
                 ? h(
                     'div',

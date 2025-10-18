@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:*"
+      "csp": "default-src 'self' data: blob: https://openrouter.ai https://*.openrouter.ai https://static.cloudflareinsights.com http://localhost:* http://127.0.0.1:*; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://openrouter.ai https://*.openrouter.ai https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://openrouter.ai https://*.openrouter.ai https://fonts.googleapis.com; connect-src 'self' http://localhost:* http://127.0.0.1:* https://openrouter.ai https://*.openrouter.ai; img-src 'self' data: https://openrouter.ai https://*.openrouter.ai https://avatars.githubusercontent.com; font-src 'self' data: https://fonts.gstatic.com; frame-src 'self' https://openrouter.ai https://*.openrouter.ai http://localhost:* http://127.0.0.1:*"
     }
   },
   "bundle": {

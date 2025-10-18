@@ -7,11 +7,16 @@
         "@picocss/pico": "^2.1.1",
         "preact": "^10.27.2",
       },
+      "devDependencies": {
+        "preact-render-to-string": "^6.6.2",
+      },
     },
   },
   "packages": {
     "@picocss/pico": ["@picocss/pico@2.1.1", "", {}, "sha512-kIDugA7Ps4U+2BHxiNHmvgPIQDWPDU4IeU6TNRdvXQM1uZX+FibqDQT2xUOnnO2yq/LUHcwnGlu1hvf4KfXnMg=="],
 
     "preact": ["preact@10.27.2", "", {}, "sha512-5SYSgFKSyhCbk6SrXyMpqjb5+MQBgfvEKE/OC+PujcY34sOpqtr+0AZQtPYx5IA6VxynQ7rUPCtKzyovpj9Bpg=="],
+
+    "preact-render-to-string": ["preact-render-to-string@6.6.2", "", { "peerDependencies": { "preact": ">=10 || >= 11.0.0-0" } }, "sha512-VJ++Pkzv6+ZOmeN/9Qvx0mRdXqnei1Lo3uu9bGvYHhoMI1VUkDT44hcpGbiokl/kuuYTayYa3yvmYTLZMplfMA=="],
   }
 }

@@ -16,85 +16,60 @@ After your roleplay sessions, this tool:
 
 ## Download
 
-Go to the [Releases page](https://github.com/allquixotic/convocations/releases) and download:
+Visit the [Releases page](https://github.com/allquixotic/convocations/releases) and grab the build for your platform:
+
 - **Windows**: `rconv-windows-x86_64.zip`
-- **Mac**: `rconv-macos-universal.tar.gz`
+- **macOS**: `rconv-macos-universal.tar.gz`
 
-## Installation
+Unzip the archive, place the app anywhere you like, then double‑click it. (macOS may ask you to approve the app in **System Settings → Privacy & Security** the first time.)
 
-### Windows
-1. Unzip the downloaded file
-2. Put `rconv-windows-x86_64.exe` wherever you like
-3. Double-click to run it (or use PowerShell or Terminal if you prefer)
+## Start Here (Desktop App)
 
-### Mac
-1. Double-click the `.tar.gz` file to unzip it
-2. Put the `rconv-macos-universal` file wherever you like
-3. Open Terminal and drag the file in to run it
+1. Launch Convocations.  
+2. Leave **Chat Log** selected if you want the latest Saturday session, or choose **Processed Input** if you already exported a chat log.  
+3. Decide where the cleaned text should go:
+   - Pick **Output File** (default) to save a single document. The app suggests a friendly filename and, when possible, points it to your **Documents** folder.
+   - Switch to **Output Directory** if you prefer to drop the results into a folder; the label under the toggle updates instantly.
+4. Click **Start Processing**. Watch the progress log for status updates and, if AI corrections are on, a live diff preview of every change.
 
-**Note**: Mac users may need to allow the app in System Settings > Privacy & Security if you get a warning about the developer.
+You can reopen the previous configuration at any time; the app remembers your choices, including the Output File/Directory toggle.
 
-## Quick Start
+## Optional: Connect OpenRouter (AI Clean‑up)
 
-The simplest way to use the tool:
+AI corrections are entirely optional. To enable them:
 
-1. Open your terminal (Command Prompt, PowerShell or Terminal app on Windows, Terminal on Mac)
-2. Navigate to where you put the program
-3. Run: `convocations` (or `./rconv-macos-universal` on Mac)
+1. Press **OAuth Login** inside the app.  
+2. A Convocations browser window opens on the OpenRouter website. Sign in and click **Authorize**.  
+3. When the success message appears, close the window. You’re done—the key is stored securely for future runs.
 
-This will automatically:
-- Find last Saturday's chat session (10pm-12:25am)
-- Process the chat log
-- Save it as `conv-MMDDYY.txt` in the current folder
+Convocations saves secrets in your operating system keyring (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux). If a keyring isn’t available, the app encrypts the secret locally before writing to disk.  
 
-You can change the behavior of the tool with some of these optional parameters:
-
-### Last Week's Session
+Prefer the command line? Run:
+```bash
+convocations secret set-openrouter-key
 ```
-convocations --last 1
+Paste your key when prompted (input stays hidden). Remove it later with:
+```bash
+convocations secret clear-openrouter-key
 ```
 
-### Two Weeks Ago
-```
-convocations --last 2
+## Power Users: Command Line
+
+You can still run everything from a terminal:
+
+```bash
+convocations --last 1          # last week’s Saturday event
+convocations --rsm7            # Tuesday 7 pm event
+convocations --process-file exported.txt
+convocations --outfile ~/Documents/conv-output.txt
+convocations --llm=false       # skip AI clean-up
 ```
 
-### Tuesday Night Events (RSM at 7pm)
-```
-convocations --rsm7
-```
-
-### Tuesday Night Events (RSM at 8pm)
-```
-convocations --rsm8
-```
-
-### Friday Events (TP at 6pm)
-```
-convocations --tp6
-```
-
-### Longer Events
-```
-convocations --2h
-```
-Use `--2h` for 2-hour events, or `--1h` for 1-hour events. The default is 1-hour for --rsm7, --rsm8 or --tp6, and 2-hour for Convocations, which is the default.
-
-### Without AI Corrections
-```
-convocations --llm=false
-```
-If you don't want AI to fix spelling/grammar. There won't be any AI invocation unless you configure it, anyway.
-
-### See What It Would Do
-```
-convocations --dry-run
-```
-Shows what it would process without actually creating a file.
+The CLI writes files to your current working directory unless you give `--outfile` or set the `CONVOCATIONS_WORKING_DIR` environment variable to a folder of your choice.
 
 ## Output Files
 
-The tool creates files with names like:
+By default the app produces tidy filenames based on the preset you picked:
 - `conv-101125.txt` - Saturday sessions
 - `rsm7-101425.txt` - RSM7 Tuesday events
 - `rsm8-101425.txt` - RSM8 Tuesday events  
@@ -104,19 +79,19 @@ The date format is MMDDYY (month, day, year).
 
 ## AI Features
 
-If you have it set up, the tool uses Google's AI to fix spelling and grammar mistakes while keeping:
+If you turn on AI helpers, the tool can ask your preferred OpenRouter model to fix spelling and grammar mistakes while keeping:
 - Character names exactly as written
 - Fantasy/game terms unchanged
 - The dialogue format intact
 
-After processing, it shows you a colorized diff highlighting what was changed, then deletes the unedited version. If you want to keep both versions, add `--keep-orig`.
+After processing, you’ll see a colorized diff preview in the app that highlights the exact edits. The original `_unedited` file is cleaned up automatically unless you choose **Keep original output**.
 
 ## Tips
 
-- The tool looks in your ESO Documents folder for `ChatLog.log` automatically
-- It only captures "say" and "emote" channels (your roleplay)
-- All times are converted to your local timezone automatically
-- Files are saved in whatever folder you run the command from
+- The tool looks in your ESO Documents folder for `ChatLog.log` automatically.
+- Only “say” and “emote” channels are kept—guild, party, and system chatter are ignored.
+- Times are converted to your local timezone automatically.
+- Toggle **Show technical log** if you’re curious; it streams every step the processor takes.
 
 ## Troubleshooting
 
@@ -125,6 +100,8 @@ After processing, it shows you a colorized diff highlighting what was changed, t
 **Empty file**: Make sure you have Save Chat in your ESO settings enabled.
 
 **AI not working**: The tool still works without AI - it just won't fix spelling/grammar.
+
+**OAuth login errors**: If the OpenRouter page shows an error, close the window and try again. You can always paste a key manually with the CLI command above.
 
 ## Getting Help
 
