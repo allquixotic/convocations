@@ -1,1 +1,16 @@
-{}
+{
+  "gemini-2-5-flash": "google/gemini-2.5-flash",
+  "gemini 2.5 flash": "google/gemini-2.5-flash",
+  "claude-4-5-haiku": "anthropic/claude-haiku-4.5",
+  "claude 4.5 haiku": "anthropic/claude-haiku-4.5",
+  "gpt-oss-20b": "openai/gpt-oss-20b:free",
+  "gpt oss 20b": "openai/gpt-oss-20b:free",
+  "deepseek-r1": "deepseek/deepseek-r1:free",
+  "deepseek r1": "deepseek/deepseek-r1:free",
+  "deepseek-chat-v3.1": "deepseek/deepseek-chat-v3.1:free",
+  "deepseek chat v3.1": "deepseek/deepseek-chat-v3.1:free",
+  "mistral-nemo": "mistralai/mistral-nemo:free",
+  "mistral nemo": "mistralai/mistral-nemo:free",
+  "gemini-2-0-flash-exp": "google/gemini-2.0-flash-exp:free",
+  "gemini 2.0 flash exp": "google/gemini-2.0-flash-exp:free"
+}

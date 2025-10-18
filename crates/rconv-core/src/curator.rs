@@ -17,6 +17,11 @@ use crate::openrouter::ModelInfo;
 
 const SNAPSHOT_SCHEMA_VERSION: u32 = 1;
 const SNAPSHOT_ENV: &str = "CONVOCATIONS_MODEL_SNAPSHOT";
+const REMOTE_SNAPSHOT_URL: &str = "https://raw.githubusercontent.com/allquixotic/convocations/refs/heads/main/static/model_snapshot.json";
+#[cfg(not(test))]
+const REMOTE_FETCH_TIMEOUT_SECS: u64 = 5;
+#[cfg(not(test))]
+const REMOTE_USER_AGENT: &str = concat!("rconv-core/", env!("CARGO_PKG_VERSION"));
 const EMBEDDED_SNAPSHOT: &str = include_str!("../../../static/model_snapshot.json");
 
 #[cfg(test)]
@@ -32,6 +37,11 @@ type FetchModelsMock =
 #[cfg(test)]
 thread_local! {
     static FETCH_MODELS_MOCK: RefCell<Option<FetchModelsMock>> = RefCell::new(None);
+}
+
+#[cfg(test)]
+thread_local! {
+    static REMOTE_SNAPSHOT_MOCK: RefCell<Option<String>> = RefCell::new(None);
 }
 
 #[cfg(test)]
@@ -74,6 +84,20 @@ where
 #[cfg(test)]
 pub(super) fn reset_fetch_models_mock() {
     FETCH_MODELS_MOCK.with(|slot| {
+        *slot.borrow_mut() = None;
+    });
+}
+
+#[cfg(test)]
+pub(super) fn set_remote_snapshot_mock(snapshot: Option<String>) {
+    REMOTE_SNAPSHOT_MOCK.with(|slot| {
+        *slot.borrow_mut() = snapshot;
+    });
+}
+
+#[cfg(test)]
+pub(super) fn reset_remote_snapshot_mock() {
+    REMOTE_SNAPSHOT_MOCK.with(|slot| {
         *slot.borrow_mut() = None;
     });
 }
@@ -249,6 +273,7 @@ pub struct SourceMetadata {
 
 #[derive(Debug, Clone)]
 pub enum CatalogSource {
+    Remote(&'static str),
     File(PathBuf),
     Embedded,
 }
@@ -287,11 +312,31 @@ pub fn load_catalog() -> Result<CuratedCatalog, CuratorError> {
         return mock();
     }
 
+    if let Some(raw) = fetch_remote_snapshot() {
+        match parse_snapshot(&raw) {
+            Ok(snapshot) => {
+                match convert_snapshot(snapshot, CatalogSource::Remote(REMOTE_SNAPSHOT_URL)) {
+                    Ok(catalog) => return Ok(catalog),
+                    Err(err) => eprintln!(
+                        "[curator] remote snapshot at {} invalid: {}",
+                        REMOTE_SNAPSHOT_URL, err
+                    ),
+                }
+            }
+            Err(err) => eprintln!(
+                "[curator] failed to parse remote snapshot at {}: {}",
+                REMOTE_SNAPSHOT_URL, err
+            ),
+        }
+    }
+
     for path in candidate_paths() {
         if path.exists() {
             match fs::read_to_string(&path) {
                 Ok(raw) => match parse_snapshot(&raw) {
-                    Ok(snapshot) => return convert_snapshot(snapshot, Some(path)),
+                    Ok(snapshot) => {
+                        return convert_snapshot(snapshot, CatalogSource::File(path.clone()));
+                    }
                     Err(err) => {
                         eprintln!(
                             "[curator] failed to parse snapshot at {}: {}",
@@ -313,7 +358,7 @@ pub fn load_catalog() -> Result<CuratedCatalog, CuratorError> {
     }
 
     let snapshot = parse_snapshot(EMBEDDED_SNAPSHOT)?;
-    convert_snapshot(snapshot, None)
+    convert_snapshot(snapshot, CatalogSource::Embedded)
 }
 
 fn candidate_paths() -> Vec<PathBuf> {
@@ -330,6 +375,70 @@ fn candidate_paths() -> Vec<PathBuf> {
         .push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../static/model_snapshot.json"));
 
     candidates
+}
+
+#[cfg(not(test))]
+fn fetch_remote_snapshot() -> Option<String> {
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(REMOTE_FETCH_TIMEOUT_SECS))
+        .user_agent(REMOTE_USER_AGENT)
+        .build()
+    {
+        Ok(client) => client,
+        Err(err) => {
+            eprintln!(
+                "[curator] failed to build HTTP client for snapshot fetch: {}",
+                err
+            );
+            return None;
+        }
+    };
+
+    let response = match client.get(REMOTE_SNAPSHOT_URL).send() {
+        Ok(response) => response,
+        Err(err) => {
+            eprintln!(
+                "[curator] failed to fetch remote snapshot from {}: {}",
+                REMOTE_SNAPSHOT_URL, err
+            );
+            return None;
+        }
+    };
+
+    if !response.status().is_success() {
+        eprintln!(
+            "[curator] remote snapshot request to {} returned status {}",
+            REMOTE_SNAPSHOT_URL,
+            response.status()
+        );
+        return None;
+    }
+
+    match response.text() {
+        Ok(body) => {
+            if body.trim().is_empty() {
+                eprintln!(
+                    "[curator] remote snapshot at {} returned an empty body",
+                    REMOTE_SNAPSHOT_URL
+                );
+                None
+            } else {
+                Some(body)
+            }
+        }
+        Err(err) => {
+            eprintln!(
+                "[curator] failed to read remote snapshot body from {}: {}",
+                REMOTE_SNAPSHOT_URL, err
+            );
+            None
+        }
+    }
+}
+
+#[cfg(test)]
+fn fetch_remote_snapshot() -> Option<String> {
+    REMOTE_SNAPSHOT_MOCK.with(|slot| slot.borrow().clone())
 }
 
 async fn fetch_live_models() -> Result<Vec<ModelInfo>, openrouter::OpenRouterError> {
@@ -427,7 +536,7 @@ fn parse_snapshot(raw: &str) -> Result<SnapshotFile, CuratorError> {
 
 fn convert_snapshot(
     snapshot: SnapshotFile,
-    path: Option<PathBuf>,
+    source: CatalogSource,
 ) -> Result<CuratedCatalog, CuratorError> {
     let generated_at = snapshot
         .generated_at
@@ -458,11 +567,6 @@ fn convert_snapshot(
     for entry in snapshot.cheap {
         cheap_entries.push(convert_entry(entry, CuratedTier::Cheap)?);
     }
-
-    let source = match path {
-        Some(path) => CatalogSource::File(path),
-        None => CatalogSource::Embedded,
-    };
 
     Ok(CuratedCatalog {
         free: free_entries,
@@ -572,7 +676,7 @@ pub fn catalog_summaries() -> Result<Vec<CuratedModelSummary>, CuratorError> {
 
 pub fn catalog_for_testing(raw: &str) -> Result<CuratedCatalog, CuratorError> {
     let snapshot = parse_snapshot(raw)?;
-    convert_snapshot(snapshot, None)
+    convert_snapshot(snapshot, CatalogSource::Embedded)
 }
 
 #[cfg(test)]
@@ -589,6 +693,7 @@ mod tests {
         fn drop(&mut self) {
             reset_load_catalog_mock();
             reset_fetch_models_mock();
+            reset_remote_snapshot_mock();
         }
     }
 
@@ -658,6 +763,37 @@ mod tests {
         let catalog = catalog_for_testing(SAMPLE_SNAPSHOT).expect("catalog");
         let entry = catalog.find("provider/pro-cheap").expect("entry");
         assert_eq!(entry.display_name, "Cheap Model");
+    }
+
+    #[test]
+    fn load_catalog_prefers_remote_snapshot_when_available() {
+        let _test_guard = TEST_MUTEX.lock().unwrap();
+        let _mock_guard = MockGuard;
+
+        set_remote_snapshot_mock(Some(SAMPLE_SNAPSHOT.to_string()));
+
+        let catalog = load_catalog().expect("catalog");
+        match catalog.source {
+            CatalogSource::Remote(url) => assert_eq!(url, REMOTE_SNAPSHOT_URL),
+            other => panic!("expected remote catalog source, got {:?}", other),
+        }
+        assert_eq!(catalog.free.len(), 1);
+        assert_eq!(catalog.cheap.len(), 1);
+    }
+
+    #[test]
+    fn load_catalog_falls_back_when_remote_invalid() {
+        let _test_guard = TEST_MUTEX.lock().unwrap();
+        let _mock_guard = MockGuard;
+
+        set_remote_snapshot_mock(Some("{\"not\":\"valid\"}".to_string()));
+
+        let catalog = load_catalog().expect("catalog");
+        assert!(
+            matches!(catalog.source, CatalogSource::File(_)),
+            "expected file source fallback, got {:?}",
+            catalog.source
+        );
     }
 
     #[tokio::test(flavor = "current_thread")]
