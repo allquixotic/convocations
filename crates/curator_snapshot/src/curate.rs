@@ -8,15 +8,6 @@ use crate::config::Tunables;
 use crate::fetch::{AaModel, OpenRouterModel};
 
 const CHEAP_PROVIDER_ORDER: [&str; 4] = ["openai", "x-ai", "google", "anthropic"];
-const CHEAP_PROVIDER_PREFS: [(&str, &[&str]); 4] = [
-    ("openai", &["openai/gpt-5-mini", "openai/o3"]),
-    ("x-ai", &["x-ai/grok-4-fast", "x-ai/grok-4"]),
-    ("google", &["google/gemini-2.5-flash"]),
-    (
-        "anthropic",
-        &["anthropic/claude-haiku-4.5", "anthropic/claude-3.5-haiku"],
-    ),
-];
 const SCORE_EPSILON: f64 = 1e-6;
 const PRICE_EPSILON: f64 = 1e-9;
 const AAII_EPSILON: f32 = 1e-3;
@@ -467,17 +458,6 @@ fn finalize_cheap(
     let mut winners = Vec::with_capacity(provider_order.len());
 
     for provider in provider_order {
-        if let Some(entry) = extract_preferred_candidate(
-            provider,
-            &mut accepted,
-            fallback_aaii,
-            fallback_price,
-            fallback_low,
-        ) {
-            winners.push(entry);
-            continue;
-        }
-
         if let Some(entry) = select_best_by_provider(provider, &mut accepted) {
             winners.push(entry);
         }
@@ -530,58 +510,6 @@ fn finalize_cheap(
     });
 
     winners
-}
-
-fn extract_preferred_candidate(
-    provider: &str,
-    accepted: &mut Vec<CuratedEntry>,
-    fallback_aaii: &mut Vec<(CuratedEntry, DiscardReason)>,
-    fallback_price: &mut Vec<(CuratedEntry, DiscardReason)>,
-    fallback_low: &mut Vec<(CuratedEntry, DiscardReason)>,
-) -> Option<CuratedEntry> {
-    let Some(slugs) = preferred_slugs(provider) else {
-        return None;
-    };
-
-    for slug in slugs {
-        if let Some(entry) = extract_by_slug(accepted, slug) {
-            return Some(entry);
-        }
-        if let Some(entry) = extract_by_slug_from_pool(fallback_aaii, slug) {
-            return Some(entry);
-        }
-        if let Some(entry) = extract_by_slug_from_pool(fallback_price, slug) {
-            return Some(entry);
-        }
-        if let Some(entry) = extract_by_slug_from_pool(fallback_low, slug) {
-            return Some(entry);
-        }
-    }
-
-    None
-}
-
-fn preferred_slugs(provider: &str) -> Option<&'static [&'static str]> {
-    CHEAP_PROVIDER_PREFS
-        .iter()
-        .find(|(candidate, _)| *candidate == provider)
-        .map(|(_, slugs)| *slugs)
-}
-
-fn extract_by_slug(entries: &mut Vec<CuratedEntry>, slug: &str) -> Option<CuratedEntry> {
-    entries
-        .iter()
-        .position(|entry| entry.slug == slug)
-        .map(|index| entries.swap_remove(index))
-}
-
-fn extract_by_slug_from_pool(
-    pool: &mut Vec<(CuratedEntry, DiscardReason)>,
-    slug: &str,
-) -> Option<CuratedEntry> {
-    pool.iter()
-        .position(|(entry, _)| entry.slug == slug)
-        .map(|index| pool.swap_remove(index).0)
 }
 
 fn select_best_by_provider(
@@ -889,51 +817,75 @@ mod tests {
 
         let candidate_data = vec![
             (
+                "openai/gpt-7-lite",
+                "OpenAI GPT-7 Lite",
+                "openai",
+                78.0,
+                Some(2e-7),
+                Some(1.5e-6),
+            ),
+            (
                 "openai/gpt-5-mini",
                 "OpenAI GPT-5 Mini",
                 "openai",
                 72.0,
-                Some(0.25),
-                Some(2.0),
-            ),
-            (
-                "openai/other",
-                "OpenAI Other",
-                "openai",
-                70.0,
-                Some(1.6),
-                Some(6.5),
+                Some(2.5e-7),
+                Some(2.0e-6),
             ),
             (
                 "x-ai/grok-4-fast",
                 "Grok 4 Fast",
                 "x-ai",
-                55.0,
-                Some(0.2),
-                Some(0.5),
+                60.0,
+                Some(2e-7),
+                Some(6e-7),
+            ),
+            (
+                "x-ai/grok-4",
+                "Grok 4",
+                "x-ai",
+                58.0,
+                Some(2e-7),
+                Some(7e-7),
+            ),
+            (
+                "google/gemini-3-flash",
+                "Gemini 3 Flash",
+                "google",
+                70.0,
+                Some(3e-7),
+                Some(1.6e-6),
             ),
             (
                 "google/gemini-2.5-flash",
                 "Gemini 2.5 Flash",
                 "google",
                 60.0,
-                Some(0.3),
-                Some(2.5),
+                Some(3e-7),
+                Some(2.5e-6),
+            ),
+            (
+                "anthropic/claude-haiku-5",
+                "Claude Haiku 5",
+                "anthropic",
+                68.0,
+                Some(1e-6),
+                Some(4.5e-6),
             ),
             (
                 "anthropic/claude-haiku-4.5",
                 "Claude Haiku 4.5",
                 "anthropic",
                 58.0,
-                Some(0.5),
-                Some(1.5),
+                Some(1e-6),
+                Some(5e-6),
             ),
             (
                 "mistralai/mistral-small",
                 "Mistral Small",
                 "mistralai",
                 62.0,
-                Some(0.4),
+                Some(4e-1),
                 Some(1.2),
             ),
         ];
@@ -984,18 +936,23 @@ mod tests {
             );
         }
 
-        let expected_slugs = vec![
-            "openai/gpt-5-mini",
-            "x-ai/grok-4-fast",
-            "google/gemini-2.5-flash",
-            "anthropic/claude-haiku-4.5",
+        let expected = vec![
+            ("openai", "openai/gpt-7-lite"),
+            ("x-ai", "x-ai/grok-4-fast"),
+            ("google", "google/gemini-3-flash"),
+            ("anthropic", "anthropic/claude-haiku-5"),
         ];
 
-        for (entry, expected_slug) in computation.cheap.iter().zip(expected_slugs.iter()) {
+        for (provider, expected_slug) in expected {
+            let entry = computation
+                .cheap
+                .iter()
+                .find(|entry| entry.provider == provider)
+                .unwrap_or_else(|| panic!("missing provider {provider} in cheap list"));
             assert_eq!(
-                entry.slug, *expected_slug,
-                "expected {} to be selected for provider {}",
-                expected_slug, entry.provider
+                entry.slug, expected_slug,
+                "expected latest/best model for provider {} to be {}, got {}",
+                provider, expected_slug, entry.slug
             );
         }
     }
