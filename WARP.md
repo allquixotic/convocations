@@ -20,7 +20,7 @@ This tool extracts dialogue from ESO's ChatLog.log file, formats it into readabl
 - **Multi-line Message Handling**: Properly reconstructs messages split across multiple lines with continuation markers (> and +)
 - **AI-Powered Corrections**: Uses Google's Gemini AI for grammar and spelling improvements while preserving character names and fantasy terminology
 - **Flexible Processing Modes**: Process raw ChatLog.log or pre-filtered files with toggleable processing stages
-- **Secure API Key Management**: Encrypted storage of API keys using dotenvx
+- **Secure Secret Storage**: API keys are stored in the OS keyring when available, with an encrypted-on-disk fallback driven by a per-device master key
 - **Cross-directory Support**: Output files are created in the directory where you run the command, not where the binary lives
 
 ## Build System
@@ -51,12 +51,13 @@ This tool extracts dialogue from ESO's ChatLog.log file, formats it into readabl
 
 ## Installation Architecture
 
-The tool uses a two-component architecture for security:
+Convocations now stores its configuration and secrets directly under the user's configuration directory:
 
-- `~/.bin/convocations` - Shell wrapper script that handles environment variable decryption
-- `~/.bin/convocations_bin` - The actual Rust binary
-- `~/Documents/convocations/rconv/.env` - Encrypted environment variables (via dotenvx)
-- `~/Documents/convocations/rconv/.env.keys` - Encryption keys for dotenvx
+- `~/.config/convocations/config.toml` – Persisted runtime/UI preferences along with secure secret references.
+- `~/.config/convocations/secret.key` – Auto-generated 32-byte master key (0600 permissions) used when the OS keyring is unavailable.
+- Operating system keyring entry `convocations-openrouter_api_key` (or platform equivalent) – Preferred storage for the OpenRouter credential.
+
+The binaries read configuration directly from these locations—no wrapper scripts or dotenvx-managed environment files are required.
 
 ## Usage Guide
 
@@ -94,7 +95,7 @@ The GUI provides a user-friendly interface for configuring and processing chat l
   - Duration overrides (1 hour, 2 hours)
   - Custom date ranges (start/end dates)
   - Processing options (format dialogue, cleanup, LLM corrections)
-  - Output file customization
+  - Output mode toggle (save to a specific file or drop into a directory)
 
 - **Real-time Validation**:
   - Validates configuration before processing
@@ -104,6 +105,7 @@ The GUI provides a user-friendly interface for configuring and processing chat l
 - **Progress Feedback**:
   - Visual feedback during processing
   - Success/error messages with output file paths
+  - Live diff preview events when AI corrections are enabled
   - Clear error reporting
 
 #### GUI Configuration
@@ -154,9 +156,9 @@ The GUI automatically validates your configuration and provides helpful feedback
    - Returns original text if API fails
 
 7. **Output Generation**
-   - Writes to specified file or default filename with prefix based on event type
+   - Writes to the resolved output target (file or directory) with a prefix based on event type
    - Default filename format: `{prefix}-MMDDYY.txt` (e.g., `conv-101125.txt`, `rsm7-101425.txt`)
-   - Creates file in current working directory
+   - Relative paths are qualified using `CONVOCATIONS_WORKING_DIR` (GUI supplies Documents, CLI falls back to the current directory)
    - Warns if no data found for date range
 
 8. **Diff Display (if LLM enabled and not --no-diff)**
@@ -166,19 +168,16 @@ The GUI automatically validates your configuration and provides helpful feedback
 
 ## Environment Configuration
 
-### API Key Setup
+### OpenRouter Credentials
 
-The tool requires a `GOOGLE_API_KEY` for AI corrections, stored encrypted via dotenvx:
+- **GUI**: Click **OAuth Login**. The backend opens a trusted webview, exchanges the authorization code for an API key, and stores it in the keyring (or encrypted fallback) automatically.
+- **CLI**: Run `convocations secret set-openrouter-key` and paste the key when prompted. Use `convocations secret clear-openrouter-key` to remove it.
 
-```bash
-cd ~/Documents/convocations/rconv
-dotenvx set GOOGLE_API_KEY "your-api-key-here"
-```
+The configuration file stores only references to the secret—no plaintext API keys are written to disk.
 
-### Environment Variables
+### Optional Environment Variables
 
-- `GOOGLE_API_KEY` - Required for AI corrections (encrypted via dotenvx)
-- `CONVOCATIONS_WORKING_DIR` - Automatically set by wrapper script
+- `RCONV_HTTP_PORT` – Overrides the local HTTP port used by the GUI/OAuth server (default `3000`). Update your OpenRouter callback/referrer list if you change this.
 
 ## Building from Source
 
@@ -187,7 +186,6 @@ dotenvx set GOOGLE_API_KEY "your-api-key-here"
 **For CLI:**
 - Rust 1.89.0+ (via rustup)
 - Cargo (comes with Rust)
-- dotenvx (for environment encryption)
 
 **Additional Prerequisites for GUI:**
 - Trunk: `cargo install trunk --locked`
@@ -306,11 +304,10 @@ The project is organized as a Cargo workspace with four main crates:
 
 ### Security Architecture
 
-The wrapper script design provides:
-- API keys encrypted at rest on disk
-- No hardcoded secrets in the binary
-- Easy key rotation without recompilation
-- Environment isolation via dotenvx
+Secrets are managed by the core crate:
+- API keys are written to the operating system keyring whenever possible.
+- If the keyring is unavailable, the key is encrypted with the device-specific master key and stored as a reference in `config.toml`.
+- The GUI and CLI both consume the same secret references, ensuring a single source of truth with no plaintext secrets on disk.
 
 ## Limitations (no plans to fix)
 
@@ -330,8 +327,9 @@ The wrapper script design provides:
 - Check file permissions on ChatLog.log
 
 ### API Errors
-- Verify GOOGLE_API_KEY is set: `dotenvx get GOOGLE_API_KEY`
-- Check API quota/limits in Google Cloud Console
+- Run `convocations secret set-openrouter-key` again if the key was revoked or missing
+- Ensure the OAuth login completes and emits a success toast in the GUI
+- Check OpenRouter usage limits in your account dashboard
 - Use `--llm=false` to skip AI corrections
 - Check network connectivity
 
@@ -353,5 +351,15 @@ The wrapper script design provides:
 8. The command "Fix shit" means: identify to-do items or known issues that are about *broken* code or design, i.e. things that have been left incomplete, code that doesn't compile (errors), or problems that need to be solved, then go solve them, then update this document and do a Git commit. Do NOT push.
 
 # THE CHECKLIST - MODIFY THESE!
-[ ] Update README.md to reflect TOML config and preset-based workflow
-[ ] Add frontend regression coverage (component tests or e2e smoke)
+[ ] Stand up `crates/curator_snapshot` binary with Clap CLI/env defaults wiring for all tunables and alias path handling.
+[ ] Implement async OpenRouter + AA fetch clients with reqwest/rustls, keyed retries, and structs scoped to the fields needed for quality/price data.
+[ ] Build alias and fuzzy join pipeline (including `static/aliases.json` ingestion via serde + strsim Jaro-Winkler) to map AA entries onto OpenRouter slugs, logging unmatched cases.
+[ ] Filter joined models to text-to-text with context ≥ defaults, compute AAII/pricing buckets, and select top three free and cheap paid entries.
+[ ] Serialize curated snapshot schema (including schema_version, scoring metadata, timestamp) to `static/model_snapshot.json` using stable pretty JSON and ensure alias file scaffolding.
+[ ] Add targeted unit tests in `curator_snapshot` covering alias resolution, pricing fallbacks, and bucket curation logic.
+[ ] Create scheduled GitHub Action running the snapshot binary bi-weekly, committing `static/model_snapshot.json`, and wiring repository secrets for OpenRouter/AA keys.
+[ ] Add `rconv-core` async model curator module to load snapshot, reconcile against live OpenRouter data, and gracefully fall back when APIs or AAII fields are missing (respect existing chrono-tz/error patterns).
+[ ] Integrate curated model selection into the AI correction pipeline, defaulting to top ranked entries while retaining Gemini fallback when curated data is unavailable.
+[ ] Expose curated model selection in `rconv-cli` (flags + persisted config) aligned with existing secret storage flows.
+[ ] Extend Tauri backend and Preact UI with a curated-model dropdown and state sync that mirrors current settings plumbing without broad UI changes.
+[ ] Add automated tests across `rconv-core`, CLI, and UI layers to exercise snapshot loading, model selection wiring, and fallback behavior.
