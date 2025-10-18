@@ -10,6 +10,8 @@ import {
 const apiBasePromise = window.__TAURI__?.core?.invoke('get_api_base_url');
 const VALIDATION_DEBOUNCE_MS = 250;
 const DEFAULT_STATUS = 'Idle';
+const CURATED_AUTO_VALUE = 'auto';
+const CURATED_MANUAL_VALUE = 'manual';
 
 // Console interception: funnel browser logs to backend with origin tags
 function interceptConsole() {
@@ -68,13 +70,30 @@ function deserializeConfig(payload) {
   if (!payload) {
     return null;
   }
+  const secretRef = payload.openrouter_api_key ?? null;
   return {
     ...payload,
+    openrouter_api_key: undefined,
+    openrouter_secret: secretRef,
+    openrouter_has_secret: Boolean(secretRef),
+    openrouter_key_input: '',
     chat_log_path: payload.chat_log_path ?? '',
     start: payload.start ?? '',
     end: payload.end ?? '',
     process_file: payload.process_file ?? '',
-    outfile: payload.outfile ?? '',
+    outfile: payload.outfile ?? payload.outfile_override ?? '',
+    output_directory: payload.output_directory ?? payload.output_directory_override ?? '',
+    output_target:
+      payload.output_target && typeof payload.output_target === 'string'
+        ? payload.output_target
+        : (payload.output_directory ?? payload.output_directory_override)
+            && (payload.output_directory ?? payload.output_directory_override) !== ''
+          ? 'directory'
+          : 'file',
+    openrouter_model:
+      typeof payload.openrouter_model === 'string' && payload.openrouter_model.trim().length > 0
+        ? payload.openrouter_model
+        : CURATED_AUTO_VALUE,
   };
 }
 
@@ -90,6 +109,8 @@ function normalizeConfigForApi(config) {
     return trimmed.length === 0 ? null : trimmed;
   };
 
+  const target = config.output_target === 'directory' ? 'directory' : 'file';
+
   return {
     chat_log_path: trimOrNull(config.chat_log_path) ?? '',
     active_preset: trimOrNull(config.active_preset) ?? 'Saturday 10pm-midnight',
@@ -101,11 +122,13 @@ function normalizeConfigForApi(config) {
     cleanup_enabled: Boolean(config.cleanup),
     format_dialogue_enabled: Boolean(config.format_dialogue),
     outfile_override: trimOrNull(config.outfile),
+    output_directory_override: trimOrNull(config.output_directory),
+    output_target: target,
     duration_override: {
       enabled: Boolean(config.one_hour || config.two_hours),
       hours: config.two_hours ? 2.0 : config.one_hour ? 1.0 : 1.0,
     },
-    openrouter_api_key: trimOrNull(config.openrouter_api_key),
+    openrouter_api_key: config.openrouter_secret ?? null,
     openrouter_model: trimOrNull(config.openrouter_model),
     free_models_only: Boolean(config.free_models_only),
   };
@@ -148,6 +171,8 @@ function describeProgressEvent(payload) {
       return payload.error
         ? `Processing failed: ${payload.error}`
         : 'Processing failed';
+    case 'diff':
+      return payload.message ?? 'Diff generated';
     default:
       return payload.message ?? payload.kind ?? 'Update';
   }
@@ -171,6 +196,7 @@ function buildProgressEntry(payload) {
     error: payload.error ?? null,
     timestamp: new Date().toISOString(),
     origin: payload.origin ?? 'backend',
+    diff: payload.diff ?? null,
   };
 }
 
@@ -184,6 +210,7 @@ function App() {
   const [ui, setUi] = useState({ theme: 'dark' });
   const [presets, setPresets] = useState([]);
   const [derived, setDerived] = useState({ outfile: null });
+  const [secretSaveState, setSecretSaveState] = useState({ status: 'idle', message: null });
   const [configLoaded, setConfigLoaded] = useState(false);
   const [validation, setValidation] = useState(null);
   const [validationStatus, setValidationStatus] = useState('idle');
@@ -195,6 +222,7 @@ function App() {
     error: null,
   });
   const [progressLog, setProgressLog] = useState([]);
+  const [diffPreview, setDiffPreview] = useState({ jobId: null, content: null, updatedAt: null });
   const [presetFormMode, setPresetFormMode] = useState(null); // null, 'create', or 'edit'
   const [editingPresetName, setEditingPresetName] = useState(null);
   const [presetFormData, setPresetFormData] = useState({
@@ -210,6 +238,7 @@ function App() {
   const [models, setModels] = useState([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [recommendedModels, setRecommendedModels] = useState([]);
+  const [curatedModels, setCuratedModels] = useState([]);
   const [oauthInProgress, setOauthInProgress] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState('none');
 
@@ -233,21 +262,73 @@ function App() {
     }
   }, [progressLog, ui?.show_technical_log, ui?.follow_technical_log]);
 
-  const outputPlaceholder = useMemo(() => {
-    if (derived?.outfile?.default) {
-      return `Default: ${derived.outfile.default}`;
-    }
-    return 'Optional custom output path';
-  }, [derived]);
-
-  const outfileHint = useMemo(() => {
-    if (!derived?.outfile?.default) {
+  const outputTarget = config?.output_target === 'directory' ? 'directory' : 'file';
+  const defaultOutfile = derived?.outfile?.default ?? null;
+  const defaultDirectory = useMemo(() => {
+    if (!defaultOutfile) {
       return null;
     }
-    return derived.outfile.overridden
-      ? `Override active. Default would be ${derived.outfile.default}`
-      : `Default output: ${derived.outfile.default}`;
-  }, [derived]);
+    const unixIndex = defaultOutfile.lastIndexOf('/');
+    const windowsIndex = defaultOutfile.lastIndexOf('\\');
+    const separatorIndex = Math.max(unixIndex, windowsIndex);
+    if (separatorIndex === -1) {
+      return null;
+    }
+    return defaultOutfile.slice(0, separatorIndex);
+  }, [defaultOutfile]);
+
+  const outputFieldKey = outputTarget === 'directory' ? 'output_directory' : 'outfile';
+  const outputValue = outputTarget === 'directory'
+    ? config?.output_directory ?? ''
+    : config?.outfile ?? '';
+
+  const outputPlaceholder = useMemo(() => {
+    if (outputTarget === 'directory') {
+      if (config?.output_directory && config.output_directory.trim().length > 0) {
+        return `Selected directory: ${config.output_directory}`;
+      }
+      if (defaultDirectory) {
+        return `Default directory: ${defaultDirectory}`;
+      }
+      return 'Choose a directory for generated files';
+    }
+    if (defaultOutfile) {
+      return `Default: ${defaultOutfile}`;
+    }
+    return 'Optional custom output path';
+  }, [config?.output_directory, defaultDirectory, defaultOutfile, outputTarget]);
+
+  const outfileHint = useMemo(() => {
+    if (!defaultOutfile) {
+      return null;
+    }
+    if (outputTarget === 'directory') {
+      if (config?.output_directory && config.output_directory.trim().length > 0) {
+        return `Files will be saved to ${config.output_directory}.`;
+      }
+      if (defaultDirectory) {
+        return `Files default to ${defaultDirectory}.`;
+      }
+      return 'Files will be saved alongside the generated output files.';
+    }
+    return derived?.outfile?.overridden
+      ? `Override active. Default would be ${defaultOutfile}`
+      : `Default output: ${defaultOutfile}`;
+  }, [config?.output_directory, defaultDirectory, defaultOutfile, derived?.outfile?.overridden, outputTarget]);
+
+  const curatedSelectValue = useMemo(() => {
+    const current = (config?.openrouter_model ?? '').trim();
+    if (!current) {
+      return CURATED_AUTO_VALUE;
+    }
+    if (current.toLowerCase() === CURATED_AUTO_VALUE) {
+      return CURATED_AUTO_VALUE;
+    }
+    if (curatedModels.some((model) => model.slug === current)) {
+      return current;
+    }
+    return CURATED_MANUAL_VALUE;
+  }, [config?.openrouter_model, curatedModels]);
 
   useEffect(() => {
     let cancelled = false;
@@ -280,6 +361,19 @@ function App() {
         const healthBody = await healthRes.json();
         const settingsBody = await settingsRes.json();
 
+        let curatedList = [];
+        try {
+          const curatedRes = await fetch(`${base}/api/curated/models`);
+          if (curatedRes.ok) {
+            const curatedBody = await curatedRes.json();
+            curatedList = Array.isArray(curatedBody?.models) ? curatedBody.models : [];
+          } else {
+            console.warn('Curated models fetch failed', curatedRes.status);
+          }
+        } catch (error) {
+          console.warn('Curated models fetch error', error);
+        }
+
         if (cancelled) {
           return;
         }
@@ -289,6 +383,15 @@ function App() {
 
         // Get default ChatLog path from backend if chat_log_path is empty
         let finalConfig = deserializeConfig(runtimeConfig);
+        if (finalConfig) {
+          const hasSecret = Boolean(settingsBody?.has_openrouter_api_key);
+          finalConfig.openrouter_has_secret = hasSecret;
+          if (hasSecret && runtimeConfig?.openrouter_api_key) {
+            finalConfig.openrouter_secret = runtimeConfig.openrouter_api_key;
+          } else if (!hasSecret) {
+            finalConfig.openrouter_secret = null;
+          }
+        }
         if (!finalConfig.chat_log_path || finalConfig.chat_log_path.trim() === '') {
           try {
             const defaultPath = await window.__TAURI__?.core?.invoke('get_default_chatlog_path');
@@ -302,6 +405,8 @@ function App() {
 
         setHealth(healthBody);
         setConfig(finalConfig);
+        setCuratedModels(curatedList);
+        setSecretSaveState({ status: 'idle', message: null });
         setUi(fileConfig?.ui ?? { theme: 'dark' });
         setPresets(fileConfig?.presets ?? []);
         setDerived({
@@ -340,6 +445,14 @@ function App() {
       .listen('process-progress', ({ payload }) => {
         if (!payload || typeof payload !== 'object') {
           return;
+        }
+
+        if (payload.kind === 'diff' && payload.diff) {
+          setDiffPreview({
+            jobId: payload.job_id ?? null,
+            content: payload.diff,
+            updatedAt: new Date().toISOString(),
+          });
         }
 
         setProgressLog((prev) => {
@@ -418,6 +531,66 @@ function App() {
       })
       .catch((err) => {
         console.error('[Convocations] failed to register progress listener', err);
+      });
+
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!window.__TAURI__?.event) {
+      return undefined;
+    }
+
+    let cleanup = null;
+    window.__TAURI__.event
+      .listen('openrouter-auth-complete', ({ payload }) => {
+        if (!payload || typeof payload !== 'object') {
+          return;
+        }
+
+        if (payload && typeof payload.has_secret !== 'undefined') {
+          setConfig((prev) => {
+            if (!prev) {
+              return prev;
+            }
+            const next = { ...prev };
+            next.openrouter_has_secret = Boolean(payload.has_secret);
+            if (payload.secret) {
+              next.openrouter_secret = payload.secret;
+            } else if (!payload.has_secret) {
+              next.openrouter_secret = null;
+            }
+            if (payload.success) {
+              next.openrouter_key_input = '';
+            }
+            return next;
+          });
+        }
+
+        if (payload.success) {
+          setSecretSaveState({ status: 'saved', message: 'API key saved via OAuth.' });
+        } else if (payload.error) {
+          setSecretSaveState({ status: 'error', message: payload.error });
+        }
+
+        if (payload.error) {
+          console.error('[Convocations] OpenRouter OAuth error:', payload.error);
+          alert(`OpenRouter OAuth failed: ${payload.error}`);
+        } else if (payload.success) {
+          alert('OpenRouter account linked successfully. Your API key is now saved.');
+        }
+
+        setOauthInProgress(false);
+      })
+      .then((unlisten) => {
+        cleanup = unlisten;
+      })
+      .catch((err) => {
+        console.error('[Convocations] Failed to subscribe to OAuth events', err);
       });
 
     return () => {
@@ -575,6 +748,19 @@ function App() {
     [eventSelection],
   );
 
+  const handleCuratedSelect = useCallback((event) => {
+    const value = event.target.value;
+    setConfig((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      if (value === CURATED_MANUAL_VALUE) {
+        return prev;
+      }
+      return { ...prev, openrouter_model: value };
+    });
+  }, []);
+
   const handleNumber = useCallback(
     (field) => (event) => {
       const value = event.target.value;
@@ -584,6 +770,25 @@ function App() {
     },
     [],
   );
+
+  const handleOutputTargetChange = useCallback((mode) => {
+    const normalized = mode === 'directory' ? 'directory' : 'file';
+    setConfig((prev) => (prev ? { ...prev, output_target: normalized } : prev));
+  }, []);
+
+  const handleOutputPathChange = useCallback((event) => {
+    const value = event.target.value;
+    setConfig((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      const target = prev.output_target === 'directory' ? 'directory' : 'file';
+      if (target === 'directory') {
+        return { ...prev, output_directory: value };
+      }
+      return { ...prev, outfile: value };
+    });
+  }, []);
 
   const handleThemeToggle = useCallback(() => {
     setUi((prev) => {
@@ -601,17 +806,24 @@ function App() {
     [],
   );
 
+  const handleClearDiff = useCallback(() => {
+    setDiffPreview({ jobId: null, content: null, updatedAt: null });
+  }, []);
+
   const handleBrowseFile = useCallback(
-    (field, title) => async () => {
+    (field, title, options = {}) => async () => {
       if (!window.__TAURI__?.core?.invoke) {
         console.warn('[Convocations] File browsing not available (not in Tauri environment)');
         return;
       }
 
       try {
-        const selectedPath = await window.__TAURI__.core.invoke('open_file_dialog', {
-          title: title || 'Select File',
-        });
+        const args = { title: title || 'Select File' };
+        if (options.kind) {
+          args.kind = options.kind;
+        }
+
+        const selectedPath = await window.__TAURI__.core.invoke('open_file_dialog', args);
 
         if (selectedPath) {
           setConfig((prev) => (prev ? { ...prev, [field]: selectedPath } : prev));
@@ -662,6 +874,111 @@ function App() {
     }
   }, [baseUrl, config?.free_models_only]);
 
+  const persistOpenRouterKey = useCallback(
+    async (key) => {
+      if (!baseUrl) {
+        throw new Error('Backend not ready yet.');
+      }
+      const response = await fetch(`${baseUrl}/api/openrouter/secret`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: key }),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(text || `Failed to store OpenRouter key (${response.status})`);
+      }
+      const body = await response.json();
+      return body?.secret ?? null;
+    },
+    [baseUrl],
+  );
+
+  const clearOpenRouterKeyRemote = useCallback(async () => {
+    if (!baseUrl) {
+      throw new Error('Backend not ready yet.');
+    }
+    const response = await fetch(`${baseUrl}/api/openrouter/secret`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(text || `Failed to remove OpenRouter key (${response.status})`);
+    }
+    const body = await response.json().catch(() => ({}));
+    return body?.secret ?? null;
+  }, [baseUrl]);
+
+  const ensureOpenRouterKeyPersisted = useCallback(
+    async (currentConfig) => {
+      const pending = (currentConfig?.openrouter_key_input ?? '').trim();
+      if (!pending) {
+        return { config: currentConfig, changed: false };
+      }
+      setSecretSaveState({ status: 'saving', message: null });
+      try {
+        const secret = await persistOpenRouterKey(pending);
+        const next = {
+          ...currentConfig,
+          openrouter_secret: secret,
+          openrouter_has_secret: Boolean(secret),
+          openrouter_key_input: '',
+        };
+        setSecretSaveState({ status: 'saved', message: 'API key saved.' });
+        return { config: next, changed: true };
+      } catch (err) {
+        console.error('[Convocations] Failed to store OpenRouter key', err);
+        setSecretSaveState({
+          status: 'error',
+          message: err && err.message ? err.message : String(err),
+        });
+        throw err;
+      }
+    },
+    [persistOpenRouterKey],
+  );
+
+  const handleStoreOpenRouterKey = useCallback(async () => {
+    if (!config) {
+      return;
+    }
+    const pending = (config.openrouter_key_input ?? '').trim();
+    if (!pending) {
+      setSecretSaveState({ status: 'error', message: 'Enter an API key first.' });
+      return;
+    }
+    try {
+      const { config: next } = await ensureOpenRouterKeyPersisted(config);
+      setConfig(next);
+    } catch (err) {
+      // ensureOpenRouterKeyPersisted already reports error state
+    }
+  }, [config, ensureOpenRouterKeyPersisted]);
+
+  const handleClearOpenRouterKey = useCallback(async () => {
+    if (!config || !config.openrouter_has_secret) {
+      return;
+    }
+    try {
+      setSecretSaveState({ status: 'saving', message: null });
+      await clearOpenRouterKeyRemote();
+      const next = {
+        ...config,
+        openrouter_secret: null,
+        openrouter_has_secret: false,
+        openrouter_key_input: '',
+      };
+      setConfig(next);
+      setSecretSaveState({ status: 'saved', message: 'API key removed.' });
+    } catch (err) {
+      console.error('[Convocations] Failed to remove OpenRouter key', err);
+      setSecretSaveState({
+        status: 'error',
+        message: err && err.message ? err.message : String(err),
+      });
+    }
+  }, [config, clearOpenRouterKeyRemote]);
+
   const handleOAuthLogin = useCallback(async () => {
     if (!baseUrl) {
       return;
@@ -669,47 +986,79 @@ function App() {
     try {
       setOauthInProgress(true);
 
-      // Generate PKCE pair
-      const pkceResponse = await fetch(`${baseUrl}/api/openrouter/pkce`);
-      if (!pkceResponse.ok) {
-        throw new Error(`Failed to generate PKCE pair (${pkceResponse.status})`);
-      }
-      const { verifier, challenge } = await pkceResponse.json();
-
-      // Store verifier for later use
-      sessionStorage.setItem('openrouter_verifier', verifier);
-
-      // Build OAuth URL
-      const redirectUri = `${window.location.origin}/oauth/callback`;
-      const urlResponse = await fetch(`${baseUrl}/api/openrouter/oauth-url`, {
+      const callbackUrl = `${baseUrl}/api/openrouter/oauth/callback`;
+      const response = await fetch(`${baseUrl}/api/openrouter/oauth/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code_challenge: challenge,
-          redirect_uri: redirectUri,
+          redirect_uri: callbackUrl,
         }),
       });
-      if (!urlResponse.ok) {
-        throw new Error(`Failed to build OAuth URL (${urlResponse.status})`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to start OAuth flow (${response.status})`);
       }
-      const { url } = await urlResponse.json();
 
-      // Open OAuth URL in new window
-      const width = 600;
-      const height = 700;
-      const left = window.screen.width / 2 - width / 2;
-      const top = window.screen.height / 2 - height / 2;
-      window.open(
-        url,
-        'OpenRouter OAuth',
-        `width=${width},height=${height},left=${left},top=${top}`,
-      );
+      const { url, in_app_window: inAppWindow } = await response.json();
+      if (!url || typeof url !== 'string') {
+        throw new Error('Backend did not return an authorization URL.');
+      }
 
-      // Note: In a real implementation, you'd need to handle the callback
-      // and exchange the authorization code for an access token
-      alert(
-        'OAuth window opened. This is a demonstration - full OAuth flow requires additional callback handling.',
-      );
+      if (inAppWindow) {
+        console.info(
+          '[Convocations] OAuth flow opened in embedded Convocations window; waiting for callback.',
+        );
+        alert(
+          'A Convocations window opened with the OpenRouter login. Complete the sign-in there; it will close automatically after you finish.',
+        );
+        return;
+      }
+
+      let opened = false;
+      if (window.__TAURI__?.shell?.open) {
+        try {
+          await window.__TAURI__.shell.open(url);
+          opened = true;
+        } catch (shellErr) {
+          console.error('[Convocations] Failed to open OAuth URL via Tauri shell', shellErr);
+        }
+      }
+
+      if (!opened) {
+        const width = 600;
+        const height = 700;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        const popup = window.open(
+          url,
+          'OpenRouter OAuth',
+          `width=${width},height=${height},left=${left},top=${top}`,
+        );
+        opened = Boolean(popup);
+      }
+
+      if (opened) {
+        alert(
+          'OAuth flow opened in your browser. Complete the login there to finish connecting your OpenRouter account.',
+        );
+      } else {
+        console.warn('[Convocations] Unable to open OAuth flow automatically; offering URL to user');
+        console.info('[Convocations] OAuth authorization URL:', url);
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          try {
+            await navigator.clipboard.writeText(url);
+            alert(
+              'OAuth login URL copied to your clipboard. Paste it into your browser to complete the flow.',
+            );
+            return;
+          } catch (clipboardErr) {
+            console.warn('[Convocations] Failed to copy OAuth URL to clipboard', clipboardErr);
+          }
+        }
+        alert(
+          'Unable to open the OAuth login window automatically. Please copy the authorization URL from the developer console and open it in your browser.',
+        );
+      }
     } catch (err) {
       console.error('[Convocations] OAuth flow failed', err);
       alert(`OAuth login failed: ${err.message}`);
@@ -783,10 +1132,21 @@ function App() {
     try {
       setSaveState({ status: 'saving', message: null });
 
+      let workingConfig = config;
+      try {
+        const { config: nextConfig, changed } = await ensureOpenRouterKeyPersisted(config);
+        if (changed) {
+          workingConfig = nextConfig;
+          setConfig(nextConfig);
+        }
+      } catch (err) {
+        throw err;
+      }
+
       // Build FileConfig with runtime (ephemeral), ui (persisted), and presets (persisted)
       const fileConfig = {
         schema_version: 1,
-        runtime: normalizeConfigForApi(config),
+        runtime: normalizeConfigForApi(workingConfig),
         ui: ui,
         presets: presets,
       };
@@ -810,7 +1170,7 @@ function App() {
         message: err.message ?? String(err),
       });
     }
-  }, [baseUrl, config, ui, presets]);
+  }, [baseUrl, config, ensureOpenRouterKeyPersisted, ui, presets]);
 
   const handleProcess = useCallback(async () => {
     if (!baseUrl || !config) {
@@ -831,7 +1191,24 @@ function App() {
       return;
     }
 
-    const payload = normalizeConfigForApi(config);
+    let workingConfig = config;
+    try {
+      const { config: nextConfig, changed } = await ensureOpenRouterKeyPersisted(config);
+      if (changed) {
+        workingConfig = nextConfig;
+        setConfig(nextConfig);
+      }
+    } catch (err) {
+      setProcessingState({
+        active: false,
+        jobId: null,
+        status: 'Failed to store OpenRouter key.',
+        error: err && err.message ? err.message : String(err),
+      });
+      return;
+    }
+
+    const payload = normalizeConfigForApi(workingConfig);
     setProcessingState({
       active: true,
       jobId: null,
@@ -839,6 +1216,7 @@ function App() {
       error: null,
     });
     setProgressLog([]);
+    setDiffPreview({ jobId: null, content: null, updatedAt: null });
 
     try {
       const response = await fetch(`${baseUrl}/api/process`, {
@@ -886,7 +1264,7 @@ function App() {
         error: err.message ?? String(err),
       });
     }
-  }, [baseUrl, config, processingState.active, validation]);
+  }, [baseUrl, config, ensureOpenRouterKeyPersisted, processingState.active, validation]);
 
   const openCreatePresetForm = useCallback(() => {
     setPresetFormMode('create');
@@ -1173,7 +1551,13 @@ function App() {
               ? h('span', { class: 'log-job' }, `Job ${entry.jobId.slice(0, 8)}`)
               : null,
           ),
-          h('p', { class: 'log-message' }, entry.message),
+          entry.kind === 'diff' && entry.diff
+            ? h(
+                'p',
+                { class: 'log-message' },
+                entry.message ?? 'Diff generated – see Diff Preview below.',
+              )
+            : h('p', { class: 'log-message' }, entry.message),
           entry.error
             ? h('p', { class: 'log-error-message' }, entry.error)
             : null,
@@ -1405,7 +1789,7 @@ function App() {
                     { style: 'display: flex; gap: 0.5rem;' },
                     h('input', {
                       type: 'text',
-                      placeholder: 'Optional pre-filtered file',
+                      placeholder: 'Pick a file if you have already exported a chatlog and just want to clean it up',
                       value: config.process_file ?? '',
                       onInput: handleText('process_file'),
                       style: 'flex: 1;',
@@ -1424,17 +1808,47 @@ function App() {
                   renderFieldMessages('process_file'),
                 ),
                 h(
+                  'div',
+                  { class: 'field field--full' },
+                  h('span', { class: 'field-label' }, 'Output Target'),
+                  h(
+                    'div',
+                    { class: 'radio-group' },
+                    ['file', 'directory'].map((mode) =>
+                      h(
+                        'label',
+                        {
+                          key: mode,
+                          class: `radio-option${outputTarget === mode ? ' radio-option--active' : ''}`,
+                        },
+                        h('input', {
+                          type: 'radio',
+                          name: 'output-target',
+                          value: mode,
+                          checked: outputTarget === mode,
+                          onChange: () => handleOutputTargetChange(mode),
+                        }),
+                        h('span', null, mode === 'file' ? 'Output File' : 'Output Directory'),
+                      ),
+                    ),
+                  ),
+                ),
+                h(
                   'label',
-                  { class: fieldClasses('field field--full', 'outfile') },
-                  h('span', { class: 'field-label' }, 'Output File'),
+                  { class: fieldClasses('field field--full', outputFieldKey) },
+                  h(
+                    'span',
+                    { class: 'field-label' },
+                    outputTarget === 'directory' ? 'Output Directory' : 'Output File',
+                  ),
                   h(
                     'div',
                     { style: 'display: flex; gap: 0.5rem;' },
                     h('input', {
                       type: 'text',
                       placeholder: outputPlaceholder,
-                      value: config.outfile ?? '',
-                      onInput: handleText('outfile'),
+                      value: outputValue,
+                      onInput: handleOutputPathChange,
                       style: 'flex: 1;',
                     }),
                     h(
@@ -1442,13 +1856,17 @@ function App() {
                       {
                         type: 'button',
                         class: 'button button--secondary',
-                        onClick: handleBrowseFile('outfile', 'Select Output File'),
+                        onClick: handleBrowseFile(
+                          outputFieldKey,
+                          outputTarget === 'directory' ? 'Select Output Directory' : 'Select Output File',
+                          outputTarget === 'directory' ? { kind: 'directory' } : undefined,
+                        ),
                         style: 'white-space: nowrap; padding: 8px 12px;',
                       },
                       'Browse',
                     ),
                   ),
-                  renderFieldMessages('outfile'),
+                  renderFieldMessages(outputFieldKey),
                   outfileHint
                     ? h('span', { class: 'field-hint' }, outfileHint)
                     : null,
@@ -1486,6 +1904,11 @@ function App() {
                     onChange: handleCheckbox('use_llm'),
                   }),
                   h('span', null, 'Use AI corrections'),
+                  h(
+                    'span',
+                    { class: 'checkbox-hint' },
+                    'Send the processed text to your configured AI model for cleanup.',
+                  ),
                   renderFieldMessages('use_llm'),
                 ),
                 h(
@@ -1501,6 +1924,11 @@ function App() {
                     disabled: !config.use_llm,
                   }),
                   h('span', null, 'Keep original output'),
+                  h(
+                    'span',
+                    { class: 'checkbox-hint' },
+                    'Save the algorithmic output alongside the AI-edited file.',
+                  ),
                   renderFieldMessages('keep_orig'),
                 ),
                 h(
@@ -1516,6 +1944,11 @@ function App() {
                     disabled: !config.use_llm,
                   }),
                   h('span', null, 'Disable diff generation'),
+                  h(
+                    'span',
+                    { class: 'checkbox-hint' },
+                    'Skip showing the differences between the original and AI output.',
+                  ),
                   renderFieldMessages('no_diff'),
                 ),
               ),
@@ -1530,18 +1963,44 @@ function App() {
                 { class: 'field-grid' },
                 h(
                   'label',
-                  { class: fieldClasses('field field--full', 'openrouter_api_key') },
+                  { class: fieldClasses('field field--full', 'openrouter_key_input') },
                   h('span', { class: 'field-label' }, 'OpenRouter API Key'),
                   h(
                     'div',
-                    { style: 'display: flex; gap: 0.5rem; align-items: center;' },
+                    {
+                      style:
+                        'display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;',
+                    },
                     h('input', {
                       type: 'password',
                       placeholder: 'sk-or-v1-...',
-                      value: config.openrouter_api_key ?? '',
-                      onInput: handleText('openrouter_api_key'),
-                      style: 'flex: 1;',
+                      value: config.openrouter_key_input ?? '',
+                      onInput: handleText('openrouter_key_input'),
+                      style: 'flex: 1 1 220px;',
                     }),
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        class: 'button button--secondary',
+                        onClick: handleStoreOpenRouterKey,
+                        disabled:
+                          oauthInProgress || !(config.openrouter_key_input ?? '').trim().length,
+                      },
+                      'Save Key',
+                    ),
+                    config.openrouter_has_secret
+                      ? h(
+                          'button',
+                          {
+                            type: 'button',
+                            class: 'button button--secondary',
+                            onClick: handleClearOpenRouterKey,
+                            disabled: oauthInProgress,
+                          },
+                          'Remove Saved Key',
+                        )
+                      : null,
                     h(
                       'button',
                       {
@@ -1549,13 +2008,24 @@ function App() {
                         class: 'button button--secondary',
                         onClick: handleOAuthLogin,
                         disabled: oauthInProgress,
-                        style: 'white-space: nowrap; padding: 8px 12px;',
                       },
                       oauthInProgress ? 'Opening...' : 'OAuth Login',
                     ),
                   ),
-                  h('span', { class: 'field-hint' }, 'Get your API key from openrouter.ai/keys or use OAuth'),
-                  renderFieldMessages('openrouter_api_key'),
+                  h(
+                    'span',
+                    { class: 'field-hint' },
+                    config.openrouter_has_secret
+                      ? 'Key saved securely. Saving a new key will replace it.'
+                      : 'Enter your OpenRouter key or use OAuth to fetch one automatically.',
+                  ),
+                  secretSaveState.status === 'error'
+                    ? h('span', { class: 'field-error' }, secretSaveState.message)
+                    : null,
+                  secretSaveState.status === 'saved'
+                    ? h('span', { class: 'field-success' }, secretSaveState.message)
+                    : null,
+                  renderFieldMessages('openrouter_key_input'),
                 ),
               ),
               h(
@@ -1573,6 +2043,44 @@ function App() {
                   renderFieldMessages('free_models_only'),
                 ),
               ),
+              curatedModels.length > 0
+                ? h(
+                    'div',
+                    { class: 'field-grid', style: 'margin-top: 1rem;' },
+                    h(
+                      'label',
+                      { class: fieldClasses('field field--full', 'curated_model') },
+                      h('span', { class: 'field-label' }, 'Curated Models'),
+                      h(
+                        'select',
+                        {
+                          value: curatedSelectValue,
+                          onChange: handleCuratedSelect,
+                          style: 'width: 100%;',
+                        },
+                        h('option', { value: CURATED_AUTO_VALUE }, 'Automatic (recommended)'),
+                        curatedModels.map((model) => {
+                          const priceNote = model.price_in_per_million != null
+                            ? ` · $${model.price_in_per_million.toFixed(2)}/1M`
+                            : '';
+                          const tierLabel = model.tier === 'free' ? 'Free' : 'Cheap';
+                          const label = `${tierLabel} · ${model.display_name} (${model.slug}) · AAII ${model.aaii.toFixed(1)}${priceNote}`;
+                          return h(
+                            'option',
+                            { key: model.slug, value: model.slug, title: label },
+                            label,
+                          );
+                        }),
+                        h('option', { value: CURATED_MANUAL_VALUE }, 'Manual selection'),
+                      ),
+                      h(
+                        'span',
+                        { class: 'field-hint' },
+                        'Choose a curated model or switch to manual entry below.',
+                      ),
+                    ),
+                  )
+                : null,
               recommendedModels.length > 0
                 ? h(
                     'div',
@@ -1988,6 +2496,43 @@ function App() {
         { class: 'technical-log-stream' },
         renderProgressLog(),
       ),
+        )
+      : null,
+    diffPreview?.content
+      ? h(
+          'section',
+          { class: 'section-card' },
+          h(
+            'div',
+            { class: 'diff-header' },
+            h('h2', null, 'Diff Preview'),
+            h(
+              'div',
+              { class: 'diff-meta' },
+              [
+                diffPreview.jobId
+                  ? h('span', { class: 'muted' }, `Job ${diffPreview.jobId.slice(0, 8)}`)
+                  : null,
+                diffPreview.updatedAt
+                  ? h('span', { class: 'muted' }, `Updated ${formatClockTime(new Date(diffPreview.updatedAt))}`)
+                  : null,
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    class: 'button button--small button--secondary',
+                    onClick: handleClearDiff,
+                  },
+                  'Clear',
+                ),
+              ].filter(Boolean),
+            ),
+          ),
+          h(
+            'pre',
+            { class: 'diff-preview' },
+            diffPreview.content,
+          ),
         )
       : null,
   );

@@ -1,4 +1,6 @@
+use crate::curator::AUTO_SENTINEL;
 use crate::runtime::ConvocationsConfig;
+use crate::secret_store::{self, SecretReference, SecretStoreError};
 use dirs::config_dir;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -13,6 +15,11 @@ pub const SATURDAY_PRESET_NAME: &str = "Saturday 10pm-midnight";
 pub const TUESDAY_7_PRESET_NAME: &str = "Tuesday 7pm";
 pub const TUESDAY_8_PRESET_NAME: &str = "Tuesday 8pm";
 pub const FRIDAY_6_PRESET_NAME: &str = "Friday 6pm";
+pub const SATURDAY_PRESET_ID: &str = "saturday-10pm-midnight";
+pub const TUESDAY_7_PRESET_ID: &str = "tuesday-7pm";
+pub const TUESDAY_8_PRESET_ID: &str = "tuesday-8pm";
+pub const FRIDAY_6_PRESET_ID: &str = "friday-6pm";
+pub const DEFAULT_OPENROUTER_MODEL: &str = "google/gemini-2.5-flash-lite";
 
 /// Result returned by [`load_config`], capturing the source and any non-fatal issues.
 #[derive(Debug, Clone)]
@@ -38,6 +45,7 @@ pub enum ConfigSource {
 pub enum ConfigError {
     Io(std::io::Error),
     Ser(toml::ser::Error),
+    Secret(SecretStoreError),
 }
 
 impl std::fmt::Display for ConfigError {
@@ -45,6 +53,7 @@ impl std::fmt::Display for ConfigError {
         match self {
             ConfigError::Io(err) => write!(f, "IO error: {err}"),
             ConfigError::Ser(err) => write!(f, "TOML serialization error: {err}"),
+            ConfigError::Secret(err) => write!(f, "Secret storage error: {err}"),
         }
     }
 }
@@ -63,6 +72,12 @@ impl From<toml::ser::Error> for ConfigError {
     }
 }
 
+impl From<SecretStoreError> for ConfigError {
+    fn from(value: SecretStoreError) -> Self {
+        Self::Secret(value)
+    }
+}
+
 /// Disk-backed configuration schema.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileConfig {
@@ -74,6 +89,32 @@ pub struct FileConfig {
     pub ui: UiPreferences,
     #[serde(default = "default_presets")]
     pub presets: Vec<PresetDefinition>,
+}
+
+pub fn preset_id_from_name(name: &str) -> String {
+    let mut id = String::with_capacity(name.len());
+    let mut previous_dash = false;
+    for ch in name.chars() {
+        let lower = ch.to_ascii_lowercase();
+        if lower.is_ascii_alphanumeric() {
+            id.push(lower);
+            previous_dash = false;
+        } else if !previous_dash {
+            id.push('-');
+            previous_dash = true;
+        }
+    }
+    while id.starts_with('-') {
+        id.remove(0);
+    }
+    while id.ends_with('-') {
+        id.pop();
+    }
+    if id.is_empty() {
+        "preset".to_string()
+    } else {
+        id
+    }
 }
 
 impl Default for FileConfig {
@@ -90,6 +131,29 @@ impl Default for FileConfig {
 impl FileConfig {
     const fn schema_version() -> u32 {
         CURRENT_SCHEMA_VERSION
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum SecretValue {
+    Plain(String),
+    Reference(SecretReference),
+}
+
+impl SecretValue {
+    pub fn as_reference(&self) -> Option<&SecretReference> {
+        match self {
+            SecretValue::Reference(reference) => Some(reference),
+            SecretValue::Plain(_) => None,
+        }
+    }
+
+    fn take_plain(&self) -> Option<String> {
+        match self {
+            SecretValue::Plain(value) => Some(value.clone()),
+            SecretValue::Reference(_) => None,
+        }
     }
 }
 
@@ -119,11 +183,15 @@ pub struct RuntimePreferences {
     #[serde(default)]
     pub duration_override: DurationOverride,
     #[serde(default)]
-    pub openrouter_api_key: Option<String>,
+    pub openrouter_api_key: Option<SecretValue>,
     #[serde(default)]
     pub openrouter_model: Option<String>,
     #[serde(default)]
     pub free_models_only: bool,
+    #[serde(default)]
+    pub output_target: OutputTarget,
+    #[serde(default)]
+    pub output_directory_override: Option<String>,
 }
 
 impl Default for RuntimePreferences {
@@ -143,6 +211,8 @@ impl Default for RuntimePreferences {
             openrouter_api_key: None,
             openrouter_model: None,
             free_models_only: false,
+            output_target: OutputTarget::default(),
+            output_directory_override: None,
         }
     }
 }
@@ -170,6 +240,76 @@ impl RuntimePreferences {
 
     const fn default_format_dialogue_enabled() -> bool {
         true
+    }
+
+    pub fn set_openrouter_api_key(&mut self, api_key: &str) -> Result<(), SecretStoreError> {
+        let trimmed = api_key.trim();
+        if trimmed.is_empty() {
+            self.clear_openrouter_api_key()?;
+            return Ok(());
+        }
+
+        if let Some(SecretValue::Reference(existing)) = self.openrouter_api_key.as_ref() {
+            // Best effort removal of previous stored secret to avoid stale entries.
+            let _ = secret_store::delete_secret(existing);
+        }
+
+        let reference = secret_store::store_secret("openrouter_api_key", trimmed)?;
+        self.openrouter_api_key = Some(SecretValue::Reference(reference));
+        Ok(())
+    }
+
+    pub fn clear_openrouter_api_key(&mut self) -> Result<(), SecretStoreError> {
+        if let Some(SecretValue::Reference(reference)) = self.openrouter_api_key.as_ref() {
+            secret_store::delete_secret(reference)?;
+        }
+        self.openrouter_api_key = None;
+        Ok(())
+    }
+
+    pub fn migrate_openrouter_secret(&mut self) -> Result<bool, SecretStoreError> {
+        let Some(value) = self
+            .openrouter_api_key
+            .as_ref()
+            .and_then(SecretValue::take_plain)
+        else {
+            return Ok(false);
+        };
+
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            self.openrouter_api_key = None;
+            return Ok(true);
+        }
+
+        let reference = secret_store::store_secret("openrouter_api_key", trimmed)?;
+        self.openrouter_api_key = Some(SecretValue::Reference(reference));
+        Ok(true)
+    }
+
+    pub fn resolve_openrouter_api_key(&self) -> Result<Option<String>, SecretStoreError> {
+        match self.openrouter_api_key.as_ref() {
+            Some(SecretValue::Reference(reference)) => secret_store::load_secret(reference),
+            Some(SecretValue::Plain(value)) => Ok(Some(value.clone())),
+            None => Ok(None),
+        }
+    }
+
+    pub fn has_openrouter_api_key(&self) -> bool {
+        matches!(self.openrouter_api_key, Some(SecretValue::Reference(_)))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum OutputTarget {
+    File,
+    Directory,
+}
+
+impl Default for OutputTarget {
+    fn default() -> Self {
+        Self::File
     }
 }
 
@@ -319,6 +459,9 @@ pub struct RuntimeOverrides {
     pub use_ai_corrections: Option<bool>,
     pub keep_original_output: Option<bool>,
     pub show_diff: Option<bool>,
+    pub output_directory: Option<Option<String>>,
+    pub output_target: Option<OutputTarget>,
+    pub openrouter_model: Option<String>,
 }
 
 impl RuntimeOverrides {
@@ -340,6 +483,9 @@ impl RuntimeOverrides {
             && self.use_ai_corrections.is_none()
             && self.keep_original_output.is_none()
             && self.show_diff.is_none()
+            && self.output_directory.is_none()
+            && self.output_target.is_none()
+            && self.openrouter_model.is_none()
     }
 }
 
@@ -368,8 +514,14 @@ pub fn load_config() -> ConfigLoadResult {
         match fs::read_to_string(&primary_path) {
             Ok(raw) => match toml::from_str::<FileConfig>(&raw) {
                 Ok(cfg) => {
-                    let (cfg, mut sanitize_warnings) = sanitize_config(cfg);
+                    let (cfg, mut sanitize_warnings, secrets_migrated) = sanitize_config(cfg);
                     warnings.append(&mut sanitize_warnings);
+                    if secrets_migrated {
+                        if let Err(err) = save_config(&cfg) {
+                            warnings
+                                .push(format!("Failed to persist secure secret updates: {}", err));
+                        }
+                    }
                     return ConfigLoadResult {
                         config: cfg,
                         warnings,
@@ -398,7 +550,7 @@ pub fn load_config() -> ConfigLoadResult {
                 Ok(raw) => match serde_json::from_str::<ConvocationsConfig>(&raw) {
                     Ok(legacy) => {
                         let cfg = migrate_legacy_config(legacy);
-                        let (cfg, mut sanitize_warnings) = sanitize_config(cfg);
+                        let (cfg, mut sanitize_warnings, secrets_migrated) = sanitize_config(cfg);
                         warnings.push(format!(
                             "Loaded configuration from legacy {}. A new {} will be written.",
                             LEGACY_SETTINGS_FILE_NAME, CONFIG_FILE_NAME
@@ -407,6 +559,11 @@ pub fn load_config() -> ConfigLoadResult {
                         if let Err(err) = save_config(&cfg) {
                             warnings
                                 .push(format!("Failed to persist migrated configuration: {}", err));
+                        } else if secrets_migrated {
+                            warnings.push(
+                                "Migrated secrets were stored securely during legacy import."
+                                    .to_string(),
+                            );
                         }
                         return ConfigLoadResult {
                             config: cfg,
@@ -441,7 +598,11 @@ pub fn save_config(config: &FileConfig) -> Result<(), ConfigError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let serialized = toml::to_string_pretty(config)?;
+    let mut config_to_write = config.clone();
+    if config_to_write.runtime.migrate_openrouter_secret()? {
+        // ensure the on-disk representation never regresses to plaintext
+    }
+    let serialized = toml::to_string_pretty(&config_to_write)?;
     fs::write(path, serialized)?;
     Ok(())
 }
@@ -462,8 +623,9 @@ pub fn save_presets_and_ui_only(
     save_config(&config)
 }
 
-fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>) {
+fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>, bool) {
     let mut warnings = Vec::new();
+    let mut secrets_migrated = false;
 
     if config.schema_version != CURRENT_SCHEMA_VERSION {
         warnings.push(format!(
@@ -471,7 +633,7 @@ fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>) {
             config.schema_version, CURRENT_SCHEMA_VERSION
         ));
         config = FileConfig::default();
-        return (config, warnings);
+        return (config, warnings, secrets_migrated);
     }
 
     let mut preset_names = HashSet::new();
@@ -578,7 +740,23 @@ fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>) {
         config.runtime = RuntimePreferences::default();
     }
 
-    (config, warnings)
+    match config.runtime.migrate_openrouter_secret() {
+        Ok(true) => {
+            warnings.push("Migrated stored OpenRouter API key into secure storage.".to_string());
+            secrets_migrated = true;
+        }
+        Ok(false) => {}
+        Err(err) => {
+            warnings.push(format!(
+                "Failed to secure OpenRouter API key: {}. Clearing the saved key.",
+                err
+            ));
+            let _ = config.runtime.clear_openrouter_api_key();
+            secrets_migrated = true;
+        }
+    }
+
+    (config, warnings, secrets_migrated)
 }
 
 fn migrate_legacy_config(legacy: ConvocationsConfig) -> FileConfig {
@@ -641,13 +819,40 @@ pub fn runtime_preferences_to_convocations(
     config.no_diff = !runtime.show_diff;
     config.cleanup = runtime.cleanup_enabled;
     config.format_dialogue = runtime.format_dialogue_enabled;
-    config.outfile = runtime.outfile_override.as_ref().and_then(|value| {
-        if value.trim().is_empty() {
+    config.free_models_only = runtime.free_models_only;
+
+    let trimmed_outfile = runtime.outfile_override.as_ref().and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
             None
         } else {
-            Some(value.clone())
+            Some(trimmed.to_string())
         }
     });
+
+    let trimmed_directory = runtime
+        .output_directory_override
+        .as_ref()
+        .and_then(|value| {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        });
+
+    match runtime.output_target {
+        OutputTarget::File => {
+            config.outfile = trimmed_outfile;
+            config.output_directory = None;
+        }
+        OutputTarget::Directory => {
+            config.outfile = None;
+            config.output_directory = trimmed_directory;
+        }
+    }
+
     config.active_preset = runtime.active_preset.clone();
 
     // Reset event flags based on active preset.
@@ -682,6 +887,42 @@ pub fn runtime_preferences_to_convocations(
     } else {
         config.one_hour = false;
         config.two_hours = false;
+    }
+
+    let openrouter_model = runtime
+        .openrouter_model
+        .as_ref()
+        .and_then(|value| {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        })
+        .unwrap_or_else(|| AUTO_SENTINEL.to_string());
+    config.openrouter_model = openrouter_model.clone();
+
+    match runtime.resolve_openrouter_api_key() {
+        Ok(Some(key)) => {
+            config.openrouter_api_key = Some(key);
+        }
+        Ok(None) => {
+            config.openrouter_api_key = None;
+            if config.use_llm {
+                warnings.push(
+                    "OpenRouter API key not configured; AI corrections will be skipped."
+                        .to_string(),
+                );
+            }
+        }
+        Err(err) => {
+            config.openrouter_api_key = None;
+            warnings.push(format!(
+                "Failed to retrieve OpenRouter API key: {}. AI corrections will be skipped.",
+                err
+            ));
+        }
     }
 
     (config, warnings)
@@ -784,8 +1025,24 @@ pub fn apply_runtime_overrides(
     if let Some(value) = overrides.no_diff {
         config.no_diff = value;
     }
+    if let Some(target) = overrides.output_target.clone() {
+        match target {
+            OutputTarget::File => {
+                config.output_directory = None;
+            }
+            OutputTarget::Directory => {
+                config.outfile = None;
+            }
+        }
+    }
+    if let Some(ref value) = overrides.output_directory {
+        config.output_directory = value.clone();
+    }
     if let Some(ref value) = overrides.outfile {
         config.outfile = value.clone();
+    }
+    if let Some(ref value) = overrides.openrouter_model {
+        config.openrouter_model = value.clone();
     }
     if let Some(value) = overrides.use_ai_corrections {
         config.use_llm = value;
@@ -862,8 +1119,18 @@ pub fn runtime_overrides_from_convocations(config: &ConvocationsConfig) -> Runti
         overrides.no_diff = Some(config.no_diff);
         overrides.show_diff = Some(!config.no_diff);
     }
+    if config.output_directory != defaults.output_directory {
+        overrides.output_directory = Some(config.output_directory.clone());
+        overrides.output_target = Some(OutputTarget::Directory);
+    }
     if config.outfile != defaults.outfile {
         overrides.outfile = Some(config.outfile.clone());
+        if overrides.output_target.is_none() {
+            overrides.output_target = Some(OutputTarget::File);
+        }
+    }
+    if config.openrouter_model != defaults.openrouter_model {
+        overrides.openrouter_model = Some(config.openrouter_model.clone());
     }
 
     overrides
@@ -888,7 +1155,7 @@ mod tests {
             builtin: false,
         });
 
-        let (sanitized, warnings) = sanitize_config(config);
+        let (sanitized, warnings, _) = sanitize_config(config);
 
         // Should have removed the duplicate
         assert_eq!(
@@ -923,7 +1190,7 @@ mod tests {
             builtin: false,
         });
 
-        let (sanitized, warnings) = sanitize_config(config);
+        let (sanitized, warnings, _) = sanitize_config(config);
 
         // Should have fixed the duration
         let bad_preset = sanitized.presets.iter().find(|p| p.name == "Bad Preset");
@@ -958,7 +1225,7 @@ mod tests {
             builtin: false,
         });
 
-        let (sanitized, warnings) = sanitize_config(config);
+        let (sanitized, warnings, _) = sanitize_config(config);
 
         // Should have removed the preset with empty prefix
         let preset = sanitized.presets.iter().find(|p| p.name == "No Prefix");
@@ -984,7 +1251,7 @@ mod tests {
             hours: f32::INFINITY,
         };
 
-        let (sanitized, warnings) = sanitize_config(config);
+        let (sanitized, warnings, _) = sanitize_config(config);
 
         // Should have disabled and reset
         assert!(!sanitized.runtime.duration_override.enabled);
@@ -1005,7 +1272,7 @@ mod tests {
             hours: 0.5,
         };
 
-        let (sanitized, warnings) = sanitize_config(config);
+        let (sanitized, warnings, _) = sanitize_config(config);
 
         // Should have disabled and reset
         assert!(!sanitized.runtime.duration_override.enabled);
@@ -1023,7 +1290,7 @@ mod tests {
         let mut config = FileConfig::default();
         config.runtime.active_preset = "nonexistent-preset".to_string();
 
-        let (sanitized, warnings) = sanitize_config(config);
+        let (sanitized, warnings, _) = sanitize_config(config);
 
         // Should have reset to default
         assert_eq!(sanitized.runtime.active_preset, SATURDAY_PRESET_NAME);
@@ -1042,7 +1309,7 @@ mod tests {
         let mut config = FileConfig::default();
         config.schema_version = 999;
 
-        let (sanitized, warnings) = sanitize_config(config);
+        let (sanitized, warnings, _) = sanitize_config(config);
 
         // Should have reset to defaults
         assert_eq!(sanitized.schema_version, CURRENT_SCHEMA_VERSION);
@@ -1100,7 +1367,7 @@ mod tests {
             builtin: false,
         });
 
-        let (sanitized, warnings) = sanitize_config(config);
+        let (sanitized, warnings, _) = sanitize_config(config);
 
         assert_eq!(sanitized.presets.len(), initial_count + 1);
         assert!(
@@ -1132,7 +1399,7 @@ mod tests {
         // Remove it (simulate deletion)
         config.presets.retain(|p| p.name != "Temporary");
 
-        let (sanitized, _) = sanitize_config(config);
+        let (sanitized, _, _) = sanitize_config(config);
 
         assert!(
             !sanitized.presets.iter().any(|p| p.name == "Temporary"),
@@ -1176,7 +1443,7 @@ mod tests {
             preset.file_prefix = "updated".to_string();
         }
 
-        let (sanitized, warnings) = sanitize_config(config);
+        let (sanitized, warnings, _) = sanitize_config(config);
 
         let edited = sanitized.presets.iter().find(|p| p.name == "Updated Name");
         assert!(edited.is_some());
@@ -1194,7 +1461,7 @@ mod tests {
         // Try to remove all built-in presets
         config.presets.retain(|p| !p.builtin);
 
-        let (sanitized, _) = sanitize_config(config);
+        let (sanitized, _, _) = sanitize_config(config);
 
         // Built-ins should be restored
         let restored_builtin_count = sanitized.presets.iter().filter(|p| p.builtin).count();
@@ -1226,7 +1493,7 @@ mod tests {
                 hours,
             };
 
-            let (sanitized, warnings) = sanitize_config(config);
+            let (sanitized, warnings, _) = sanitize_config(config);
 
             if should_be_valid {
                 assert!(

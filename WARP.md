@@ -351,53 +351,8 @@ Secrets are managed by the core crate:
 8. The command "Fix shit" means: identify to-do items or known issues that are about *broken* code or design, i.e. things that have been left incomplete, code that doesn't compile (errors), or problems that need to be solved, then go solve them, then update this document and do a Git commit. Do NOT push.
 
 # THE CHECKLIST - MODIFY THESE!
-[ ] Goal: Deliver a dynamic model curation system that curates top OpenRouter text models via snapshot generation, scheduled refresh, runtime reconciliation, and CLI/GUI selection replacing the Gemini default.
-[ ] Stand up `crates/curator_snapshot` binary with Clap CLI/env defaults wiring for all tunables and alias path handling.
-    [ ] Register the new crate in the workspace and add `main.rs` scaffolding with Tokio runtime + Clap struct covering `--out`/`--aliases`.
-    [ ] Implement env var parsing for tunables + required API keys and plumb them into a shared config object.
-        [ ] Set defaults when env vars missing: MIN_FREE_AAII=60.0, MIN_PAID_AAII=65.0, CHEAP_IN_MAX_USD_PER_1M=1.5, CHEAP_OUT_MAX_USD_PER_1M=6.0, MIN_CONTEXT_LENGTH=8192, FUZZY_MATCH_THRESHOLD=0.94.
-    [ ] Ensure default paths resolve relative to repo root and create `static/aliases.json` (empty map) if missing.
-[ ] Implement async OpenRouter + AA fetch clients with reqwest/rustls, keyed retries, and structs scoped to the fields needed for quality/price data.
-    [ ] Define lightweight response models capturing modality, context length, pricing, and identifiers.
-    [ ] Add retry helper with 1s backoff (max 3 attempts) for transient HTTP errors and timeouts.
-    [ ] Gate both clients behind feature-free modules reusing a single reqwest client configured with auth headers.
-[ ] Build alias and fuzzy join pipeline (including `static/aliases.json` ingestion via serde + strsim Jaro-Winkler) to map AA entries onto OpenRouter slugs, logging unmatched cases.
-    [ ] Load alias map and normalise keys/values; normalise AA + OR names before comparisons.
-    [ ] Attempt exact `providers.openrouter`/slug match, then alias lookup, then fuzzy match with threshold from config.
-    [ ] Collect unmatched AA entries and emit structured logs for future alias updates.
-[ ] Filter joined models to text-to-text with context ≥ defaults, compute AAII/pricing buckets, and select top three free and cheap paid entries.
-    [ ] Restrict to models advertising text input/output and sufficient context length.
-    [ ] Derive AAII and price-per-1M tokens from AA first, falling back to OpenRouter pricing fields parsed as floats.
-    [ ] Bucket into free and cheap paid, sort by AAII descending (slug tie-breaker), and truncate to top three each.
-[ ] Serialize curated snapshot schema (including schema_version, scoring metadata, timestamp) to `static/model_snapshot.json` using stable pretty JSON and ensure alias file scaffolding.
-    [ ] Define serde structs for snapshot metadata + entries mirroring existing schema patterns in repo docs.
-    [ ] Insert generation timestamp, config thresholds, and selected model data before writing.
-    [ ] Write pretty-printed JSON to the requested path atomically (temp file + rename) for safety.
-[ ] Add targeted unit tests in `curator_snapshot` covering alias resolution, pricing fallbacks, and bucket curation logic.
-    [ ] Unit test alias precedence (exact > manual alias > fuzzy) with synthetic fixtures.
-    [ ] Test pricing extraction fallback behaviour when AA pricing is absent.
-    [ ] Validate bucket filtering/sorting logic with mixed free/paid models and boundary thresholds.
-[ ] Create scheduled GitHub Action running the snapshot binary bi-weekly, committing `static/model_snapshot.json`, and wiring repository secrets for OpenRouter/AA keys.
-    [ ] Add workflow to `.github/workflows/` with cron trigger and job using Rust toolchain cache.
-    [ ] Inject secrets into env, run `cargo run -p curator_snapshot -- --out static/model_snapshot.json`.
-    [ ] Commit updated snapshot back using GitHub token, skipping commit when file unchanged.
-[ ] Add `rconv-core` async model curator module to load snapshot, reconcile against live OpenRouter data, and gracefully fall back when APIs or AAII fields are missing (respect existing chrono-tz/error patterns).
-    [ ] Add loader returning parsed snapshot entries with schema version validation and error propagation.
-    [ ] Query live OpenRouter models at runtime, pruning snapshot entries that no longer exist or violate thresholds.
-    [ ] Provide async accessor returning curated + fallback Gemini entry when snapshot invalid/unavailable.
-[ ] Integrate curated model selection into the AI correction pipeline, defaulting to top ranked entries while retaining Gemini fallback when curated data is unavailable.
-    [ ] Replace hardcoded Gemini selection with injected curator handle respecting existing config toggles.
-    [ ] Adjust pipeline to cache chosen model per run and surface model metadata in logging.
-    [ ] Preserve Gemini path when curator fails or returns empty.
-[ ] Expose curated model selection in `rconv-cli` (flags + persisted config) aligned with existing secret storage flows.
-    [ ] Add CLI flag to choose curated model (or `auto`) and wire into config persistence structs.
-    [ ] Update CLI initialization to load curator snapshot and present available curated IDs.
-    [ ] Ensure secret storage interaction remains unchanged and surfaces missing API keys early.
-[ ] Extend Tauri backend and Preact UI with a curated-model dropdown and state sync that mirrors current settings plumbing without broad UI changes.
-    [ ] Add Tauri command to fetch curated snapshot entries via `rconv-core` module.
-    [ ] Update frontend state/store to load curated models on start and populate dropdown.
-    [ ] Persist selection through existing settings pipeline and fall back to Gemini when curator empty.
-[ ] Add automated tests across `rconv-core`, CLI, and UI layers to exercise snapshot loading, model selection wiring, and fallback behavior.
+[~] Add automated tests across `rconv-core`, CLI, and UI layers to exercise snapshot loading, model selection wiring, and fallback behavior.
+    [x] Extend CLI tests to ensure flag/config interplay picks curated models correctly.
+    [x] Add `rconv-core` curator module unit tests covering snapshot parsing and discovery helpers.
     [ ] Add async tests for curator module covering missing snapshot and API failure scenarios (use mocks).
-    [ ] Extend CLI integration tests to ensure flag/config interplay picks curated models correctly.
     [ ] Add frontend/unit or component test verifying dropdown renders curated options and handles empty state.

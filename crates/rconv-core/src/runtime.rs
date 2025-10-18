@@ -3,6 +3,7 @@ use crate::config::{
     TUESDAY_7_PRESET_NAME, TUESDAY_8_PRESET_NAME, ThemePreference,
     default_presets as config_default_presets,
 };
+use crate::curator::{self, CuratedTier, ModelPreference, ResolutionSource};
 use crate::openrouter;
 use chrono::{Datelike, Duration, Local, NaiveDate};
 use chrono_tz;
@@ -33,6 +34,9 @@ pub struct ConvocationsConfig {
     pub keep_orig: bool,
     pub no_diff: bool,
     pub outfile: Option<String>,
+    pub output_directory: Option<String>,
+    #[serde(default)]
+    pub free_models_only: bool,
     #[serde(default = "default_active_preset")]
     pub active_preset: String,
     #[serde(default = "runtime_presets_default")]
@@ -45,6 +49,10 @@ pub struct ConvocationsConfig {
     pub show_technical_log: bool,
     #[serde(default = "default_follow_technical_log")]
     pub follow_technical_log: bool,
+    #[serde(default)]
+    pub openrouter_api_key: Option<String>,
+    #[serde(default = "default_openrouter_model")]
+    pub openrouter_model: String,
 }
 
 fn default_active_preset() -> String {
@@ -57,6 +65,10 @@ fn runtime_presets_default() -> Vec<PresetDefinition> {
 
 const fn default_follow_technical_log() -> bool {
     true
+}
+
+fn default_openrouter_model() -> String {
+    curator::AUTO_SENTINEL.to_string()
 }
 
 impl Default for ConvocationsConfig {
@@ -79,12 +91,16 @@ impl Default for ConvocationsConfig {
             keep_orig: false,
             no_diff: false,
             outfile: None,
+            output_directory: None,
+            free_models_only: false,
             active_preset: default_active_preset(),
             presets: runtime_presets_default(),
             duration_override: DurationOverride::default(),
             theme: ThemePreference::default(),
             show_technical_log: false,
             follow_technical_log: default_follow_technical_log(),
+            openrouter_api_key: None,
+            openrouter_model: default_openrouter_model(),
         }
     }
 }
@@ -387,6 +403,8 @@ pub struct StageProgressEvent {
     pub elapsed_ms: f64,
     pub stage_elapsed_ms: Option<f64>,
     pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diff: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -396,6 +414,7 @@ pub enum StageProgressEventKind {
     End,
     Note,
     Progress,
+    Diff,
 }
 
 #[derive(Clone)]
@@ -428,6 +447,7 @@ impl StageLogger {
                 elapsed_ms: since_start.as_secs_f64() * 1_000.0,
                 stage_elapsed_ms: None,
                 message: Some(format!("Starting {name}")),
+                diff: None,
             });
         }
     }
@@ -451,6 +471,7 @@ impl StageLogger {
                     "Finished {name} (Δ {} ms)",
                     format_ms(stage_elapsed)
                 )),
+                diff: None,
             });
         }
         self.current_stage = None;
@@ -466,6 +487,7 @@ impl StageLogger {
                 elapsed_ms: self.program_start.elapsed().as_secs_f64() * 1_000.0,
                 stage_elapsed_ms: Some(self.stage_start.elapsed().as_secs_f64() * 1_000.0),
                 message: Some(text),
+                diff: None,
             });
         }
     }
@@ -483,6 +505,21 @@ impl StageLogger {
                 elapsed_ms: self.program_start.elapsed().as_secs_f64() * 1_000.0,
                 stage_elapsed_ms: Some(self.stage_start.elapsed().as_secs_f64() * 1_000.0),
                 message: Some(text),
+                diff: None,
+            });
+        }
+    }
+
+    fn diff(&mut self, diff_text: impl Into<String>) {
+        let diff_payload = diff_text.into();
+        if let Some(cb) = &self.callback {
+            cb(StageProgressEvent {
+                kind: StageProgressEventKind::Diff,
+                stage: self.current_stage.clone(),
+                elapsed_ms: self.program_start.elapsed().as_secs_f64() * 1_000.0,
+                stage_elapsed_ms: Some(self.stage_start.elapsed().as_secs_f64() * 1_000.0),
+                message: Some("Diff generated".to_string()),
+                diff: Some(diff_payload),
             });
         }
     }
@@ -612,6 +649,62 @@ async fn run(
 
     logger.end(stage_label);
 
+    let openrouter_api_key = config.openrouter_api_key.as_deref();
+    let preference = ModelPreference::from_str(config.openrouter_model.as_str());
+    let model_resolution =
+        curator::resolve_preference(&preference, config.free_models_only, openrouter_api_key).await;
+
+    match (model_resolution.source, model_resolution.entry.as_ref()) {
+        (ResolutionSource::CuratedAuto, Some(entry)) => {
+            logger.note(format!(
+                "Curated model selected: {} ({}) · tier={} · AAII={:.1}",
+                entry.slug,
+                entry.display_name,
+                match entry.tier {
+                    CuratedTier::Free => "free",
+                    CuratedTier::Cheap => "cheap",
+                },
+                entry.aaii
+            ));
+        }
+        (ResolutionSource::CuratedExplicit, Some(entry)) => {
+            logger.note(format!(
+                "Using explicit curated model: {} ({})",
+                entry.slug, entry.display_name
+            ));
+        }
+        (ResolutionSource::CuratedAuto, None) | (ResolutionSource::CuratedExplicit, None) => {
+            logger.note(format!(
+                "Curated model selected: {}",
+                model_resolution.model_slug
+            ));
+        }
+        (ResolutionSource::FallbackNoSnapshot, _) => {
+            logger.note(format!(
+                "Curated snapshot unavailable; falling back to {}",
+                model_resolution.model_slug
+            ));
+            if !model_resolution.message.is_empty() {
+                logger.note(format!("  Reason: {}", model_resolution.message));
+            }
+        }
+        (ResolutionSource::FallbackMissingEntry, _) => {
+            logger.note(format!(
+                "Curated model '{}' unavailable; using fallback {}",
+                preference.as_str(),
+                model_resolution.model_slug
+            ));
+        }
+        (ResolutionSource::FallbackEmpty, _) => {
+            logger.note(format!(
+                "Curated catalog empty for requested tier; using fallback {}",
+                model_resolution.model_slug
+            ));
+        }
+    }
+
+    let openrouter_model = model_resolution.model_slug.clone();
+
     // Check if we're in pre-filtered file mode
     if let Some(ref process_file) = config.process_file {
         logger.note("Mode: Pre-filtered file processing (--process-file)");
@@ -656,6 +749,8 @@ async fn run(
             config.use_llm,
             config.keep_orig,
             config.no_diff,
+            openrouter_api_key,
+            openrouter_model.as_str(),
         )
         .await;
         logger.end("Process pre-filtered file");
@@ -787,6 +882,8 @@ async fn run(
             config.use_llm,
             config.keep_orig,
             config.no_diff,
+            openrouter_api_key,
+            openrouter_model.as_str(),
         )
         .await;
         logger.end("Process log file");
@@ -941,21 +1038,42 @@ fn display_diff_and_cleanup(
         }
     };
 
-    // Print the diff header
-    println!("\n{}", "=".repeat(80));
-    println!("Diff between unedited and LLM-edited versions:");
-    println!("{}", "=".repeat(80));
+    // Generate unified diff into an in-memory buffer
+    let theme = termdiff::SignsTheme::default();
+    let mut diff_buffer: Vec<u8> = Vec::new();
+    if let Err(e) = termdiff::diff(&mut diff_buffer, &unedited_content, &edited_content, &theme) {
+        eprintln!("Warning: Error generating diff: {}", e);
+        logger.end("Generate and display diff");
+        return;
+    }
 
-    // Generate and write unified diff directly to stdout using termdiff
+    let diff_body = String::from_utf8_lossy(&diff_buffer).to_string();
+
+    let line = "=".repeat(80);
+    let mut display = String::new();
+    display.push('\n');
+    display.push_str(&line);
+    display.push('\n');
+    display.push_str("Diff between unedited and LLM-edited versions:\n");
+    display.push_str(&line);
+    display.push('\n');
+    display.push_str(&diff_body);
+    if !display.ends_with('\n') {
+        display.push('\n');
+    }
+    display.push_str(&line);
+    display.push('\n');
+
+    // Print to stdout for CLI users
     use std::io::Write;
     let mut stdout = std::io::stdout();
-    let theme = termdiff::SignsColorTheme {};
-    if let Err(e) = termdiff::diff(&mut stdout, &unedited_content, &edited_content, &theme) {
-        eprintln!("Warning: Error generating diff: {}", e);
+    if let Err(e) = stdout.write_all(display.as_bytes()) {
+        eprintln!("Warning: Failed to write diff to stdout: {}", e);
     }
-    let _ = stdout.flush(); // Ensure output is flushed
+    let _ = stdout.flush();
 
-    println!("{}", "=".repeat(80));
+    // Emit diff event for GUI clients
+    logger.diff(diff_body);
 
     logger.end("Generate and display diff");
 
@@ -980,6 +1098,8 @@ async fn process_log_file(
     use_llm: bool,
     keep_orig: bool,
     no_diff: bool,
+    openrouter_api_key: Option<&str>,
+    openrouter_model: &str,
 ) {
     // Expand the tilde in the infile path
     logger.begin("Read input file");
@@ -1138,7 +1258,9 @@ async fn process_log_file(
         if no_diff {
             // Old behavior: apply LLM and write directly to output file
             logger.begin("Apply LLM corrections");
-            final_output = apply_llm_correction(&logger, final_output).await;
+            final_output =
+                apply_llm_correction(&logger, final_output, openrouter_api_key, openrouter_model)
+                    .await;
             logger.end("Apply LLM corrections");
 
             logger.begin("Write output file");
@@ -1165,7 +1287,9 @@ async fn process_log_file(
 
             // Apply LLM corrections
             logger.begin("Apply LLM corrections");
-            final_output = apply_llm_correction(&logger, final_output).await;
+            final_output =
+                apply_llm_correction(&logger, final_output, openrouter_api_key, openrouter_model)
+                    .await;
             logger.end("Apply LLM corrections");
 
             // Save edited version
@@ -1204,6 +1328,8 @@ async fn process_filtered_file(
     use_llm: bool,
     keep_orig: bool,
     no_diff: bool,
+    openrouter_api_key: Option<&str>,
+    openrouter_model: &str,
 ) {
     // Expand the tilde in the infile path
     logger.begin("Read input file");
@@ -1386,7 +1512,9 @@ async fn process_filtered_file(
         if no_diff {
             // Old behavior: apply LLM and write directly to output file
             logger.begin("Apply LLM corrections");
-            final_output = apply_llm_correction(&logger, final_output).await;
+            final_output =
+                apply_llm_correction(&logger, final_output, openrouter_api_key, openrouter_model)
+                    .await;
             logger.end("Apply LLM corrections");
 
             logger.begin("Write output file");
@@ -1413,7 +1541,9 @@ async fn process_filtered_file(
 
             // Apply LLM corrections
             logger.begin("Apply LLM corrections");
-            final_output = apply_llm_correction(&logger, final_output).await;
+            final_output =
+                apply_llm_correction(&logger, final_output, openrouter_api_key, openrouter_model)
+                    .await;
             logger.end("Apply LLM corrections");
 
             // Save edited version
@@ -1560,9 +1690,21 @@ fn fmt_start(name: &str, value: &str, first_channel: &str, whtspc: &Regex) -> St
     format!("{}\n", compact.trim())
 }
 
-async fn apply_llm_correction(logger: &StageLogger, text: String) -> String {
-    // Try to use OpenRouter to apply corrections
-    match perform_openrouter_correction(logger, text.clone()).await {
+async fn apply_llm_correction(
+    logger: &StageLogger,
+    text: String,
+    api_key: Option<&str>,
+    model: &str,
+) -> String {
+    let api_key = match api_key {
+        Some(value) if !value.is_empty() => value,
+        _ => {
+            eprintln!("Warning: OpenRouter API key not configured; skipping AI corrections.");
+            return text;
+        }
+    };
+
+    match perform_openrouter_correction(logger, text.clone(), api_key, model).await {
         Ok(corrected) => {
             println!("Applied OpenRouter grammar and spelling corrections");
             corrected
@@ -1580,15 +1722,9 @@ async fn apply_llm_correction(logger: &StageLogger, text: String) -> String {
 async fn perform_openrouter_correction(
     logger: &StageLogger,
     text: String,
+    api_key: &str,
+    model: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    // Get API key from environment variable
-    let api_key = std::env::var("OPENROUTER_API_KEY")
-        .map_err(|_| "OPENROUTER_API_KEY environment variable not set")?;
-
-    // Get model from environment variable or use default
-    let model = std::env::var("OPENROUTER_MODEL")
-        .unwrap_or_else(|_| "google/gemini-2.5-flash-lite".to_string());
-
     // System instructions for grammar correction
     let system_prompt = r##"
     You are a grammar and spelling correction assistant for fantasy role-playing game chat logs.
@@ -1650,7 +1786,7 @@ Corrected text:",
         );
 
         // Send request to OpenRouter
-        let corrected = openrouter::complete(&api_key, &model, &prompt, 0.3).await?;
+        let corrected = openrouter::complete(api_key, model, &prompt, 0.3).await?;
 
         // Clean up the response - remove any potential markdown formatting
         let cleaned = corrected

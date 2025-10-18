@@ -4,28 +4,34 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{Error, anyhow};
-use chrono::Local;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::http::{Method, StatusCode};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use chrono::Local;
+use dirs::{document_dir, home_dir};
+use rconv_core::config::SecretValue;
+use rconv_core::curator;
 use rconv_core::{
     ConvocationsConfig, FileConfig, PresetDefinition, StageProgressCallback, StageProgressEvent,
     StageProgressEventKind, load_config, resolve_outfile_paths, run_with_config_with_progress,
-    runtime_preferences_to_convocations, save_presets_and_ui_only,
+    runtime_preferences_to_convocations, save_config, save_presets_and_ui_only,
 };
-use serde::Serialize;
-use tauri::async_runtime::RwLock;
+use serde::{Deserialize, Serialize};
+use tauri::async_runtime::{RwLock, spawn};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Listener, Manager, State as TauriState};
-use tokio::sync::mpsc;
+use tauri::{
+    AppHandle, Emitter, Listener, Manager, State as TauriState, WebviewUrl, WebviewWindowBuilder,
+};
+use tokio::sync::{Mutex, mpsc};
 use tokio::time::sleep;
 use tower_http::cors::{Any, CorsLayer};
+use url::Url;
 use uuid::Uuid;
 
 #[derive(Debug, Default)]
@@ -48,6 +54,47 @@ impl ApiServerState {
 struct ProcessManager {
     active: Arc<RwLock<Option<Uuid>>>,
 }
+
+#[derive(Clone, Default)]
+struct OAuthSessionManager {
+    inner: Arc<Mutex<HashMap<String, OAuthSession>>>,
+}
+
+#[derive(Clone)]
+struct OAuthSession {
+    code_verifier: String,
+    created_at: Instant,
+    window_label: Option<String>,
+}
+
+impl OAuthSessionManager {
+    async fn insert(&self, state: String, session: OAuthSession) {
+        let mut guard = self.inner.lock().await;
+        guard.insert(state, session);
+    }
+
+    async fn take(&self, state: &str) -> Option<OAuthSession> {
+        let mut guard = self.inner.lock().await;
+        guard.remove(state)
+    }
+
+    async fn cleanup_expired(&self, max_age: Duration) -> Vec<OAuthSession> {
+        let mut guard = self.inner.lock().await;
+        let now = Instant::now();
+        let mut expired = Vec::new();
+        guard.retain(|_, session| {
+            if now.duration_since(session.created_at) > max_age {
+                expired.push(session.clone());
+                false
+            } else {
+                true
+            }
+        });
+        expired
+    }
+}
+
+const OAUTH_WINDOW_PREFIX: &str = "openrouter-auth-";
 
 impl ProcessManager {
     async fn start(&self, job_id: Uuid) -> Result<(), ()> {
@@ -72,6 +119,15 @@ impl ProcessManager {
 }
 
 #[derive(Debug, Clone, Serialize)]
+struct OAuthEventPayload {
+    success: bool,
+    api_key: Option<String>,
+    error: Option<String>,
+    has_secret: bool,
+    secret: Option<SecretValue>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "kebab-case")]
 enum ProcessEventKind {
     Queued,
@@ -80,6 +136,7 @@ enum ProcessEventKind {
     Info,
     Completed,
     Failed,
+    Diff,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -91,6 +148,8 @@ struct ProcessEventPayload {
     stage_elapsed_ms: Option<f64>,
     message: Option<String>,
     error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    diff: Option<String>,
     #[serde(default = "default_origin")]
     origin: String,
 }
@@ -110,6 +169,7 @@ impl ProcessEventPayload {
             stage_elapsed_ms: None,
             message: Some("Job queued".to_string()),
             error: None,
+            diff: None,
             origin: "backend".to_string(),
         }
     }
@@ -124,6 +184,7 @@ impl ProcessEventPayload {
                 stage_elapsed_ms: event.stage_elapsed_ms,
                 message: event.message.clone(),
                 error: None,
+                diff: event.diff.clone(),
                 origin: "backend".to_string(),
             },
             StageProgressEventKind::End => Self {
@@ -134,6 +195,7 @@ impl ProcessEventPayload {
                 stage_elapsed_ms: event.stage_elapsed_ms,
                 message: event.message.clone(),
                 error: None,
+                diff: event.diff.clone(),
                 origin: "backend".to_string(),
             },
             StageProgressEventKind::Note | StageProgressEventKind::Progress => Self {
@@ -144,6 +206,18 @@ impl ProcessEventPayload {
                 stage_elapsed_ms: event.stage_elapsed_ms,
                 message: event.message.clone(),
                 error: None,
+                diff: event.diff.clone(),
+                origin: "backend".to_string(),
+            },
+            StageProgressEventKind::Diff => Self {
+                job_id: job_id.to_string(),
+                kind: ProcessEventKind::Diff,
+                stage: event.stage.clone(),
+                elapsed_ms: Some(event.elapsed_ms),
+                stage_elapsed_ms: event.stage_elapsed_ms,
+                message: event.message.clone(),
+                error: None,
+                diff: event.diff.clone(),
                 origin: "backend".to_string(),
             },
         }
@@ -158,6 +232,7 @@ impl ProcessEventPayload {
             stage_elapsed_ms: None,
             message: Some("Processing completed".to_string()),
             error: None,
+            diff: None,
             origin: "backend".to_string(),
         }
     }
@@ -171,6 +246,7 @@ impl ProcessEventPayload {
             stage_elapsed_ms: None,
             message: None,
             error: Some(error.into()),
+            diff: None,
             origin: "backend".to_string(),
         }
     }
@@ -196,6 +272,7 @@ impl ProcessEventPayload {
             stage_elapsed_ms: None,
             message: Some(message),
             error,
+            diff: None,
             origin: "frontend".to_string(),
         }
     }
@@ -210,6 +287,7 @@ impl ProcessEventKind {
             Self::Info => "info",
             Self::Completed => "completed",
             Self::Failed => "failed",
+            Self::Diff => "diff",
         }
     }
 }
@@ -224,7 +302,7 @@ enum ConsolePipeMode {
 impl ConsolePipeMode {
     fn should_emit(self, kind: &ProcessEventKind) -> bool {
         match self {
-            Self::InfoOnly => matches!(kind, ProcessEventKind::Info),
+            Self::InfoOnly => matches!(kind, ProcessEventKind::Info | ProcessEventKind::Diff),
             Self::ErrorsOnly => matches!(kind, ProcessEventKind::Failed),
             Self::All => true,
         }
@@ -345,6 +423,9 @@ type ProgressEmitter = Arc<dyn Fn(ProcessEventPayload) + Send + Sync>;
 struct HttpContext {
     process_manager: ProcessManager,
     emitter: ProgressEmitter,
+    oauth_sessions: OAuthSessionManager,
+    app_handle: AppHandle,
+    base_url: String,
 }
 
 impl HttpContext {
@@ -361,8 +442,22 @@ impl HttpContext {
             stage_elapsed_ms: None,
             message: Some(message.into()),
             error: None,
+            diff: None,
             origin: "backend".to_string(),
         });
+    }
+
+    fn emit_oauth_event(&self, payload: OAuthEventPayload) {
+        if let Err(err) = self.app_handle.emit("openrouter-auth-complete", payload) {
+            eprintln!("[Convocations] Failed to emit OAuth event: {err}");
+        }
+    }
+
+    fn callback_url(&self) -> String {
+        format!(
+            "{}/api/openrouter/oauth/callback",
+            self.base_url.trim_end_matches('/')
+        )
     }
 }
 
@@ -370,6 +465,44 @@ fn emit_progress(app: &AppHandle, payload: ProcessEventPayload) {
     if let Err(err) = app.emit("process-progress", payload) {
         eprintln!("[Convocations] Failed to emit process event: {err}");
     }
+}
+
+fn close_oauth_window(app: &AppHandle, label: &str) {
+    if let Some(window) = app.get_webview_window(label) {
+        if let Err(err) = window.close() {
+            eprintln!("[Convocations] Failed to close OAuth window '{label}': {err}");
+        }
+    }
+}
+
+fn schedule_close_oauth_window(app: &AppHandle, label: String, delay: Duration) {
+    let handle = app.clone();
+    spawn(async move {
+        sleep(delay).await;
+        close_oauth_window(&handle, &label);
+    });
+}
+
+fn open_oauth_window(app: &AppHandle, label: &str, auth_url: &str) -> Result<(), Error> {
+    let parsed =
+        Url::parse(auth_url).map_err(|err| anyhow!("Invalid OAuth authorization URL: {}", err))?;
+
+    WebviewWindowBuilder::new(app, label.to_string(), WebviewUrl::External(parsed))
+        .title("OpenRouter Login")
+        .inner_size(640.0, 780.0)
+        .resizable(true)
+        .center()
+        .visible(true)
+        .on_navigation(|url| {
+            eprintln!(
+                "[Convocations] OAuth webview navigating to {}",
+                url.as_str()
+            );
+            true
+        })
+        .build()
+        .map(|_| ())
+        .map_err(|err| anyhow!("Failed to open OAuth login window: {}", err))
 }
 
 #[tauri::command]
@@ -391,7 +524,11 @@ async fn get_api_base_url(state: TauriState<'_, Arc<ApiServerState>>) -> Result<
 }
 
 #[tauri::command]
-async fn open_file_dialog(_app: AppHandle, title: Option<String>) -> Result<Option<String>, String> {
+async fn open_file_dialog(
+    _app: AppHandle,
+    title: Option<String>,
+    kind: Option<String>,
+) -> Result<Option<String>, String> {
     // Spawn a blocking task to avoid blocking the async runtime
     let result = tauri::async_runtime::spawn_blocking(move || {
         use rfd::FileDialog;
@@ -401,7 +538,10 @@ async fn open_file_dialog(_app: AppHandle, title: Option<String>) -> Result<Opti
             dialog = dialog.set_title(&title_str);
         }
 
-        dialog.pick_file()
+        match kind.as_deref() {
+            Some("directory") => dialog.pick_folder(),
+            _ => dialog.pick_file(),
+        }
     })
     .await
     .map_err(|e| format!("Failed to open file dialog: {}", e))?;
@@ -440,15 +580,74 @@ async fn get_settings_handler() -> Result<Json<SettingsResponse>, ApiError> {
         );
     }
     let config = load_result.config;
+    let has_openrouter_api_key = config.runtime.has_openrouter_api_key();
     let outfile = compute_outfile_summary_from_file_config(&config);
-    Ok(Json(SettingsResponse { config, outfile }))
+    Ok(Json(SettingsResponse {
+        config,
+        outfile,
+        has_openrouter_api_key,
+    }))
 }
 
 async fn save_settings_handler(Json(config): Json<FileConfig>) -> Result<StatusCode, ApiError> {
     // Persist the full config including runtime preferences
-    rconv_core::save_config(&config)
-        .map_err(|err| ApiError::from(format!("{}", err)))?;
+    rconv_core::save_config(&config).map_err(|err| ApiError::from(format!("{}", err)))?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Deserialize)]
+struct SetOpenRouterSecretRequest {
+    api_key: String,
+}
+
+#[derive(Debug, Serialize)]
+struct OpenRouterSecretResponse {
+    secret: Option<SecretValue>,
+}
+
+async fn set_openrouter_secret_handler(
+    Json(payload): Json<SetOpenRouterSecretRequest>,
+) -> Result<Json<OpenRouterSecretResponse>, ApiError> {
+    let api_key = payload.api_key.trim();
+    if api_key.is_empty() {
+        return Err(ApiError::bad_request("api_key must not be empty"));
+    }
+
+    let load_result = load_config();
+    if !load_result.warnings.is_empty() {
+        eprintln!(
+            "[Convocations] Configuration warnings: {}",
+            load_result.warnings.join("; ")
+        );
+    }
+    let mut config = load_result.config;
+    config
+        .runtime
+        .set_openrouter_api_key(api_key)
+        .map_err(|err| ApiError::from(format!("{}", err)))?;
+    save_config(&config).map_err(|err| ApiError::from(format!("{}", err)))?;
+    Ok(Json(OpenRouterSecretResponse {
+        secret: config.runtime.openrouter_api_key.clone(),
+    }))
+}
+
+async fn clear_openrouter_secret_handler() -> Result<Json<OpenRouterSecretResponse>, ApiError> {
+    let load_result = load_config();
+    if !load_result.warnings.is_empty() {
+        eprintln!(
+            "[Convocations] Configuration warnings: {}",
+            load_result.warnings.join("; ")
+        );
+    }
+    let mut config = load_result.config;
+    if config.runtime.has_openrouter_api_key() {
+        config
+            .runtime
+            .clear_openrouter_api_key()
+            .map_err(|err| ApiError::from(format!("{}", err)))?;
+        save_config(&config).map_err(|err| ApiError::from(format!("{}", err)))?;
+    }
+    Ok(Json(OpenRouterSecretResponse { secret: None }))
 }
 
 async fn validate_handler(
@@ -609,6 +808,7 @@ struct SettingsResponse {
     config: FileConfig,
     #[serde(skip_serializing_if = "Option::is_none")]
     outfile: Option<OutfileSummary>,
+    has_openrouter_api_key: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -736,10 +936,13 @@ fn validate_config(config: &ConvocationsConfig) -> ValidationResult {
         }
     }
 
-    if config.use_llm && std::env::var("OPENROUTER_API_KEY").is_err() {
-        let message = "LLM corrections enabled but OPENROUTER_API_KEY environment variable not set. Processing will continue without AI corrections.";
-        record_field_message(&mut field_warnings, "use_llm", message);
-        warnings.push(message.to_string());
+    if let Some(ref output_dir) = config.output_directory {
+        let expanded_path = shellexpand::tilde(output_dir).to_string();
+        if !Path::new(&expanded_path).exists() {
+            let message = format!("Output directory does not exist: {}", output_dir);
+            record_field_message(&mut field_errors, "output_directory", &message);
+            errors.push(message);
+        }
     }
 
     if config.keep_orig && !config.use_llm {
@@ -770,6 +973,12 @@ fn infer_working_dir() -> Option<PathBuf> {
         if !trimmed.is_empty() {
             return Some(PathBuf::from(trimmed));
         }
+    }
+    if let Some(documents) = document_dir() {
+        return Some(documents);
+    }
+    if let Some(home) = home_dir() {
+        return Some(home);
     }
     std::env::current_dir().ok()
 }
@@ -961,9 +1170,333 @@ struct OAuthUrlResponse {
 }
 
 async fn build_oauth_url_handler(Json(request): Json<OAuthUrlRequest>) -> Json<OAuthUrlResponse> {
-    let url =
-        rconv_core::openrouter::build_oauth_url(&request.code_challenge, &request.redirect_uri);
+    let url = rconv_core::openrouter::build_oauth_url(
+        &request.code_challenge,
+        &request.redirect_uri,
+        None,
+        None,
+    );
     Json(OAuthUrlResponse { url })
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct OAuthStartRequest {
+    #[serde(default)]
+    redirect_uri: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct OAuthStartResponse {
+    url: String,
+    state: String,
+    in_app_window: bool,
+}
+
+async fn oauth_start_handler(
+    State(ctx): State<HttpContext>,
+    Json(request): Json<OAuthStartRequest>,
+) -> Result<Json<OAuthStartResponse>, ApiError> {
+    let expired_sessions = ctx
+        .oauth_sessions
+        .cleanup_expired(Duration::from_secs(600))
+        .await;
+
+    for session in expired_sessions {
+        if let Some(label) = session.window_label.as_deref() {
+            close_oauth_window(&ctx.app_handle, label);
+        }
+    }
+
+    let redirect_uri = request
+        .redirect_uri
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| ctx.callback_url());
+
+    if !(redirect_uri.starts_with("http://") || redirect_uri.starts_with("https://")) {
+        return Err(ApiError::bad_request(
+            "redirect_uri must be an HTTP or HTTPS URL",
+        ));
+    }
+
+    let (verifier, challenge) = rconv_core::openrouter::generate_pkce_pair();
+    let state_token = Uuid::new_v4().to_string();
+    let auth_url = rconv_core::openrouter::build_oauth_url(
+        &challenge,
+        &redirect_uri,
+        Some(&state_token),
+        Some(&ctx.base_url),
+    );
+
+    let window_label = format!("{}{}", OAUTH_WINDOW_PREFIX, state_token);
+    let in_app_window = match open_oauth_window(&ctx.app_handle, &window_label, &auth_url) {
+        Ok(()) => true,
+        Err(err) => {
+            eprintln!("[Convocations] Unable to launch in-app OAuth login window: {err}");
+            false
+        }
+    };
+
+    ctx.oauth_sessions
+        .insert(
+            state_token.clone(),
+            OAuthSession {
+                code_verifier: verifier,
+                created_at: Instant::now(),
+                window_label: in_app_window.then(|| window_label.clone()),
+            },
+        )
+        .await;
+
+    Ok(Json(OAuthStartResponse {
+        url: auth_url,
+        state: state_token,
+        in_app_window,
+    }))
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct OAuthCallbackQuery {
+    code: Option<String>,
+    state: Option<String>,
+    error: Option<String>,
+    error_description: Option<String>,
+}
+
+async fn oauth_callback_handler(
+    State(ctx): State<HttpContext>,
+    Query(query): Query<OAuthCallbackQuery>,
+) -> Html<String> {
+    if let Some(error) = query.error.as_ref() {
+        let description = query
+            .error_description
+            .clone()
+            .unwrap_or_else(|| "Authorization declined by OpenRouter.".to_string());
+        let combined = if description.is_empty() {
+            format!("Authorization failed ({error})")
+        } else {
+            format!("{description} ({error})")
+        };
+        if let Some(state_value) = query.state.clone() {
+            if let Some(session) = ctx.oauth_sessions.take(&state_value).await {
+                if let Some(label) = session.window_label {
+                    schedule_close_oauth_window(&ctx.app_handle, label, Duration::from_secs(3));
+                }
+            }
+        }
+        ctx.emit_oauth_event(OAuthEventPayload {
+            success: false,
+            api_key: None,
+            error: Some(combined.clone()),
+            has_secret: false,
+            secret: None,
+        });
+        return oauth_callback_page("OpenRouter Login Failed", &combined);
+    }
+
+    let state = match query.state.clone() {
+        Some(value) => value,
+        None => {
+            let message =
+                "Missing OAuth state. Please retry the login from Convocations.".to_string();
+            ctx.emit_oauth_event(OAuthEventPayload {
+                success: false,
+                api_key: None,
+                error: Some(message.clone()),
+                has_secret: false,
+                secret: None,
+            });
+            return oauth_callback_page("OpenRouter Login Failed", &message);
+        }
+    };
+
+    let code = match query.code.clone() {
+        Some(value) => value,
+        None => {
+            let message =
+                "Missing authorization code in callback. Please retry the login.".to_string();
+            if let Some(session) = ctx.oauth_sessions.take(&state).await {
+                if let Some(label) = session.window_label {
+                    schedule_close_oauth_window(&ctx.app_handle, label, Duration::from_secs(3));
+                }
+            }
+            ctx.emit_oauth_event(OAuthEventPayload {
+                success: false,
+                api_key: None,
+                error: Some(message.clone()),
+                has_secret: false,
+                secret: None,
+            });
+            return oauth_callback_page("OpenRouter Login Failed", &message);
+        }
+    };
+
+    let session = match ctx.oauth_sessions.take(&state).await {
+        Some(session) => session,
+        None => {
+            let message =
+                "OAuth session expired or was not found. Please initiate the login again."
+                    .to_string();
+            ctx.emit_oauth_event(OAuthEventPayload {
+                success: false,
+                api_key: None,
+                error: Some(message.clone()),
+                has_secret: false,
+                secret: None,
+            });
+            return oauth_callback_page("OpenRouter Login Failed", &message);
+        }
+    };
+
+    let OAuthSession {
+        code_verifier,
+        window_label,
+        ..
+    } = session;
+
+    if let Some(label) = window_label {
+        schedule_close_oauth_window(&ctx.app_handle, label, Duration::from_secs(3));
+    }
+
+    match rconv_core::openrouter::exchange_code_for_api_key(&code, &code_verifier).await {
+        Ok(api_key) => {
+            let load_result = load_config();
+            let mut file_config = load_result.config;
+
+            match file_config.runtime.set_openrouter_api_key(&api_key) {
+                Ok(()) => match save_config(&file_config) {
+                    Ok(()) => {
+                        ctx.emit_oauth_event(OAuthEventPayload {
+                            success: true,
+                            api_key: None,
+                            error: None,
+                            has_secret: true,
+                            secret: file_config.runtime.openrouter_api_key.clone(),
+                        });
+                        oauth_callback_page(
+                            "OpenRouter Login Complete",
+                            "Authentication succeeded. You can close this window and return to Convocations.",
+                        )
+                    }
+                    Err(err) => {
+                        let message = format!(
+                            "Stored API key for this session, but failed to save configuration: {}",
+                            err
+                        );
+                        ctx.emit_oauth_event(OAuthEventPayload {
+                            success: false,
+                            api_key: None,
+                            error: Some(message.clone()),
+                            has_secret: true,
+                            secret: file_config.runtime.openrouter_api_key.clone(),
+                        });
+                        oauth_callback_page("OpenRouter Login Partial", &message)
+                    }
+                },
+                Err(err) => {
+                    let message = format!("Failed to store API key securely: {}", err);
+                    ctx.emit_oauth_event(OAuthEventPayload {
+                        success: false,
+                        api_key: None,
+                        error: Some(message.clone()),
+                        has_secret: false,
+                        secret: None,
+                    });
+                    oauth_callback_page("OpenRouter Login Failed", &message)
+                }
+            }
+        }
+        Err(err) => {
+            let message = format!("Failed to exchange authorization code: {}", err);
+            ctx.emit_oauth_event(OAuthEventPayload {
+                success: false,
+                api_key: None,
+                error: Some(message.clone()),
+                has_secret: false,
+                secret: None,
+            });
+            oauth_callback_page("OpenRouter Login Failed", &message)
+        }
+    }
+}
+
+fn oauth_callback_page(title: &str, message: &str) -> Html<String> {
+    let title_html = escape_html(title);
+    let message_html = escape_html(message);
+    Html(format!(
+        r#"<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{title}</title>
+  <style>
+    body {{
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      margin: 0;
+      padding: 2.5rem;
+      background: #101014;
+      color: #f2f4f8;
+    }}
+    main {{
+      max-width: 520px;
+      margin: 0 auto;
+    }}
+    h1 {{
+      font-size: 1.6rem;
+      margin-bottom: 1rem;
+    }}
+    p {{
+      font-size: 1rem;
+      line-height: 1.5;
+      margin-bottom: 1rem;
+    }}
+    .note {{
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }}
+    @media (prefers-color-scheme: light) {{
+      body {{
+        background: #f5f7fb;
+        color: #0f1419;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>{title}</h1>
+    <p>{message}</p>
+    <p class="note">You can close this window and return to Convocations.</p>
+  </main>
+  <script>
+    setTimeout(() => {{
+      try {{
+        window.close();
+      }} catch (err) {{
+        console.warn('Unable to close window automatically', err);
+      }}
+    }}, 2500);
+  </script>
+</body>
+</html>
+"#,
+        title = title_html,
+        message = message_html,
+    ))
+}
+
+fn escape_html(input: &str) -> String {
+    let mut escaped = String::with_capacity(input.len());
+    for ch in input.chars() {
+        match ch {
+            '&' => escaped.push_str("&amp;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&#39;"),
+            _ => escaped.push(ch),
+        }
+    }
+    escaped
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -971,11 +1504,22 @@ struct ModelsResponse {
     models: Vec<rconv_core::openrouter::ModelInfo>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct CuratedModelsResponse {
+    models: Vec<curator::CuratedModelSummary>,
+}
+
 async fn fetch_models_handler() -> Result<Json<ModelsResponse>, ApiError> {
     let models = rconv_core::openrouter::fetch_models()
         .await
         .map_err(|e| ApiError::from(format!("Failed to fetch models: {}", e)))?;
     Ok(Json(ModelsResponse { models }))
+}
+
+async fn curated_models_handler() -> Result<Json<CuratedModelsResponse>, ApiError> {
+    let models = curator::catalog_summaries()
+        .map_err(|e| ApiError::from(format!("Failed to load curated models: {}", e)))?;
+    Ok(Json(CuratedModelsResponse { models }))
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -1051,10 +1595,25 @@ async fn launch_http_server(
     shared_state: Arc<ApiServerState>,
     app_handle: AppHandle,
 ) -> Result<(), Error> {
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await?;
+    let preferred_port = std::env::var("RCONV_HTTP_PORT")
+        .ok()
+        .and_then(|value| value.parse::<u16>().ok())
+        .unwrap_or(3000);
+
+    let listener = match tokio::net::TcpListener::bind(("127.0.0.1", preferred_port)).await {
+        Ok(bound) => bound,
+        Err(err) => {
+            eprintln!(
+                "[Convocations] Failed to bind preferred port {}: {}. Falling back to random port.",
+                preferred_port, err
+            );
+            tokio::net::TcpListener::bind(("127.0.0.1", 0)).await?
+        }
+    };
     let addr = listener.local_addr()?;
 
-    shared_state.set_base_url(format!("http://{}", addr)).await;
+    let base_url = format!("http://localhost:{}", addr.port());
+    shared_state.set_base_url(base_url.clone()).await;
 
     let (progress_tx, mut progress_rx) = mpsc::unbounded_channel::<ProcessEventPayload>();
     let console_pipe = detect_console_pipe_from_env();
@@ -1085,6 +1644,9 @@ async fn launch_http_server(
     let context = HttpContext {
         process_manager: ProcessManager::default(),
         emitter,
+        oauth_sessions: OAuthSessionManager::default(),
+        app_handle: app_handle.clone(),
+        base_url: base_url.clone(),
     };
 
     let cors = CorsLayer::new()
@@ -1103,10 +1665,20 @@ async fn launch_http_server(
         .route("/api/presets/delete", post(delete_preset_handler))
         .route("/api/openrouter/pkce", get(generate_pkce_handler))
         .route("/api/openrouter/oauth-url", post(build_oauth_url_handler))
+        .route("/api/openrouter/oauth/start", post(oauth_start_handler))
+        .route(
+            "/api/openrouter/oauth/callback",
+            get(oauth_callback_handler),
+        )
         .route("/api/openrouter/models", get(fetch_models_handler))
+        .route("/api/curated/models", get(curated_models_handler))
         .route(
             "/api/openrouter/recommended",
             post(recommended_models_handler),
+        )
+        .route(
+            "/api/openrouter/secret",
+            post(set_openrouter_secret_handler).delete(clear_openrouter_secret_handler),
         )
         .route("/api/calculate-dates", post(calculate_dates_handler))
         .with_state(context)

@@ -1,8 +1,10 @@
 //! Core library crate exposing shared Convocations processing logic.
 
 pub mod config;
+pub mod curator;
 pub mod openrouter;
 pub mod runtime;
+pub mod secret_store;
 
 pub use config::{
     ConfigError, ConfigLoadResult, ConfigSource, DurationOverride, FRIDAY_6_PRESET_NAME,

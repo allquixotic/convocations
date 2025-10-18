@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "generated_at": "1970-01-01T00:00:00Z",
+  "metadata": {
+    "thresholds": {
+      "min_free_aaii": 60.0,
+      "min_paid_aaii": 65.0,
+      "cheap_in_max": 1.5,
+      "cheap_out_max": 6.0,
+      "min_context_length": 8192,
+      "fuzzy_match_threshold": 0.94
+    },
+    "sources": {
+      "openrouter_models_url": "https://openrouter.ai/api/v1/models",
+      "aa_models_url": "https://artificialanalysis.ai/api/models"
+    },
+    "counts": {
+      "curated_free": 0,
+      "curated_cheap": 0,
+      "unmatched": 0,
+      "discarded": 0
+    }
+  },
+  "free": [],
+  "cheap": [],
+  "unmatched": [],
+  "discarded": []
+}

@@ -20,3 +20,6 @@ sha2.workspace = true
 rand.workspace = true
 reqwest.workspace = true
 urlencoding.workspace = true
+chacha20poly1305.workspace = true
+keyring.workspace = true
+thiserror.workspace = true

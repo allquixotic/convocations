@@ -1,6 +1,6 @@
 use rconv_core::config::{
-    FRIDAY_6_PRESET_ID, FileConfig, PresetDefinition, RuntimePreferences, SATURDAY_PRESET_ID,
-    TUESDAY_7_PRESET_ID, TUESDAY_8_PRESET_ID, UiPreferences,
+    FRIDAY_6_PRESET_NAME, FileConfig, PresetDefinition, RuntimePreferences, SATURDAY_PRESET_NAME,
+    TUESDAY_7_PRESET_NAME, TUESDAY_8_PRESET_NAME, UiPreferences,
 };
 
 #[test]
@@ -13,28 +13,28 @@ fn test_default_presets_exist() {
         config
             .presets
             .iter()
-            .any(|p| p.id == SATURDAY_PRESET_ID && p.builtin),
+            .any(|p| p.name == SATURDAY_PRESET_NAME && p.builtin),
         "Saturday preset should exist and be built-in"
     );
     assert!(
         config
             .presets
             .iter()
-            .any(|p| p.id == TUESDAY_7_PRESET_ID && p.builtin),
+            .any(|p| p.name == TUESDAY_7_PRESET_NAME && p.builtin),
         "Tuesday 7pm preset should exist and be built-in"
     );
     assert!(
         config
             .presets
             .iter()
-            .any(|p| p.id == TUESDAY_8_PRESET_ID && p.builtin),
+            .any(|p| p.name == TUESDAY_8_PRESET_NAME && p.builtin),
         "Tuesday 8pm preset should exist and be built-in"
     );
     assert!(
         config
             .presets
             .iter()
-            .any(|p| p.id == FRIDAY_6_PRESET_ID && p.builtin),
+            .any(|p| p.name == FRIDAY_6_PRESET_NAME && p.builtin),
         "Friday 6pm preset should exist and be built-in"
     );
 
@@ -42,7 +42,7 @@ fn test_default_presets_exist() {
     let saturday_preset = config
         .presets
         .iter()
-        .find(|p| p.id == SATURDAY_PRESET_ID)
+        .find(|p| p.name == SATURDAY_PRESET_NAME)
         .unwrap();
     assert!(
         !saturday_preset.name.is_empty(),
@@ -77,7 +77,6 @@ fn test_preset_create() {
 
     // Create a new custom preset
     let custom_preset = PresetDefinition {
-        id: "custom-event".to_string(),
         name: "Custom Event".to_string(),
         weekday: "wednesday".to_string(),
         timezone: "America/New_York".to_string(),
@@ -97,7 +96,7 @@ fn test_preset_create() {
         "Preset count should increase"
     );
     assert!(
-        config.presets.iter().any(|p| p.id == "custom-event"),
+        config.presets.iter().any(|p| p.name == "Custom Event"),
         "Custom preset should exist"
     );
 
@@ -105,7 +104,7 @@ fn test_preset_create() {
     let added = config
         .presets
         .iter()
-        .find(|p| p.id == "custom-event")
+        .find(|p| p.name == "Custom Event")
         .unwrap();
     assert_eq!(added.name, "Custom Event");
     assert_eq!(added.weekday, "wednesday");
@@ -125,7 +124,7 @@ fn test_preset_update() {
     let preset = config
         .presets
         .iter_mut()
-        .find(|p| p.id == SATURDAY_PRESET_ID)
+        .find(|p| p.name == SATURDAY_PRESET_NAME)
         .unwrap();
 
     // Update some fields
@@ -137,7 +136,7 @@ fn test_preset_update() {
     let updated = config
         .presets
         .iter()
-        .find(|p| p.id == SATURDAY_PRESET_ID)
+        .find(|p| p.name == "Updated Saturday Event")
         .unwrap();
     assert_ne!(updated.name, original_name);
     assert_eq!(updated.name, "Updated Saturday Event");
@@ -150,7 +149,6 @@ fn test_preset_delete() {
 
     // Add a custom preset
     config.presets.push(PresetDefinition {
-        id: "deletable-preset".to_string(),
         name: "Deletable".to_string(),
         weekday: "thursday".to_string(),
         timezone: "America/New_York".to_string(),
@@ -162,10 +160,10 @@ fn test_preset_delete() {
     });
 
     let initial_count = config.presets.len();
-    assert!(config.presets.iter().any(|p| p.id == "deletable-preset"));
+    assert!(config.presets.iter().any(|p| p.name == "Deletable"));
 
     // Delete the preset
-    config.presets.retain(|p| p.id != "deletable-preset");
+    config.presets.retain(|p| p.name != "Deletable");
 
     // Verify deletion
     assert_eq!(
@@ -174,7 +172,7 @@ fn test_preset_delete() {
         "Preset count should decrease"
     );
     assert!(
-        !config.presets.iter().any(|p| p.id == "deletable-preset"),
+        !config.presets.iter().any(|p| p.name == "Deletable"),
         "Deleted preset should not exist"
     );
 }
@@ -189,7 +187,7 @@ fn test_runtime_defaults() {
         "Default chat log path should be correct"
     );
     assert_eq!(
-        runtime.active_preset, SATURDAY_PRESET_ID,
+        runtime.active_preset, SATURDAY_PRESET_NAME,
         "Default preset should be Saturday"
     );
     assert_eq!(runtime.weeks_ago, 0, "Default weeks_ago should be 0");
@@ -251,7 +249,7 @@ fn test_preset_field_validation() {
 
     // Verify all built-in presets have valid data
     for preset in &config.presets {
-        assert!(!preset.id.is_empty(), "Preset ID should not be empty");
+        assert!(!preset.name.is_empty(), "Preset name should not be empty");
         assert!(!preset.name.is_empty(), "Preset name should not be empty");
         assert!(
             !preset.weekday.is_empty(),

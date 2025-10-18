@@ -5,6 +5,7 @@ use rconv_core::config::{
     DurationOverride, FRIDAY_6_PRESET_NAME, RuntimeOverrides, TUESDAY_7_PRESET_NAME,
     TUESDAY_8_PRESET_NAME,
 };
+use rconv_core::curator::AUTO_SENTINEL;
 
 /// Top-level CLI entrypoint.
 #[derive(Parser, Debug, Clone)]
@@ -22,6 +23,8 @@ pub struct Cli {
 pub enum Command {
     #[command(subcommand)]
     Preset(PresetCommand),
+    #[command(subcommand)]
+    Secret(SecretCommand),
 }
 
 /// Preset management subcommands.
@@ -35,6 +38,19 @@ pub enum PresetCommand {
     /// Delete a preset by ID (builtin presets cannot be removed).
     #[command(alias = "remove")]
     Delete(PresetDeleteArgs),
+}
+
+/// Secret management commands.
+#[derive(Debug, Clone, Subcommand)]
+pub enum SecretCommand {
+    /// Store or update the OpenRouter API key used for AI corrections.
+    SetOpenRouterKey {
+        /// API key value. If omitted, you will be prompted securely.
+        #[arg(short, long, value_name = "KEY")]
+        key: Option<String>,
+    },
+    /// Remove any saved OpenRouter API key from secure storage.
+    ClearOpenRouterKey,
 }
 
 /// Arguments for the main processing flow (default command).
@@ -130,6 +146,14 @@ pub struct ProcessArgs {
     /// Override the output file name.
     #[arg(value_name = "OUTFILE")]
     pub outfile: Option<String>,
+
+    /// Select a curated model by ID (use "auto" for automatic selection).
+    #[arg(long = "model", value_name = "ID")]
+    pub model: Option<String>,
+
+    /// List curated model IDs and exit.
+    #[arg(long = "list-curated", action = ArgAction::SetTrue)]
+    pub list_curated: bool,
 }
 
 impl ProcessArgs {
@@ -154,6 +178,8 @@ impl ProcessArgs {
             && !self.keep_orig
             && !self.no_diff
             && self.outfile.is_none()
+            && self.model.is_none()
+            && !self.list_curated
     }
 
     /// Convert CLI flags into runtime overrides plus any advisory warnings.
@@ -187,6 +213,17 @@ impl ProcessArgs {
 
         if let Some(outfile) = self.outfile.as_ref() {
             overrides.outfile = Some(parse_optional_field(outfile));
+        }
+
+        if let Some(model) = self.model.as_ref() {
+            let trimmed = model.trim();
+            if trimmed.is_empty() {
+                overrides.openrouter_model = Some(AUTO_SENTINEL.to_string());
+            } else if trimmed.eq_ignore_ascii_case(AUTO_SENTINEL) {
+                overrides.openrouter_model = Some(AUTO_SENTINEL.to_string());
+            } else {
+                overrides.openrouter_model = Some(trimmed.to_string());
+            }
         }
 
         let mut preset_ids = HashSet::new();
@@ -329,6 +366,32 @@ fn parse_optional_field(value: &str) -> Option<String> {
         None
     } else {
         Some(trimmed.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn model_override_defaults_to_auto() {
+        let args = ProcessArgs {
+            model: Some("auto".to_string()),
+            ..Default::default()
+        };
+        let (overrides, warnings) = args.to_runtime_overrides().expect("overrides");
+        assert!(warnings.is_empty());
+        assert_eq!(overrides.openrouter_model, Some(AUTO_SENTINEL.to_string()));
+
+        let args = ProcessArgs {
+            model: Some("provider/custom".to_string()),
+            ..Default::default()
+        };
+        let (overrides, _) = args.to_runtime_overrides().expect("overrides");
+        assert_eq!(
+            overrides.openrouter_model,
+            Some("provider/custom".to_string())
+        );
     }
 }
 

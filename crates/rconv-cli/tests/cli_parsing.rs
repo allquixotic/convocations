@@ -1,6 +1,6 @@
 use rconv_core::config::{
-    DurationOverride, FRIDAY_6_PRESET_ID, RuntimeOverrides, TUESDAY_7_PRESET_ID,
-    TUESDAY_8_PRESET_ID,
+    DurationOverride, FRIDAY_6_PRESET_NAME, RuntimeOverrides, SATURDAY_PRESET_NAME,
+    TUESDAY_7_PRESET_NAME, TUESDAY_8_PRESET_NAME,
 };
 
 // Integration tests for CLI runtime overrides and configuration logic.
@@ -29,7 +29,7 @@ fn test_runtime_overrides_last() {
 #[test]
 fn test_runtime_overrides_preset() {
     let mut overrides = RuntimeOverrides::default();
-    overrides.active_preset = Some(TUESDAY_7_PRESET_ID.to_string());
+    overrides.active_preset = Some(TUESDAY_7_PRESET_NAME.to_string());
     assert!(!overrides.is_empty());
 }
 
@@ -65,9 +65,9 @@ fn test_runtime_overrides_multiple_fields() {
 #[test]
 fn test_preset_ids_consistency() {
     // Verify preset ID constants are consistent
-    assert_eq!(TUESDAY_7_PRESET_ID, "tuesday-7pm");
-    assert_eq!(TUESDAY_8_PRESET_ID, "tuesday-8pm");
-    assert_eq!(FRIDAY_6_PRESET_ID, "friday-6pm");
+    assert_eq!(TUESDAY_7_PRESET_NAME, "Tuesday 7pm");
+    assert_eq!(TUESDAY_8_PRESET_NAME, "Tuesday 8pm");
+    assert_eq!(FRIDAY_6_PRESET_NAME, "Friday 6pm");
 }
 
 #[test]
@@ -174,14 +174,12 @@ fn test_processing_toggles() {
 #[test]
 fn test_preset_shortcut_flags() {
     // These would normally be tested via CLI parsing, but we can verify the constants
-    use rconv_core::config::SATURDAY_PRESET_ID;
-
     // Verify all preset IDs are unique
     let preset_ids = vec![
-        SATURDAY_PRESET_ID,
-        TUESDAY_7_PRESET_ID,
-        TUESDAY_8_PRESET_ID,
-        FRIDAY_6_PRESET_ID,
+        SATURDAY_PRESET_NAME,
+        TUESDAY_7_PRESET_NAME,
+        TUESDAY_8_PRESET_NAME,
+        FRIDAY_6_PRESET_NAME,
     ];
 
     let unique_count = preset_ids
