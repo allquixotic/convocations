@@ -353,6 +353,5 @@ The wrapper script design provides:
 8. The command "Fix shit" means: identify to-do items or known issues that are about *broken* code or design, i.e. things that have been left incomplete, code that doesn't compile (errors), or problems that need to be solved, then go solve them, then update this document and do a Git commit. Do NOT push.
 
 # THE CHECKLIST - MODIFY THESE!
-[~] Update documentation and tests: refresh `docs/config-schema.md`/README to describe the new config, add backend/CLI tests for preset CRUD and duration overrides, and capture frontend regression coverage (component tests or e2e smoke) for the revamped UI flows.
-  [ ] Update README.md to reflect TOML config and preset-based workflow
-  [ ] Add frontend regression coverage (component tests or e2e smoke)
+[ ] Update README.md to reflect TOML config and preset-based workflow
+[ ] Add frontend regression coverage (component tests or e2e smoke)
