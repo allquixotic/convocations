@@ -34,6 +34,8 @@ pub fn load_alias_map(path: &Path) -> Result<HashMap<String, String>, CuratorErr
 pub struct AliasResolver<'a> {
     aliases: HashMap<String, String>,
     openrouter_by_slug: HashMap<&'a str, &'a OpenRouterModel>,
+    openrouter_by_lower: HashMap<String, &'a OpenRouterModel>,
+    openrouter_by_suffix: HashMap<String, Vec<&'a OpenRouterModel>>,
     fuzzy_candidates: Vec<FuzzyCandidate<'a>>,
     threshold: f64,
 }
@@ -57,6 +59,7 @@ pub struct MatchResult {
 pub enum MatchStrategy {
     ProvidedSlug,
     Alias { alias_key: String },
+    Derived { source: String },
     Fuzzy { candidate_name: String },
 }
 
@@ -85,6 +88,14 @@ impl MatchResult {
         }
     }
 
+    pub fn derived(slug: String, source: String) -> Self {
+        Self {
+            slug: Some(slug),
+            strategy: Some(MatchStrategy::Derived { source }),
+            score: None,
+        }
+    }
+
     pub fn fuzzy(slug: String, candidate_name: String, score: f64) -> Self {
         Self {
             slug: Some(slug),
@@ -100,24 +111,39 @@ impl<'a> AliasResolver<'a> {
         models: &'a [OpenRouterModel],
         threshold: f64,
     ) -> Self {
-        let openrouter_by_slug = models
-            .iter()
-            .map(|model| (model.slug.as_str(), model))
-            .collect::<HashMap<_, _>>();
+        let mut openrouter_by_slug = HashMap::new();
+        let mut openrouter_by_lower = HashMap::new();
+        let mut openrouter_by_suffix: HashMap<String, Vec<&OpenRouterModel>> = HashMap::new();
+        let mut fuzzy_candidates = Vec::with_capacity(models.len());
 
-        let fuzzy_candidates = models
-            .iter()
-            .map(|model| FuzzyCandidate {
+        for model in models {
+            openrouter_by_slug.insert(model.slug.as_str(), model);
+            openrouter_by_lower.insert(model.slug.to_ascii_lowercase(), model);
+
+            let suffix_key = model
+                .slug
+                .rsplit('/')
+                .next()
+                .unwrap_or(model.slug.as_str())
+                .to_ascii_lowercase();
+            openrouter_by_suffix
+                .entry(suffix_key)
+                .or_default()
+                .push(model);
+
+            fuzzy_candidates.push(FuzzyCandidate {
                 slug: model.slug.as_str(),
                 name: model.name.as_str(),
                 normalized_name: normalize(&model.name),
                 normalized_slug: normalize(&model.slug),
-            })
-            .collect();
+            });
+        }
 
         Self {
             aliases,
             openrouter_by_slug,
+            openrouter_by_lower,
+            openrouter_by_suffix,
             fuzzy_candidates,
             threshold,
         }
@@ -125,22 +151,30 @@ impl<'a> AliasResolver<'a> {
 
     pub fn resolve(&self, aa: &AaModel) -> MatchResult {
         if let Some(slug) = aa.openrouter_slug.as_deref() {
-            if let Some(model) = self.openrouter_by_slug.get(slug) {
+            if let Some(model) = self.lookup_slug(slug) {
                 return MatchResult::direct(model.slug.clone());
             }
         }
 
         if let Some(raw) = aa.raw_slug.as_deref() {
-            if let Some(model) = self.openrouter_by_slug.get(raw) {
+            if let Some(model) = self.lookup_slug(raw) {
                 return MatchResult::direct(model.slug.clone());
+            }
+
+            if let Some(result) = self.match_by_suffix(raw, aa.provider_slug.as_deref()) {
+                return result;
             }
         }
 
         let alias_candidates = build_alias_candidates(aa);
         for candidate in alias_candidates {
+            if let Some(model) = self.lookup_slug(&candidate) {
+                return MatchResult::derived(model.slug.clone(), candidate);
+            }
+
             let normalized_key = normalize(&candidate);
             if let Some(slug) = self.aliases.get(&normalized_key) {
-                if let Some(model) = self.openrouter_by_slug.get(slug.as_str()) {
+                if let Some(model) = self.lookup_slug(slug) {
                     return MatchResult::alias(model.slug.clone(), candidate);
                 }
             }
@@ -186,6 +220,58 @@ impl<'a> AliasResolver<'a> {
     pub fn get_model(&self, slug: &str) -> Option<&'a OpenRouterModel> {
         self.openrouter_by_slug.get(slug).copied()
     }
+
+    fn lookup_slug(&self, slug: &str) -> Option<&'a OpenRouterModel> {
+        if let Some(model) = self.openrouter_by_slug.get(slug) {
+            return Some(*model);
+        }
+        let lower = slug.to_ascii_lowercase();
+        self.openrouter_by_lower.get(&lower).copied()
+    }
+
+    fn match_by_suffix(&self, slug: &str, provider_slug: Option<&str>) -> Option<MatchResult> {
+        let key = slug.to_ascii_lowercase();
+        let candidates = self.openrouter_by_suffix.get(&key)?;
+        if candidates.is_empty() {
+            return None;
+        }
+
+        if candidates.len() == 1 {
+            let model = candidates[0];
+            return Some(MatchResult::derived(
+                model.slug.clone(),
+                format!("suffix:{slug}"),
+            ));
+        }
+
+        if let Some(provider) = provider_slug {
+            let provider_lower = provider.to_ascii_lowercase();
+            let mut selected: Option<&OpenRouterModel> = None;
+
+            for candidate in candidates {
+                let prefix = candidate
+                    .slug
+                    .split('/')
+                    .next()
+                    .unwrap_or(candidate.slug.as_str());
+                if provider_matches(&provider_lower, prefix) {
+                    if selected.is_some() {
+                        return None;
+                    }
+                    selected = Some(*candidate);
+                }
+            }
+
+            if let Some(model) = selected {
+                return Some(MatchResult::derived(
+                    model.slug.clone(),
+                    format!("suffix:{slug}"),
+                ));
+            }
+        }
+
+        None
+    }
 }
 
 fn build_alias_candidates(aa: &AaModel) -> Vec<String> {
@@ -201,6 +287,34 @@ fn build_alias_candidates(aa: &AaModel) -> Vec<String> {
         }
     }
     candidates.into_iter().collect()
+}
+
+fn provider_matches(provider_lower: &str, candidate_prefix: &str) -> bool {
+    let candidate_lower = candidate_prefix.to_ascii_lowercase();
+    if provider_lower == candidate_lower
+        || candidate_lower.starts_with(provider_lower)
+        || provider_lower.starts_with(candidate_lower.as_str())
+    {
+        return true;
+    }
+
+    match provider_lower {
+        "meta" | "meta-llama" => candidate_lower == "meta-llama",
+        "alibaba" => candidate_lower == "qwen" || candidate_lower == "alibaba",
+        "qwen" => candidate_lower == "qwen",
+        "xai" | "x-ai" => candidate_lower == "x-ai",
+        "ai21-labs" | "ai21" => candidate_lower == "ai21",
+        "nous-research" | "nousresearch" => candidate_lower == "nousresearch",
+        "mistral" | "mistralai" => candidate_lower == "mistralai",
+        "aws" | "amazon" => candidate_lower == "amazon",
+        "azure" | "microsoft" => candidate_lower == "microsoft",
+        "bytedance_seed" | "bytedance" => candidate_lower == "bytedance",
+        "liquidai" | "liquid" => candidate_lower == "liquid",
+        "moonshotai" => candidate_lower == "moonshotai",
+        "zai" | "z-ai" => candidate_lower == "z-ai",
+        "ai2" | "allenai" => candidate_lower == "allenai",
+        _ => false,
+    }
 }
 
 pub fn normalize(value: &str) -> String {
@@ -306,11 +420,56 @@ mod tests {
         assert!(result.score.unwrap() >= 0.8);
     }
 
+    #[test]
+    fn resolves_suffix_with_provider_hint() {
+        let models = vec![OpenRouterModel {
+            slug: "openai/gpt-5".to_string(),
+            name: "OpenAI: GPT-5".to_string(),
+            created_at: None,
+            context_length: Some(128_000),
+            prompt_price_per_million: Some(10.0),
+            completion_price_per_million: Some(30.0),
+        }];
+
+        let resolver = AliasResolver::new(HashMap::new(), &models, 0.8);
+        let aa = AaModel {
+            raw_slug: Some("gpt-5".to_string()),
+            openrouter_slug: None,
+            name: "GPT-5 (high)".to_string(),
+            provider_slug: Some("openai".to_string()),
+            modalities: vec!["text".to_string()],
+            context_length: Some(128_000),
+            aaii: Some(90.0),
+            price_in_per_million: Some(10.0),
+            price_out_per_million: Some(30.0),
+            last_updated: Some(Utc::now()),
+        };
+
+        let result = resolver.resolve(&aa);
+        assert_eq!(result.slug.as_deref(), Some("openai/gpt-5"));
+        assert!(matches!(
+            result.strategy,
+            Some(MatchStrategy::Derived { .. })
+        ));
+    }
+
+    #[test]
+    fn jaro_winkler_reference_score_is_low_for_variant_names() {
+        let left = normalize("GPT-5 (high)");
+        let right = normalize("OpenAI: GPT-5");
+        let score = jaro_winkler(&left, &right);
+        assert!(
+            score < 0.6,
+            "expected score below 0.6, got {score} between '{left}' and '{right}'"
+        );
+    }
+
     fn sample_openrouter_models() -> Vec<OpenRouterModel> {
         vec![
             OpenRouterModel {
                 slug: "provider/direct-model".to_string(),
                 name: "Direct Match".to_string(),
+                created_at: None,
                 context_length: Some(8_192),
                 prompt_price_per_million: Some(0.0),
                 completion_price_per_million: Some(0.0),
@@ -318,6 +477,7 @@ mod tests {
             OpenRouterModel {
                 slug: "provider/alias-model".to_string(),
                 name: "Alias Model".to_string(),
+                created_at: None,
                 context_length: Some(8_192),
                 prompt_price_per_million: Some(0.0),
                 completion_price_per_million: Some(0.0),
@@ -325,6 +485,7 @@ mod tests {
             OpenRouterModel {
                 slug: "provider/fuzzy-match".to_string(),
                 name: "Fuzzi Modell".to_string(),
+                created_at: None,
                 context_length: Some(8_192),
                 prompt_price_per_million: Some(0.0),
                 completion_price_per_million: Some(0.0),

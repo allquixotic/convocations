@@ -14,6 +14,7 @@ use crate::error::CuratorError;
 pub struct OpenRouterModel {
     pub slug: String,
     pub name: String,
+    pub created_at: Option<DateTime<Utc>>,
     pub context_length: Option<u32>,
     pub prompt_price_per_million: Option<f64>,
     pub completion_price_per_million: Option<f64>,
@@ -150,6 +151,8 @@ struct OpenRouterPayload {
     #[serde(default)]
     name: Option<String>,
     #[serde(default)]
+    created: Option<i64>,
+    #[serde(default)]
     pricing: Option<OpenRouterPricing>,
     #[serde(default)]
     context_length: Option<u32>,
@@ -168,14 +171,18 @@ impl From<OpenRouterPayload> for OpenRouterModel {
         let OpenRouterPayload {
             id,
             name,
+            created,
             pricing,
             context_length,
         } = payload;
 
         let pricing = pricing.unwrap_or_default();
+        let created_at =
+            created.and_then(|timestamp| DateTime::<Utc>::from_timestamp(timestamp, 0));
         Self {
             slug: id.clone(),
             name: name.unwrap_or_else(|| id.clone()),
+            created_at,
             context_length,
             prompt_price_per_million: parse_price_field(pricing.prompt),
             completion_price_per_million: parse_price_field(pricing.completion),
