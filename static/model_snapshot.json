@@ -12,7 +12,7 @@
     },
     "sources": {
       "openrouter_models_url": "https://openrouter.ai/api/v1/models",
-      "aa_models_url": "https://artificialanalysis.ai/api/models"
+      "aa_models_url": "https://artificialanalysis.ai/api/v2/data/llms/models"
     },
     "counts": {
       "curated_free": 0,

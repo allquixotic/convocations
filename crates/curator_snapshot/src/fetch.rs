@@ -83,7 +83,7 @@ async fn fetch_aa_models(
     let request = || async {
         let mut builder = client.get(&tunables.aa_models_url);
         if let Some(key) = &tunables.aa_api_key {
-            builder = builder.bearer_auth(key);
+            builder = builder.header("x-api-key", key.as_str()).bearer_auth(key);
         }
         builder.send().await
     };

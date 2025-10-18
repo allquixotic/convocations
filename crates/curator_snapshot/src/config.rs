@@ -84,8 +84,9 @@ impl Tunables {
         let openrouter_models_url = env::var("OPENROUTER_MODELS_URL")
             .unwrap_or_else(|_| "https://openrouter.ai/api/v1/models".to_string());
         let openrouter_api_key = env::var("OPENROUTER_API_KEY").ok();
-        let aa_models_url = env::var("AA_MODELS_URL")
-            .unwrap_or_else(|_| "https://artificialanalysis.ai/api/models".to_string());
+        let aa_models_url = env::var("AA_MODELS_URL").unwrap_or_else(|_| {
+            "https://artificialanalysis.ai/api/v2/data/llms/models".to_string()
+        });
         let aa_api_key = env::var("AA_API_KEY").ok();
 
         let min_free_aaii = parse_f32_env("MIN_FREE_AAII", 60.0)?;
