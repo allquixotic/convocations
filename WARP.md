@@ -351,9 +351,11 @@ Secrets are managed by the core crate:
 8. The command "Fix shit" means: identify to-do items or known issues that are about *broken* code or design, i.e. things that have been left incomplete, code that doesn't compile (errors), or problems that need to be solved, then go solve them, then update this document and do a Git commit. Do NOT push.
 
 # THE CHECKLIST - MODIFY THESE!
+[ ] Goal: Deliver a dynamic model curation system that curates top OpenRouter text models via snapshot generation, scheduled refresh, runtime reconciliation, and CLI/GUI selection replacing the Gemini default.
 [ ] Stand up `crates/curator_snapshot` binary with Clap CLI/env defaults wiring for all tunables and alias path handling.
     [ ] Register the new crate in the workspace and add `main.rs` scaffolding with Tokio runtime + Clap struct covering `--out`/`--aliases`.
     [ ] Implement env var parsing for tunables + required API keys and plumb them into a shared config object.
+        [ ] Set defaults when env vars missing: MIN_FREE_AAII=60.0, MIN_PAID_AAII=65.0, CHEAP_IN_MAX_USD_PER_1M=1.5, CHEAP_OUT_MAX_USD_PER_1M=6.0, MIN_CONTEXT_LENGTH=8192, FUZZY_MATCH_THRESHOLD=0.94.
     [ ] Ensure default paths resolve relative to repo root and create `static/aliases.json` (empty map) if missing.
 [ ] Implement async OpenRouter + AA fetch clients with reqwest/rustls, keyed retries, and structs scoped to the fields needed for quality/price data.
     [ ] Define lightweight response models capturing modality, context length, pricing, and identifiers.
