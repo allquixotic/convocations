@@ -213,7 +213,7 @@ function App() {
   const [loadingModels, setLoadingModels] = useState(false);
   const [recommendedModels, setRecommendedModels] = useState([]);
   const [oauthInProgress, setOauthInProgress] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState('saturday');
+  const [selectedPreset, setSelectedPreset] = useState('none');
 
   const activeJobIdRef = useRef(null);
   const technicalLogEndRef = useRef(null);
