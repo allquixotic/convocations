@@ -124,6 +124,18 @@ jobs:
           toolchain: 1.89.0
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
+      - name: Install OpenSSL for both architectures
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+        run: |
+          brew install openssl@3
+          arch -x86_64 /usr/bin/env brew install openssl@3
+          echo "OPENSSL_DIR_ARM=$(brew --prefix openssl@3)" >> $GITHUB_ENV
+          echo "OPENSSL_DIR_X86=$(arch -x86_64 /usr/bin/env brew --prefix openssl@3)" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH_ARM=$(brew --prefix openssl@3)/lib/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH_X86=$(arch -x86_64 /usr/bin/env brew --prefix openssl@3)/lib/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH_UNIVERSAL=$(brew --prefix openssl@3)/lib/pkgconfig:$(arch -x86_64 /usr/bin/env brew --prefix openssl@3)/lib/pkgconfig" >> $GITHUB_ENV
+
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -143,9 +155,16 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build Apple Silicon CLI binary
+        env:
+          OPENSSL_DIR: ${{ env.OPENSSL_DIR_ARM }}
+          PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH_ARM }}
         run: cargo build --release --target aarch64-apple-darwin -p rconv
 
       - name: Build Intel CLI binary
+        env:
+          OPENSSL_DIR: ${{ env.OPENSSL_DIR_X86 }}
+          PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH_X86 }}
+          PKG_CONFIG_ALLOW_CROSS: 1
         run: cargo build --release --target x86_64-apple-darwin -p rconv
 
       - name: Create universal CLI binary
@@ -298,6 +317,18 @@ jobs:
           toolchain: 1.89.0
           targets: wasm32-unknown-unknown,aarch64-apple-darwin,x86_64-apple-darwin
 
+      - name: Install OpenSSL for both architectures
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+        run: |
+          brew install openssl@3
+          arch -x86_64 /usr/bin/env brew install openssl@3
+          echo "OPENSSL_DIR_ARM=$(brew --prefix openssl@3)" >> $GITHUB_ENV
+          echo "OPENSSL_DIR_X86=$(arch -x86_64 /usr/bin/env brew --prefix openssl@3)" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH_ARM=$(brew --prefix openssl@3)/lib/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH_X86=$(arch -x86_64 /usr/bin/env brew --prefix openssl@3)/lib/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH_UNIVERSAL=$(brew --prefix openssl@3)/lib/pkgconfig:$(arch -x86_64 /usr/bin/env brew --prefix openssl@3)/lib/pkgconfig" >> $GITHUB_ENV
+
       - name: Install Trunk
         run: cargo install trunk --locked
 
@@ -323,6 +354,14 @@ jobs:
           key: ${{ runner.os }}-gui-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build Tauri application (Universal)
+        env:
+          OPENSSL_DIR: ${{ env.OPENSSL_DIR_ARM }}
+          OPENSSL_DIR_AARCH64_APPLE_DARWIN: ${{ env.OPENSSL_DIR_ARM }}
+          OPENSSL_DIR_X86_64_APPLE_DARWIN: ${{ env.OPENSSL_DIR_X86 }}
+          PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH_UNIVERSAL }}
+          PKG_CONFIG_PATH_AARCH64_APPLE_DARWIN: ${{ env.PKG_CONFIG_PATH_ARM }}
+          PKG_CONFIG_PATH_X86_64_APPLE_DARWIN: ${{ env.PKG_CONFIG_PATH_X86 }}
+          PKG_CONFIG_ALLOW_CROSS: 1
         run: cargo tauri build --target universal-apple-darwin
 
       - name: Upload DMG artifact
