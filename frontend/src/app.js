@@ -213,6 +213,7 @@ function App() {
   const [loadingModels, setLoadingModels] = useState(false);
   const [recommendedModels, setRecommendedModels] = useState([]);
   const [oauthInProgress, setOauthInProgress] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState('saturday');
 
   const activeJobIdRef = useRef(null);
   const technicalLogEndRef = useRef(null);
@@ -469,7 +470,7 @@ function App() {
 
   const eventSelection = useMemo(() => {
     if (!config) {
-      return 'none';
+      return selectedPreset;
     }
     if (config.rsm7) {
       return 'rsm7';
@@ -480,10 +481,11 @@ function App() {
     if (config.tp6) {
       return 'tp6';
     }
-    return 'none';
-  }, [config]);
+    return selectedPreset;
+  }, [config, selectedPreset]);
 
   const applyEventSelection = useCallback((value) => {
+    setSelectedPreset(value === 'none' || value === 'saturday' ? value : 'saturday');
     setConfig((prev) => {
       if (!prev) {
         return prev;
@@ -538,8 +540,8 @@ function App() {
 
         const newConfig = { ...prev, [field]: value };
 
-        // Auto-calculate end date when start date changes and event is "none"
-        if (field === 'start' && eventSelection === 'none' && value) {
+        // Auto-calculate end date when start date changes in manual mode
+        if (field === 'start' && selectedPreset === 'none' && value) {
           try {
             const startDate = new Date(value);
             const endDate = new Date(startDate);
