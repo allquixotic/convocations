@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use reqwest::{Client, StatusCode};
 use serde::Deserialize;
+use serde::de::IgnoredAny;
 use tokio::time::sleep;
 
 use crate::config::Tunables;
@@ -189,7 +190,16 @@ fn parse_price_field(value: Option<String>) -> Option<f64> {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 enum AaResponse {
-    Wrapped { models: Vec<AaPayload> },
+    Wrapped {
+        models: Vec<AaPayload>,
+    },
+    Structured {
+        #[serde(default)]
+        _status: Option<u16>,
+        #[serde(default)]
+        _prompt_options: Option<IgnoredAny>,
+        data: Vec<AaPayload>,
+    },
     Direct(Vec<AaPayload>),
 }
 
@@ -197,6 +207,7 @@ impl AaResponse {
     fn into_vec(self) -> Vec<AaModel> {
         match self {
             AaResponse::Wrapped { models } => models.into_iter().map(AaModel::from).collect(),
+            AaResponse::Structured { data, .. } => data.into_iter().map(AaModel::from).collect(),
             AaResponse::Direct(models) => models.into_iter().map(AaModel::from).collect(),
         }
     }
@@ -226,14 +237,22 @@ struct AaPayload {
     #[serde(rename = "contextTokens")]
     context_tokens: Option<u32>,
     #[serde(default)]
+    #[serde(rename = "model_creator")]
+    model_creator: Option<AaProvider>,
+    #[serde(default)]
     scores: Option<AaScores>,
     #[serde(default)]
     metrics: Option<AaScores>,
+    #[serde(default)]
+    evaluations: Option<AaScores>,
     #[serde(default)]
     pricing: Option<AaPricing>,
     #[serde(default)]
     #[serde(rename = "lastUpdatedAt")]
     last_updated_at: Option<String>,
+    #[serde(default)]
+    #[serde(rename = "releaseDate")]
+    release_date: Option<String>,
 }
 
 impl From<AaPayload> for AaModel {
@@ -248,10 +267,13 @@ impl From<AaPayload> for AaModel {
             tags,
             context,
             context_tokens,
+            model_creator,
             scores,
             metrics,
+            evaluations,
             pricing,
             last_updated_at,
+            release_date,
         } = payload;
 
         let context_length = context
@@ -260,19 +282,26 @@ impl From<AaPayload> for AaModel {
 
         let score = scores
             .and_then(|scores| scores.best())
-            .or_else(|| metrics.and_then(|scores| scores.best()));
+            .or_else(|| metrics.and_then(|scores| scores.best()))
+            .or_else(|| evaluations.and_then(|scores| scores.best()));
 
         let pricing = pricing.unwrap_or_default();
         let price_in = pricing.prompt_price();
         let price_out = pricing.completion_price();
 
-        let last_updated = last_updated_at.and_then(|raw| raw.parse::<DateTime<Utc>>().ok());
+        let provider_slug = provider
+            .as_ref()
+            .and_then(AaProvider::best_slug)
+            .or_else(|| model_creator.as_ref().and_then(AaProvider::best_slug));
+
+        let last_updated =
+            parse_timestamp(last_updated_at).or_else(|| parse_timestamp(release_date));
 
         Self {
             raw_slug: slug.or(model_slug),
             openrouter_slug,
             name: name.unwrap_or_else(|| "unknown".to_string()),
-            provider_slug: provider.and_then(|provider| provider.slug.or(provider.id)),
+            provider_slug,
             modalities: merge_modalities(modalities, tags),
             context_length,
             aaii: score,
@@ -281,6 +310,25 @@ impl From<AaPayload> for AaModel {
             last_updated,
         }
     }
+}
+
+fn parse_timestamp(raw: Option<String>) -> Option<DateTime<Utc>> {
+    raw.and_then(|value| {
+        value
+            .parse::<DateTime<Utc>>()
+            .ok()
+            .or_else(|| {
+                DateTime::parse_from_rfc3339(&value)
+                    .ok()
+                    .map(|dt| dt.with_timezone(&Utc))
+            })
+            .or_else(|| {
+                NaiveDate::parse_from_str(&value, "%Y-%m-%d")
+                    .ok()
+                    .and_then(|date| date.and_hms_opt(0, 0, 0))
+                    .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+            })
+    })
 }
 
 fn merge_modalities(primary: Vec<String>, tags: Vec<String>) -> Vec<String> {
@@ -300,6 +348,12 @@ struct AaProvider {
     id: Option<String>,
 }
 
+impl AaProvider {
+    fn best_slug(&self) -> Option<String> {
+        self.slug.clone().or_else(|| self.id.clone())
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct AaContext {
     #[serde(default)]
@@ -317,11 +371,24 @@ struct AaScores {
     aaii_upper: Option<f32>,
     #[serde(default)]
     aaii: Option<f32>,
+    #[serde(default)]
+    #[serde(rename = "artificial_analysis_intelligence_index")]
+    aaii_v2: Option<f32>,
+    #[serde(default)]
+    #[serde(rename = "intelligence_score")]
+    intelligence_score: Option<f32>,
+    #[serde(default)]
+    #[serde(rename = "quality_index")]
+    quality_index: Option<f32>,
 }
 
 impl AaScores {
     fn best(self) -> Option<f32> {
-        self.aaii.or(self.aaii_upper)
+        self.aaii
+            .or(self.aaii_upper)
+            .or(self.aaii_v2)
+            .or(self.intelligence_score)
+            .or(self.quality_index)
     }
 }
 
@@ -337,6 +404,15 @@ struct AaPricing {
     #[serde(default)]
     #[serde(rename = "completion")]
     completion: Option<PriceValue>,
+    #[serde(default)]
+    #[serde(rename = "price_1m_input_tokens")]
+    price_1m_input_tokens: Option<f64>,
+    #[serde(default)]
+    #[serde(rename = "price_1m_output_tokens")]
+    price_1m_output_tokens: Option<f64>,
+    #[serde(default)]
+    #[serde(rename = "price_1m_blended_3_to_1")]
+    price_1m_blended: Option<f64>,
 }
 
 impl AaPricing {
@@ -345,6 +421,8 @@ impl AaPricing {
             .as_ref()
             .or(self.input.as_ref())
             .and_then(PriceValue::as_f64)
+            .or(self.price_1m_input_tokens)
+            .or(self.price_1m_blended)
     }
 
     fn completion_price(&self) -> Option<f64> {
@@ -352,6 +430,8 @@ impl AaPricing {
             .as_ref()
             .or(self.output.as_ref())
             .and_then(PriceValue::as_f64)
+            .or(self.price_1m_output_tokens)
+            .or(self.price_1m_blended)
     }
 }
 
