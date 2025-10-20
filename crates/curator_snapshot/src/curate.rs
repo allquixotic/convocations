@@ -1,16 +1,14 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Utc};
 
 use crate::alias::{AliasResolver, MatchResult, MatchStrategy};
 use crate::config::Tunables;
-use crate::fetch::{AaModel, OpenRouterModel};
+use crate::fetch::{AaModel, CheapestEndpoint, OpenRouterModel};
 
 const CHEAP_PROVIDER_ORDER: [&str; 4] = ["openai", "x-ai", "google", "anthropic"];
-const SCORE_EPSILON: f64 = 1e-6;
 const PRICE_EPSILON: f64 = 1e-9;
-const AAII_EPSILON: f32 = 1e-3;
 
 #[derive(Debug, Clone, Copy)]
 struct FreeSeriesSpec {
@@ -76,6 +74,8 @@ pub struct CuratedEntry {
     pub modalities: Vec<String>,
     pub match_strategy: Option<String>,
     pub aa_last_updated: Option<DateTime<Utc>>,
+    pub openrouter_created_at: Option<DateTime<Utc>>,
+    pub cheapest_endpoint: Option<CheapestEndpoint>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -225,7 +225,7 @@ pub fn curate_models<'a>(
             continue;
         }
 
-        let (price_in, price_out, price_source) = resolve_pricing(aa, openrouter_model);
+        let (price_in, price_out, price_source) = resolve_pricing(openrouter_model);
         let openrouter_free = openrouter_free_status(openrouter_model);
 
         if matches!(price_source, PriceSource::OpenRouter)
@@ -251,6 +251,8 @@ pub fn curate_models<'a>(
             modalities: aa.modalities.clone(),
             match_strategy: match_strategy_label(&match_result),
             aa_last_updated: aa.last_updated,
+            openrouter_created_at: openrouter_model.created_at,
+            cheapest_endpoint: openrouter_model.cheapest_endpoint.clone(),
         };
 
         if matches!(openrouter_free, Some(true)) {
@@ -315,6 +317,7 @@ pub fn curate_models<'a>(
         &mut cheap_aaii_rejects,
         &mut cheap_price_rejects,
         &mut cheap_low_rejects,
+        openrouter,
     );
 
     let mut discarded = discard_log;
@@ -361,6 +364,8 @@ fn apply_series_fallbacks(free: &mut Vec<CuratedEntry>, openrouter: &[OpenRouter
             modalities: Vec::new(),
             match_strategy: Some(format!("manual-series:{}", spec.key)),
             aa_last_updated: candidate.created_at,
+            openrouter_created_at: candidate.created_at,
+            cheapest_endpoint: candidate.cheapest_endpoint.clone(),
         };
 
         free.push(entry);
@@ -449,236 +454,489 @@ fn finalize_free(entries: &mut Vec<CuratedEntry>) {
 }
 
 fn finalize_cheap(
-    mut accepted: Vec<CuratedEntry>,
+    accepted: Vec<CuratedEntry>,
     provider_order: &[&str],
     fallback_aaii: &mut Vec<(CuratedEntry, DiscardReason)>,
     fallback_price: &mut Vec<(CuratedEntry, DiscardReason)>,
     fallback_low: &mut Vec<(CuratedEntry, DiscardReason)>,
+    openrouter: &[OpenRouterModel],
 ) -> Vec<CuratedEntry> {
+    let mut provider_pool: HashMap<String, Vec<CuratedEntry>> = HashMap::new();
+
+    for entry in accepted {
+        provider_pool
+            .entry(entry.provider.clone())
+            .or_default()
+            .push(entry);
+    }
+
+    for (entry, _) in fallback_aaii
+        .iter()
+        .chain(fallback_price.iter())
+        .chain(fallback_low.iter())
+    {
+        provider_pool
+            .entry(entry.provider.clone())
+            .or_default()
+            .push(entry.clone());
+    }
+
+    let openrouter_by_slug: HashMap<&str, &OpenRouterModel> = openrouter
+        .iter()
+        .map(|model| (model.slug.as_str(), model))
+        .collect();
+
     let mut winners = Vec::with_capacity(provider_order.len());
 
     for provider in provider_order {
-        if let Some(entry) = select_best_by_provider(provider, &mut accepted) {
+        let candidates = provider_pool.remove(*provider).unwrap_or_default();
+        let candidates = dedupe_entries(candidates);
+        if let Some(entry) =
+            select_paid_candidate(provider, &candidates, openrouter, &openrouter_by_slug)
+        {
+            winners.push(entry);
+            continue;
+        }
+
+        if let Some(entry) = fallback_first_model(provider, openrouter) {
             winners.push(entry);
         }
     }
-
-    for provider in provider_order {
-        if winners.iter().any(|entry| &entry.provider == provider) {
-            continue;
-        }
-
-        if let Some(entry) = extract_best_from_pool(provider, fallback_aaii) {
-            winners.push(entry);
-            continue;
-        }
-
-        if let Some(entry) = extract_best_from_pool(provider, fallback_price) {
-            winners.push(entry);
-            continue;
-        }
-
-        if let Some(entry) = extract_best_from_pool(provider, fallback_low) {
-            winners.push(entry);
-            continue;
-        }
-    }
-
-    if winners.len() < provider_order.len() {
-        accepted.sort_by(compare_candidate);
-        for entry in accepted.into_iter() {
-            if winners
-                .iter()
-                .any(|existing| existing.provider == entry.provider)
-            {
-                continue;
-            }
-            winners.push(entry);
-            if winners.len() >= provider_order.len() {
-                break;
-            }
-        }
-    }
-
-    winners.sort_by(|a, b| {
-        let idx_a = provider_order_index(&a.provider, provider_order);
-        let idx_b = provider_order_index(&b.provider, provider_order);
-        match idx_a.cmp(&idx_b) {
-            Ordering::Equal => compare_candidate(a, b),
-            other => other,
-        }
-    });
 
     winners
 }
 
-fn select_best_by_provider(
+fn dedupe_entries(entries: Vec<CuratedEntry>) -> Vec<CuratedEntry> {
+    let mut seen = HashSet::new();
+    let mut deduped = Vec::new();
+    for entry in entries {
+        if seen.insert(entry.slug.clone()) {
+            deduped.push(entry);
+        }
+    }
+    deduped
+}
+
+fn select_paid_candidate(
     provider: &str,
-    entries: &mut Vec<CuratedEntry>,
+    candidates: &[CuratedEntry],
+    openrouter: &[OpenRouterModel],
+    openrouter_by_slug: &HashMap<&str, &OpenRouterModel>,
 ) -> Option<CuratedEntry> {
-    let mut best_idx: Option<usize> = None;
-    let mut best_score = f64::MIN;
-    let mut best_aaii = f32::MIN;
-    let mut best_price = f64::MAX;
-    let mut best_slug = String::new();
-
-    for (idx, entry) in entries.iter().enumerate() {
-        if entry.provider != provider {
-            continue;
-        }
-
-        let score = price_efficiency(entry);
-        let price = effective_price(entry).unwrap_or(f64::MAX);
-
-        let better = match best_idx {
-            None => true,
-            Some(_) => {
-                if score > best_score + SCORE_EPSILON {
-                    true
-                } else if score + SCORE_EPSILON < best_score {
-                    false
-                } else if entry.aaii > best_aaii + AAII_EPSILON {
-                    true
-                } else if entry.aaii + AAII_EPSILON < best_aaii {
-                    false
-                } else if price < best_price - PRICE_EPSILON {
-                    true
-                } else if price > best_price + PRICE_EPSILON {
-                    false
-                } else {
-                    entry.slug < best_slug
-                }
-            }
-        };
-
-        if better {
-            best_idx = Some(idx);
-            best_score = score;
-            best_aaii = entry.aaii;
-            best_price = price;
-            best_slug = entry.slug.clone();
-        }
+    match provider {
+        "openai" => select_openai_paid(candidates, openrouter, openrouter_by_slug),
+        "google" => select_google_paid(candidates, openrouter, openrouter_by_slug),
+        "x-ai" => select_xai_paid(candidates, openrouter, openrouter_by_slug),
+        "anthropic" => select_anthropic_paid(candidates, openrouter, openrouter_by_slug),
+        _ => select_default_paid(candidates),
     }
-
-    best_idx.map(|idx| entries.swap_remove(idx))
 }
 
-fn extract_best_from_pool(
-    provider: &str,
-    pool: &mut Vec<(CuratedEntry, DiscardReason)>,
+fn select_openai_paid(
+    candidates: &[CuratedEntry],
+    openrouter: &[OpenRouterModel],
+    _openrouter_by_slug: &HashMap<&str, &OpenRouterModel>,
 ) -> Option<CuratedEntry> {
-    let mut best_idx: Option<usize> = None;
-    let mut best_score = f64::MIN;
-    let mut best_aaii = f32::MIN;
-    let mut best_price = f64::MAX;
-    let mut best_slug = String::new();
-
-    for (idx, (entry, _)) in pool.iter().enumerate() {
-        if entry.provider != provider {
-            continue;
-        }
-
-        let score = price_efficiency(entry);
-        let price = effective_price(entry).unwrap_or(f64::MAX);
-
-        let better = match best_idx {
-            None => true,
-            Some(_) => {
-                if score > best_score + SCORE_EPSILON {
-                    true
-                } else if score + SCORE_EPSILON < best_score {
-                    false
-                } else if entry.aaii > best_aaii + AAII_EPSILON {
-                    true
-                } else if entry.aaii + AAII_EPSILON < best_aaii {
-                    false
-                } else if price < best_price - PRICE_EPSILON {
-                    true
-                } else if price > best_price + PRICE_EPSILON {
-                    false
-                } else {
-                    entry.slug < best_slug
-                }
-            }
-        };
-
-        if better {
-            best_idx = Some(idx);
-            best_score = score;
-            best_aaii = entry.aaii;
-            best_price = price;
-            best_slug = entry.slug.clone();
-        }
-    }
-
-    best_idx.map(|idx| pool.swap_remove(idx).0)
-}
-
-fn compare_candidate(a: &CuratedEntry, b: &CuratedEntry) -> Ordering {
-    let score_a = price_efficiency(a);
-    let score_b = price_efficiency(b);
-
-    if (score_a - score_b).abs() > SCORE_EPSILON {
-        return if score_a > score_b {
-            Ordering::Less
-        } else {
-            Ordering::Greater
-        };
-    }
-
-    match b.aaii.partial_cmp(&a.aaii).unwrap_or(Ordering::Equal) {
-        Ordering::Equal => {}
-        other => return other,
-    }
-
-    let price_a = effective_price(a).unwrap_or(f64::MAX);
-    let price_b = effective_price(b).unwrap_or(f64::MAX);
-    if (price_a - price_b).abs() > PRICE_EPSILON {
-        return if price_a < price_b {
-            Ordering::Less
-        } else {
-            Ordering::Greater
-        };
-    }
-
-    a.slug.cmp(&b.slug)
-}
-
-fn price_efficiency(entry: &CuratedEntry) -> f64 {
-    let mut values = Vec::new();
-    if let Some(value) = entry.price_in_per_million {
-        values.push(value);
-    }
-    if let Some(value) = entry.price_out_per_million {
-        values.push(value);
-    }
-
-    if values.is_empty() {
-        return f64::NEG_INFINITY;
-    }
-
-    let cost = values.iter().sum::<f64>() / values.len() as f64;
-    if cost <= 0.0 {
-        return f64::INFINITY;
-    }
-
-    f64::from(entry.aaii) / cost
-}
-
-fn effective_price(entry: &CuratedEntry) -> Option<f64> {
-    match (entry.price_in_per_million, entry.price_out_per_million) {
-        (Some(input), Some(output)) => Some((input + output) / 2.0),
-        (Some(input), None) => Some(input),
-        (None, Some(output)) => Some(output),
-        (None, None) => None,
-    }
-}
-
-fn provider_order_index(provider: &str, order: &[&str]) -> usize {
-    order
+    let mut minis: Vec<CuratedEntry> = candidates
         .iter()
-        .position(|candidate| candidate == &provider)
-        .unwrap_or(order.len())
+        .filter(|entry| has_term(&entry.slug, "mini") || has_term(&entry.display_name, "mini"))
+        .filter(|entry| has_valid_price(entry))
+        .cloned()
+        .collect();
+
+    minis.sort_by(compare_paid_entries);
+    if let Some(entry) = minis.into_iter().next() {
+        return Some(entry);
+    }
+
+    let mut fallback: Vec<&OpenRouterModel> = openrouter
+        .iter()
+        .filter(|model| provider_from_slug(&model.slug) == "openai")
+        .filter(|model| has_term(&model.slug, "mini") || has_term(&model.name, "mini"))
+        .filter(|model| has_valid_model_price(model))
+        .collect();
+
+    fallback.sort_by(|left, right| compare_models_by_price(*left, *right));
+    fallback
+        .into_iter()
+        .next()
+        .map(|model| curated_entry_from_model(model, "provider-heuristic:openai-mini"))
+}
+
+fn select_google_paid(
+    candidates: &[CuratedEntry],
+    openrouter: &[OpenRouterModel],
+    _openrouter_by_slug: &HashMap<&str, &OpenRouterModel>,
+) -> Option<CuratedEntry> {
+    let mut flash: Vec<(CuratedEntry, f64)> = candidates
+        .iter()
+        .filter_map(|entry| {
+            parse_gemini_flash_version(&entry.slug)
+                .or_else(|| parse_gemini_flash_version(&entry.display_name))
+                .map(|version| (entry.clone(), version))
+        })
+        .filter(|(entry, _)| has_valid_price(entry))
+        .collect();
+
+    flash.sort_by(|(left_entry, left_version), (right_entry, right_version)| {
+        match right_version
+            .partial_cmp(left_version)
+            .unwrap_or(Ordering::Equal)
+        {
+            Ordering::Equal => compare_paid_entries(left_entry, right_entry),
+            other => other,
+        }
+    });
+
+    if let Some((entry, _)) = flash.into_iter().next() {
+        return Some(entry);
+    }
+
+    let mut fallback: Vec<(&OpenRouterModel, f64)> = openrouter
+        .iter()
+        .filter(|model| provider_from_slug(&model.slug) == "google")
+        .filter_map(|model| {
+            parse_gemini_flash_version(&model.slug)
+                .or_else(|| parse_gemini_flash_version(&model.name))
+                .map(|version| (model, version))
+        })
+        .filter(|(model, _)| has_valid_model_price(model))
+        .collect();
+
+    fallback.sort_by(
+        |(left_model, left_version), (right_model, right_version)| match right_version
+            .partial_cmp(left_version)
+            .unwrap_or(Ordering::Equal)
+        {
+            Ordering::Equal => compare_models_by_price(left_model, right_model),
+            other => other,
+        },
+    );
+
+    fallback
+        .into_iter()
+        .next()
+        .map(|(model, _)| curated_entry_from_model(model, "provider-heuristic:google-gemini-flash"))
+        .or_else(|| match fallback_first_model("google", openrouter) {
+            Some(entry) => Some(entry),
+            None => None,
+        })
+}
+
+fn select_xai_paid(
+    candidates: &[CuratedEntry],
+    openrouter: &[OpenRouterModel],
+    _openrouter_by_slug: &HashMap<&str, &OpenRouterModel>,
+) -> Option<CuratedEntry> {
+    let mut grok_fast: Vec<(CuratedEntry, f64)> = candidates
+        .iter()
+        .filter_map(|entry| {
+            parse_grok_fast_version(&entry.slug)
+                .or_else(|| parse_grok_fast_version(&entry.display_name))
+                .map(|version| (entry.clone(), version))
+        })
+        .filter(|(entry, _)| has_valid_price(entry))
+        .collect();
+
+    grok_fast.sort_by(
+        |(left_entry, left_version), (right_entry, right_version)| match right_version
+            .partial_cmp(left_version)
+            .unwrap_or(Ordering::Equal)
+        {
+            Ordering::Equal => compare_paid_entries(left_entry, right_entry),
+            other => other,
+        },
+    );
+
+    if let Some((entry, _)) = grok_fast.into_iter().next() {
+        return Some(entry);
+    }
+
+    let mut fallback: Vec<(&OpenRouterModel, f64)> = openrouter
+        .iter()
+        .filter(|model| provider_from_slug(&model.slug) == "x-ai")
+        .filter_map(|model| {
+            parse_grok_fast_version(&model.slug)
+                .or_else(|| parse_grok_fast_version(&model.name))
+                .map(|version| (model, version))
+        })
+        .filter(|(model, _)| has_valid_model_price(model))
+        .collect();
+
+    fallback.sort_by(
+        |(left_model, left_version), (right_model, right_version)| match right_version
+            .partial_cmp(left_version)
+            .unwrap_or(Ordering::Equal)
+        {
+            Ordering::Equal => compare_models_by_price(left_model, right_model),
+            other => other,
+        },
+    );
+
+    fallback
+        .into_iter()
+        .next()
+        .map(|(model, _)| curated_entry_from_model(model, "provider-heuristic:xai-grok-fast"))
+}
+
+fn select_anthropic_paid(
+    candidates: &[CuratedEntry],
+    openrouter: &[OpenRouterModel],
+    _openrouter_by_slug: &HashMap<&str, &OpenRouterModel>,
+) -> Option<CuratedEntry> {
+    let mut haiku: Vec<(CuratedEntry, f64)> = candidates
+        .iter()
+        .filter_map(|entry| {
+            parse_haiku_version(&entry.slug)
+                .or_else(|| parse_haiku_version(&entry.display_name))
+                .map(|version| (entry.clone(), version))
+        })
+        .filter(|(entry, _)| has_valid_price(entry))
+        .collect();
+
+    haiku.sort_by(|(left_entry, left_version), (right_entry, right_version)| {
+        match right_version
+            .partial_cmp(left_version)
+            .unwrap_or(Ordering::Equal)
+        {
+            Ordering::Equal => compare_paid_entries(left_entry, right_entry),
+            other => other,
+        }
+    });
+
+    if let Some((entry, _)) = haiku.into_iter().next() {
+        return Some(entry);
+    }
+
+    let mut fallback: Vec<(&OpenRouterModel, f64)> = openrouter
+        .iter()
+        .filter(|model| provider_from_slug(&model.slug) == "anthropic")
+        .filter_map(|model| {
+            parse_haiku_version(&model.slug)
+                .or_else(|| parse_haiku_version(&model.name))
+                .map(|version| (model, version))
+        })
+        .filter(|(model, _)| has_valid_model_price(model))
+        .collect();
+
+    fallback.sort_by(
+        |(left_model, left_version), (right_model, right_version)| match right_version
+            .partial_cmp(left_version)
+            .unwrap_or(Ordering::Equal)
+        {
+            Ordering::Equal => compare_models_by_price(left_model, right_model),
+            other => other,
+        },
+    );
+
+    fallback
+        .into_iter()
+        .next()
+        .map(|(model, _)| curated_entry_from_model(model, "provider-heuristic:anthropic-haiku"))
+}
+
+fn select_default_paid(candidates: &[CuratedEntry]) -> Option<CuratedEntry> {
+    let mut filtered: Vec<CuratedEntry> = candidates
+        .iter()
+        .filter(|entry| has_valid_price(entry))
+        .cloned()
+        .collect();
+    filtered.sort_by(compare_paid_entries);
+    filtered.into_iter().next()
+}
+
+fn fallback_first_model(provider: &str, openrouter: &[OpenRouterModel]) -> Option<CuratedEntry> {
+    openrouter
+        .iter()
+        .find(|model| provider_from_slug(&model.slug) == provider)
+        .map(|model| {
+            curated_entry_from_model(model, &format!("provider-fallback:first:{provider}"))
+        })
+}
+
+fn curated_entry_from_model(model: &OpenRouterModel, strategy: &str) -> CuratedEntry {
+    CuratedEntry {
+        slug: model.slug.clone(),
+        display_name: model.name.clone(),
+        provider: provider_from_slug(&model.slug),
+        aaii: 0.0,
+        price_in_per_million: sanitize_price(model.prompt_price_per_million),
+        price_out_per_million: sanitize_price(model.completion_price_per_million),
+        price_source: PriceSource::OpenRouter,
+        context_length: model.context_length,
+        modalities: Vec::new(),
+        match_strategy: Some(strategy.to_string()),
+        aa_last_updated: None,
+        openrouter_created_at: model.created_at,
+        cheapest_endpoint: model.cheapest_endpoint.clone(),
+    }
+}
+
+fn has_valid_price(entry: &CuratedEntry) -> bool {
+    entry.price_in_per_million.is_some() || entry.price_out_per_million.is_some()
+}
+
+fn has_valid_model_price(model: &OpenRouterModel) -> bool {
+    model.prompt_price_per_million.is_some() || model.completion_price_per_million.is_some()
+}
+
+fn compare_paid_entries(left: &CuratedEntry, right: &CuratedEntry) -> Ordering {
+    let price_order = compare_price_pairs(
+        left.price_in_per_million,
+        left.price_out_per_million,
+        right.price_in_per_million,
+        right.price_out_per_million,
+    );
+    if price_order != Ordering::Equal {
+        return price_order;
+    }
+    let created_order =
+        compare_created_desc(left.openrouter_created_at, right.openrouter_created_at);
+    if created_order != Ordering::Equal {
+        return created_order;
+    }
+    left.slug.cmp(&right.slug)
+}
+
+fn compare_models_by_price(left: &OpenRouterModel, right: &OpenRouterModel) -> Ordering {
+    let price_order = compare_price_pairs(
+        sanitize_price(left.prompt_price_per_million),
+        sanitize_price(left.completion_price_per_million),
+        sanitize_price(right.prompt_price_per_million),
+        sanitize_price(right.completion_price_per_million),
+    );
+    if price_order != Ordering::Equal {
+        return price_order;
+    }
+    let created_order = compare_created_desc(left.created_at, right.created_at);
+    if created_order != Ordering::Equal {
+        return created_order;
+    }
+    left.slug.cmp(&right.slug)
+}
+
+fn compare_price_pairs(
+    left_in: Option<f64>,
+    left_out: Option<f64>,
+    right_in: Option<f64>,
+    right_out: Option<f64>,
+) -> Ordering {
+    let left_prompt = left_in.unwrap_or(f64::INFINITY);
+    let left_completion = left_out.unwrap_or(f64::INFINITY);
+    let right_prompt = right_in.unwrap_or(f64::INFINITY);
+    let right_completion = right_out.unwrap_or(f64::INFINITY);
+
+    let left_total = left_prompt + left_completion;
+    let right_total = right_prompt + right_completion;
+
+    match left_total
+        .partial_cmp(&right_total)
+        .unwrap_or(Ordering::Equal)
+    {
+        Ordering::Equal => match left_prompt
+            .partial_cmp(&right_prompt)
+            .unwrap_or(Ordering::Equal)
+        {
+            Ordering::Equal => left_completion
+                .partial_cmp(&right_completion)
+                .unwrap_or(Ordering::Equal),
+            other => other,
+        },
+        other => other,
+    }
+}
+
+fn compare_created_desc(left: Option<DateTime<Utc>>, right: Option<DateTime<Utc>>) -> Ordering {
+    match (left, right) {
+        (Some(left), Some(right)) => right.cmp(&left),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    }
+}
+
+fn has_term(value: &str, term: &str) -> bool {
+    value
+        .to_ascii_lowercase()
+        .contains(&term.to_ascii_lowercase())
+}
+
+fn parse_gemini_flash_version(value: &str) -> Option<f64> {
+    let lower = value.to_ascii_lowercase();
+    if !lower.contains("gemini") || !lower.contains("flash") {
+        return None;
+    }
+
+    if let Some(start) = lower.find("gemini-") {
+        let rest = &lower[start + "gemini-".len()..];
+        if let Some(end) = rest.find("-flash") {
+            let version = &rest[..end];
+            return version.parse::<f64>().ok();
+        }
+    }
+
+    if let Some(start) = lower.find("flash-") {
+        let rest = &lower[start + "flash-".len()..];
+        let token = rest
+            .split(|c: char| c == '-' || c == '/' || c == ' ')
+            .next()
+            .unwrap_or("");
+        return token.parse::<f64>().ok();
+    }
+
+    None
+}
+
+fn parse_grok_fast_version(value: &str) -> Option<f64> {
+    let lower = value.to_ascii_lowercase();
+    if !lower.contains("grok") || !lower.contains("fast") {
+        return None;
+    }
+
+    if let Some(start) = lower.find("grok-") {
+        let rest = &lower[start + "grok-".len()..];
+        if let Some(end) = rest.find("-fast") {
+            let version = &rest[..end];
+            return version.parse::<f64>().ok();
+        }
+    }
+
+    if let Some(start) = lower.find("grok ") {
+        let rest = &lower[start + "grok ".len()..];
+        if let Some(end) = rest.find(" fast") {
+            let version = &rest[..end];
+            return version.parse::<f64>().ok();
+        }
+    }
+
+    None
+}
+
+fn parse_haiku_version(value: &str) -> Option<f64> {
+    let lower = value.to_ascii_lowercase();
+    if !lower.contains("haiku") {
+        return None;
+    }
+
+    if let Some(start) = lower.find("haiku-") {
+        let rest = &lower[start + "haiku-".len()..];
+        let token = rest
+            .split(|c: char| c == '-' || c == '/' || c == ' ')
+            .next()
+            .unwrap_or("");
+        return token.parse::<f64>().ok();
+    }
+
+    if let Some(start) = lower.find("haiku ") {
+        let rest = &lower[start + "haiku ".len()..];
+        let token = rest
+            .split(|c: char| c == '-' || c == '/' || c == ' ')
+            .next()
+            .unwrap_or("");
+        return token.parse::<f64>().ok();
+    }
+
+    None
 }
 
 fn is_text_model(modalities: &[String]) -> bool {
@@ -691,21 +949,11 @@ fn is_text_model(modalities: &[String]) -> bool {
     })
 }
 
-fn resolve_pricing(
-    aa: &AaModel,
-    openrouter: &OpenRouterModel,
-) -> (Option<f64>, Option<f64>, PriceSource) {
+fn resolve_pricing(openrouter: &OpenRouterModel) -> (Option<f64>, Option<f64>, PriceSource) {
     let prompt = sanitize_price(openrouter.prompt_price_per_million);
     let completion = sanitize_price(openrouter.completion_price_per_million);
 
-    if prompt.is_some() || completion.is_some() {
-        return (prompt, completion, PriceSource::OpenRouter);
-    }
-
-    let aa_in = sanitize_price(aa.price_in_per_million);
-    let aa_out = sanitize_price(aa.price_out_per_million);
-
-    (aa_in, aa_out, PriceSource::Aa)
+    (prompt, completion, PriceSource::OpenRouter)
 }
 
 fn sanitize_price(price: Option<f64>) -> Option<f64> {
@@ -796,6 +1044,7 @@ mod tests {
             context_length: Some(16_384),
             prompt_price_per_million: Some(0.0),
             completion_price_per_million: Some(0.0),
+            cheapest_endpoint: None,
         };
 
         assert_eq!(openrouter_free_status(&model), Some(true));
@@ -899,6 +1148,7 @@ mod tests {
                 context_length: Some(32_768),
                 prompt_price_per_million: *price_in,
                 completion_price_per_million: *price_out,
+                cheapest_endpoint: None,
             })
             .collect::<Vec<_>>();
 
@@ -967,6 +1217,7 @@ mod tests {
             context_length: Some(16_384),
             prompt_price_per_million: Some(1.0),
             completion_price_per_million: Some(5.0),
+            cheapest_endpoint: None,
         }];
         let aa_models = vec![build_aa_model(
             "Test Model",
@@ -1006,6 +1257,7 @@ mod tests {
                 context_length: Some(10_000),
                 prompt_price_per_million: Some(0.0),
                 completion_price_per_million: Some(0.0),
+                cheapest_endpoint: None,
             })
             .collect::<Vec<_>>();
 
@@ -1057,6 +1309,7 @@ mod tests {
                 context_length: Some(128_000),
                 prompt_price_per_million: Some(0.0),
                 completion_price_per_million: Some(0.0),
+                cheapest_endpoint: None,
             },
             OpenRouterModel {
                 slug: "meta-llama/llama-4:free".to_string(),
@@ -1069,6 +1322,7 @@ mod tests {
                 context_length: Some(256_000),
                 prompt_price_per_million: Some(0.0),
                 completion_price_per_million: Some(0.0),
+                cheapest_endpoint: None,
             },
         ];
 
@@ -1103,6 +1357,7 @@ mod tests {
                 context_length: Some(128_000),
                 prompt_price_per_million: Some(0.0),
                 completion_price_per_million: Some(0.0),
+                cheapest_endpoint: None,
             },
             OpenRouterModel {
                 slug: "qwen/qwen3-instruct:free".to_string(),
@@ -1115,6 +1370,7 @@ mod tests {
                 context_length: Some(128_000),
                 prompt_price_per_million: Some(0.0),
                 completion_price_per_million: Some(0.0),
+                cheapest_endpoint: None,
             },
         ];
 

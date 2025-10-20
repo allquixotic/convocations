@@ -22,7 +22,7 @@ function deserializeFileConfig(payload) {
   const presets = payload.presets ?? [];
 
   return {
-    schema_version: payload.schema_version ?? 1,
+    schema_version: payload.schema_version ?? 2,
     runtime: {
       chat_log_path: runtime.chat_log_path ?? '',
       active_preset: runtime.active_preset ?? 'saturday-10pm-midnight',
@@ -72,7 +72,7 @@ function normalizeFileConfigForApi(fileConfig) {
   };
 
   return {
-    schema_version: fileConfig.schema_version ?? 1,
+    schema_version: fileConfig.schema_version ?? 2,
     runtime: {
       chat_log_path: trimOrNull(fileConfig.runtime.chat_log_path) ?? '',
       active_preset: trimOrNull(fileConfig.runtime.active_preset) ?? 'saturday-10pm-midnight',

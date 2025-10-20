@@ -429,6 +429,7 @@ mod tests {
             context_length: Some(128_000),
             prompt_price_per_million: Some(10.0),
             completion_price_per_million: Some(30.0),
+            cheapest_endpoint: None,
         }];
 
         let resolver = AliasResolver::new(HashMap::new(), &models, 0.8);
@@ -473,6 +474,7 @@ mod tests {
                 context_length: Some(8_192),
                 prompt_price_per_million: Some(0.0),
                 completion_price_per_million: Some(0.0),
+                cheapest_endpoint: None,
             },
             OpenRouterModel {
                 slug: "provider/alias-model".to_string(),
@@ -481,6 +483,7 @@ mod tests {
                 context_length: Some(8_192),
                 prompt_price_per_million: Some(0.0),
                 completion_price_per_million: Some(0.0),
+                cheapest_endpoint: None,
             },
             OpenRouterModel {
                 slug: "provider/fuzzy-match".to_string(),
@@ -489,6 +492,7 @@ mod tests {
                 context_length: Some(8_192),
                 prompt_price_per_million: Some(0.0),
                 completion_price_per_million: Some(0.0),
+                cheapest_endpoint: None,
             },
         ]
     }

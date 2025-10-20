@@ -7,6 +7,7 @@ use serde::Serialize;
 use crate::config::{SNAPSHOT_SCHEMA_VERSION, Tunables};
 use crate::curate::{CuratedComputation, CuratedEntry, DiscardReason, PriceSource};
 use crate::error::CuratorError;
+use crate::fetch::CheapestEndpoint;
 
 #[derive(Debug, Serialize)]
 pub struct SnapshotFile {
@@ -65,6 +66,20 @@ pub struct SnapshotEntry {
     pub match_strategy: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aa_last_updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub openrouter_created_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cheapest_endpoint: Option<SnapshotEndpoint>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SnapshotEndpoint {
+    pub name: String,
+    pub provider: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_price_per_million: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completion_price_per_million: Option<f64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -155,6 +170,19 @@ impl From<CuratedEntry> for SnapshotEntry {
             modalities: entry.modalities,
             match_strategy: entry.match_strategy,
             aa_last_updated: entry.aa_last_updated.map(|dt| dt.to_rfc3339()),
+            openrouter_created_at: entry.openrouter_created_at.map(|dt| dt.to_rfc3339()),
+            cheapest_endpoint: entry.cheapest_endpoint.map(SnapshotEndpoint::from),
+        }
+    }
+}
+
+impl From<CheapestEndpoint> for SnapshotEndpoint {
+    fn from(endpoint: CheapestEndpoint) -> Self {
+        SnapshotEndpoint {
+            name: endpoint.endpoint_name,
+            provider: endpoint.provider_name,
+            prompt_price_per_million: endpoint.prompt_price_per_million,
+            completion_price_per_million: endpoint.completion_price_per_million,
         }
     }
 }

@@ -12,6 +12,8 @@ pub enum CuratorError {
     Io(#[from] io::Error),
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
+    #[error("OpenRouter error: {0}")]
+    OpenRouter(#[from] openrouter_rs::error::OpenRouterError),
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 }

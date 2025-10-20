@@ -2,20 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::error::Error as StdError;
 use std::fmt;
 
-/// Hardcoded recommended models (updated as of Jan 2025)
-pub const RECOMMENDED_MODELS: &[(&str, &str, bool)] = &[
-    // (model_id, display_name, is_free)
-    ("openai/gpt-5-nano", "GPT-5 Nano", false),
-    (
-        "google/gemini-2.5-flash-lite",
-        "Gemini 2.5 Flash Lite",
-        false,
-    ),
-    ("anthropic/claude-4.5-haiku", "Claude 4.5 Haiku", false),
-    ("x-ai/grok-4-fast", "Grok 4 Fast", false),
-    ("google/gemini-2.5-flash", "Gemini 2.5 Flash", false),
-];
-
 /// Preferred providers for free models
 pub const PREFERRED_FREE_PROVIDERS: &[&str] =
     &["x-ai", "google", "openai", "anthropic", "moonshot"];
@@ -255,15 +241,6 @@ pub fn filter_models(models: Vec<ModelInfo>, free_only: bool) -> Vec<ModelInfo> 
     filtered
 }
 
-/// Get recommended models as a static list
-pub fn get_recommended_models(free_only: bool) -> Vec<(String, String)> {
-    RECOMMENDED_MODELS
-        .iter()
-        .filter(|(_, _, is_free)| !free_only || *is_free)
-        .map(|(id, name, _)| (id.to_string(), name.to_string()))
-        .collect()
-}
-
 /// Send a completion request to OpenRouter
 pub async fn complete(
     api_key: &str,
@@ -358,15 +335,6 @@ mod tests {
         assert!(url.contains("code_challenge=test_challenge"));
         assert!(url.contains("callback_url=http%3A%2F%2Flocalhost%3A3000%2Fcallback"));
         assert!(url.contains("state=abc123"));
-    }
-
-    #[test]
-    fn test_recommended_models() {
-        let all = get_recommended_models(false);
-        assert!(!all.is_empty());
-
-        let free_only = get_recommended_models(true);
-        assert!(free_only.len() <= all.len());
     }
 
     #[test]

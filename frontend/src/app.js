@@ -238,7 +238,6 @@ function App() {
   const [presetError, setPresetError] = useState(null);
   const [models, setModels] = useState([]);
   const [loadingModels, setLoadingModels] = useState(false);
-  const [recommendedModels, setRecommendedModels] = useState([]);
   const [curatedModels, setCuratedModels] = useState([]);
   const [oauthInProgress, setOauthInProgress] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState('none');
@@ -855,26 +854,6 @@ function App() {
     }
   }, [baseUrl]);
 
-  const fetchRecommendedModels = useCallback(async () => {
-    if (!baseUrl) {
-      return;
-    }
-    try {
-      const response = await fetch(`${baseUrl}/api/openrouter/recommended`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ free_only: Boolean(config?.free_models_only) }),
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch recommended models (${response.status})`);
-      }
-      const recommendations = await response.json();
-      setRecommendedModels(recommendations ?? []);
-    } catch (err) {
-      console.error('[Convocations] Failed to fetch recommended models', err);
-    }
-  }, [baseUrl, config?.free_models_only]);
-
   const persistOpenRouterKey = useCallback(
     async (key) => {
       if (!baseUrl) {
@@ -1068,12 +1047,6 @@ function App() {
     }
   }, [baseUrl]);
 
-  useEffect(() => {
-    if (baseUrl && configLoaded) {
-      fetchRecommendedModels();
-    }
-  }, [baseUrl, configLoaded, config?.free_models_only, fetchRecommendedModels]);
-
   // Auto-calculate and populate start/end dates when event selection, duration, or weeks ago changes
   useEffect(() => {
     if (!baseUrl || !config || eventSelection === 'none') {
@@ -1146,7 +1119,7 @@ function App() {
 
       // Build FileConfig with runtime (ephemeral), ui (persisted), and presets (persisted)
       const fileConfig = {
-        schema_version: 1,
+        schema_version: 2,
         runtime: normalizeConfigForApi(workingConfig),
         ui: ui,
         presets: presets,
@@ -2052,36 +2025,6 @@ function App() {
                 autoValue: CURATED_AUTO_VALUE,
                 manualValue: CURATED_MANUAL_VALUE,
               }),
-              recommendedModels.length > 0
-                ? h(
-                    'div',
-                    { style: 'margin-top: 1rem;' },
-                    h('h4', { style: 'margin-bottom: 0.5rem; font-size: 0.9rem;' }, 'Recommended Models'),
-                    h(
-                      'div',
-                      { style: 'display: flex; flex-wrap: wrap; gap: 0.5rem;' },
-                      recommendedModels.map(([modelId, displayName]) =>
-                        h(
-                          'button',
-                          {
-                            key: modelId,
-                            type: 'button',
-                            class: 'button button--small button--secondary',
-                            onClick: () => {
-                              setConfig((prev) =>
-                                prev ? { ...prev, openrouter_model: modelId } : prev
-                              );
-                            },
-                            style: config.openrouter_model === modelId
-                              ? 'background: var(--color-primary); color: var(--color-bg);'
-                              : '',
-                          },
-                          displayName,
-                        ),
-                      ),
-                    ),
-                  )
-                : null,
               h(
                 'div',
                 { class: 'field-grid', style: 'margin-top: 1rem;' },

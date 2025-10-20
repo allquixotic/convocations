@@ -13,7 +13,7 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace.dependencies]
-chrono = "0"
+chrono = { version = "0", features = ["serde"] }
 chrono-tz = "0"
 clap = { version = "4", features = ["derive"] }
 openrouter-rs = "0"

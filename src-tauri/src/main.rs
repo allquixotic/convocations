@@ -1523,18 +1523,6 @@ async fn curated_models_handler() -> Result<Json<CuratedModelsResponse>, ApiErro
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
-struct FilterModelsRequest {
-    free_only: bool,
-}
-
-async fn recommended_models_handler(
-    Json(request): Json<FilterModelsRequest>,
-) -> Json<Vec<(String, String)>> {
-    let models = rconv_core::openrouter::get_recommended_models(request.free_only);
-    Json(models)
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
 struct CalculateDatesRequest {
     rsm7: bool,
     rsm8: bool,
@@ -1672,10 +1660,6 @@ async fn launch_http_server(
         )
         .route("/api/openrouter/models", get(fetch_models_handler))
         .route("/api/curated/models", get(curated_models_handler))
-        .route(
-            "/api/openrouter/recommended",
-            post(recommended_models_handler),
-        )
         .route(
             "/api/openrouter/secret",
             post(set_openrouter_secret_handler).delete(clear_openrouter_secret_handler),

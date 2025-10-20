@@ -15,7 +15,7 @@ use thiserror::Error;
 use crate::openrouter;
 use crate::openrouter::ModelInfo;
 
-const SNAPSHOT_SCHEMA_VERSION: u32 = 1;
+const SNAPSHOT_SCHEMA_VERSION: u32 = 2;
 const SNAPSHOT_ENV: &str = "CONVOCATIONS_MODEL_SNAPSHOT";
 const REMOTE_SNAPSHOT_URL: &str = "https://raw.githubusercontent.com/allquixotic/convocations/refs/heads/main/static/model_snapshot.json";
 #[cfg(not(test))]
@@ -152,6 +152,10 @@ pub struct CuratedModelSummary {
     pub context_length: Option<u32>,
     pub price_source: PriceSource,
     pub match_strategy: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub openrouter_created_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cheapest_endpoint: Option<CheapestEndpoint>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -182,6 +186,16 @@ pub struct CuratedEntry {
     pub match_strategy: Option<String>,
     pub aa_last_updated: Option<DateTime<Utc>>,
     pub tier: CuratedTier,
+    pub openrouter_created_at: Option<DateTime<Utc>>,
+    pub cheapest_endpoint: Option<CheapestEndpoint>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct CheapestEndpoint {
+    pub name: String,
+    pub provider: String,
+    pub prompt_price_per_million: Option<f64>,
+    pub completion_price_per_million: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -245,6 +259,8 @@ impl CuratedEntry {
             context_length: self.context_length,
             price_source: self.price_source,
             match_strategy: self.match_strategy.clone(),
+            openrouter_created_at: self.openrouter_created_at,
+            cheapest_endpoint: self.cheapest_endpoint.clone(),
         }
     }
 }
@@ -379,6 +395,14 @@ fn candidate_paths() -> Vec<PathBuf> {
 
 #[cfg(not(test))]
 fn fetch_remote_snapshot() -> Option<String> {
+    std::thread::spawn(fetch_remote_snapshot_thread)
+        .join()
+        .ok()
+        .flatten()
+}
+
+#[cfg(not(test))]
+fn fetch_remote_snapshot_thread() -> Option<String> {
     let client = match reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(REMOTE_FETCH_TIMEOUT_SECS))
         .user_agent(REMOTE_USER_AGENT)
@@ -578,37 +602,69 @@ fn convert_snapshot(
 }
 
 fn convert_entry(entry: SnapshotEntry, tier: CuratedTier) -> Result<CuratedEntry, CuratorError> {
-    if entry.slug.trim().is_empty() {
+    let SnapshotEntry {
+        slug,
+        display_name,
+        provider,
+        aaii,
+        price_in_per_million,
+        price_out_per_million,
+        price_source,
+        context_length,
+        modalities,
+        match_strategy,
+        aa_last_updated,
+        openrouter_created_at,
+        cheapest_endpoint,
+    } = entry;
+
+    if slug.trim().is_empty() {
         return Err(CuratorError::InvalidSnapshot(
             "curated entry missing slug".to_string(),
         ));
     }
 
-    let price_source = match entry.price_source {
+    let price_source = match price_source {
         SnapshotPriceSource::Aa => PriceSource::Aa,
         SnapshotPriceSource::Openrouter => PriceSource::Openrouter,
     };
 
-    let aa_last_updated = match entry.aa_last_updated.as_deref() {
+    let aa_last_updated = match aa_last_updated.as_deref() {
         Some(value) => Some(value.parse::<DateTime<Utc>>().map_err(|err| {
             CuratorError::InvalidSnapshot(format!("invalid aa_last_updated: {err}"))
         })?),
         None => None,
     };
 
+    let openrouter_created_at = match openrouter_created_at.as_deref() {
+        Some(value) => Some(value.parse::<DateTime<Utc>>().map_err(|err| {
+            CuratorError::InvalidSnapshot(format!("invalid openrouter_created_at: {err}"))
+        })?),
+        None => None,
+    };
+
+    let cheapest_endpoint = cheapest_endpoint.map(|endpoint| CheapestEndpoint {
+        name: endpoint.name,
+        provider: endpoint.provider,
+        prompt_price_per_million: endpoint.prompt_price_per_million,
+        completion_price_per_million: endpoint.completion_price_per_million,
+    });
+
     let curated_entry = CuratedEntry {
-        slug: entry.slug,
-        display_name: entry.display_name,
-        provider: entry.provider,
-        aaii: entry.aaii,
-        price_in_per_million: entry.price_in_per_million,
-        price_out_per_million: entry.price_out_per_million,
+        slug,
+        display_name,
+        provider,
+        aaii,
+        price_in_per_million,
+        price_out_per_million,
         price_source,
-        context_length: entry.context_length,
-        modalities: entry.modalities,
-        match_strategy: entry.match_strategy,
+        context_length,
+        modalities,
+        match_strategy,
         aa_last_updated,
         tier,
+        openrouter_created_at,
+        cheapest_endpoint,
     };
 
     Ok(curated_entry)
@@ -660,6 +716,20 @@ struct SnapshotEntry {
     match_strategy: Option<String>,
     #[serde(default)]
     aa_last_updated: Option<String>,
+    #[serde(default)]
+    openrouter_created_at: Option<String>,
+    #[serde(default)]
+    cheapest_endpoint: Option<SnapshotEndpoint>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SnapshotEndpoint {
+    name: String,
+    provider: String,
+    #[serde(default)]
+    prompt_price_per_million: Option<f64>,
+    #[serde(default)]
+    completion_price_per_million: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -698,7 +768,7 @@ mod tests {
     }
 
     const SAMPLE_SNAPSHOT: &str = r#"{
-      "schema_version": 1,
+      "schema_version": 2,
       "generated_at": "2025-01-01T00:00:00Z",
       "metadata": {
         "thresholds": {
@@ -726,7 +796,9 @@ mod tests {
           "context_length": 8192,
           "modalities": ["text"],
           "match_strategy": "provided-slug",
-          "aa_last_updated": "2025-01-01T00:00:00Z"
+          "aa_last_updated": "2025-01-01T00:00:00Z",
+          "openrouter_created_at": "2024-12-30T00:00:00Z",
+          "cheapest_endpoint": null
         }
       ],
       "cheap": [
@@ -741,7 +813,14 @@ mod tests {
           "context_length": 16000,
           "modalities": ["text"],
           "match_strategy": "alias:cheap",
-          "aa_last_updated": null
+          "aa_last_updated": null,
+          "openrouter_created_at": "2024-12-29T00:00:00Z",
+          "cheapest_endpoint": {
+            "name": "Provider | pro-cheap",
+            "provider": "Provider",
+            "prompt_price_per_million": 0.75,
+            "completion_price_per_million": 3.0
+          }
         }
       ]
     }"#;

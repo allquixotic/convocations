@@ -1,7 +1,13 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{DateTime, NaiveDate, Utc};
+use futures_util::stream::{FuturesUnordered, StreamExt};
+use openrouter_rs::{
+    OpenRouterClient,
+    api::models::{Endpoint, Model as OrModel},
+};
 use reqwest::{Client, StatusCode};
 use serde::Deserialize;
 use serde::de::IgnoredAny;
@@ -16,6 +22,15 @@ pub struct OpenRouterModel {
     pub name: String,
     pub created_at: Option<DateTime<Utc>>,
     pub context_length: Option<u32>,
+    pub prompt_price_per_million: Option<f64>,
+    pub completion_price_per_million: Option<f64>,
+    pub cheapest_endpoint: Option<CheapestEndpoint>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheapestEndpoint {
+    pub endpoint_name: String,
+    pub provider_name: String,
     pub prompt_price_per_million: Option<f64>,
     pub completion_price_per_million: Option<f64>,
 }
@@ -44,38 +59,235 @@ pub async fn fetch_datasets(
     client: &Client,
     tunables: &Tunables,
 ) -> Result<FetchResults, CuratorError> {
-    let openrouter = fetch_openrouter_models(client, tunables).await?;
+    let openrouter = fetch_openrouter_models(tunables).await?;
     let aa = fetch_aa_models(client, tunables).await?;
     Ok(FetchResults { openrouter, aa })
 }
 
 async fn fetch_openrouter_models(
-    client: &Client,
     tunables: &Tunables,
 ) -> Result<Vec<OpenRouterModel>, CuratorError> {
-    let request = || async {
-        let mut builder = client.get(&tunables.openrouter_models_url);
-        if let Some(key) = &tunables.openrouter_api_key {
-            builder = builder.bearer_auth(key);
-        }
-        builder.send().await
-    };
+    let api_key = tunables
+        .openrouter_api_key
+        .clone()
+        .ok_or_else(|| CuratorError::Config("OPENROUTER_API_KEY is required".to_string()))?;
 
-    let response = fetch_with_retries("openrouter", tunables, request).await?;
-    if !response.status().is_success() {
-        return Err(CuratorError::Message(format!(
-            "OpenRouter responded with {}",
-            response.status()
-        )));
+    let base_url = derive_openrouter_base_url(&tunables.openrouter_models_url)?;
+    let client = OpenRouterClient::builder()
+        .base_url(base_url.clone())
+        .api_key(api_key.clone())
+        .build()?;
+
+    let models = client.list_models().await?;
+
+    let shared_client = Arc::new(client);
+    let mut enriched: Vec<(usize, OpenRouterModel)> = Vec::new();
+    let mut pending = FuturesUnordered::new();
+    let mut iter = models.into_iter().enumerate();
+
+    const MAX_CONCURRENT_ENDPOINT_FETCHES: usize = 8;
+
+    while pending.len() < MAX_CONCURRENT_ENDPOINT_FETCHES {
+        if let Some((index, model)) = iter.next() {
+            let client = Arc::clone(&shared_client);
+            pending.push(enrich_future(client, model, index));
+        } else {
+            break;
+        }
     }
 
-    let payload: OpenRouterResponse = response.json().await?;
-    let models = payload
-        .data
-        .into_iter()
-        .map(OpenRouterModel::from)
-        .collect();
-    Ok(models)
+    while let Some(result) = pending.next().await {
+        match result {
+            Ok((index, model)) => enriched.push((index, model)),
+            Err(err) => {
+                eprintln!("[curator] failed to enrich OpenRouter model: {}", err);
+            }
+        }
+
+        if let Some((index, model)) = iter.next() {
+            let client = Arc::clone(&shared_client);
+            pending.push(enrich_future(client, model, index));
+        }
+    }
+
+    enriched.sort_by_key(|(index, _)| *index);
+    Ok(enriched.into_iter().map(|(_, model)| model).collect())
+}
+
+fn derive_openrouter_base_url(models_url: &str) -> Result<String, CuratorError> {
+    let trimmed = models_url.trim_end_matches('/');
+    if trimmed.is_empty() {
+        return Err(CuratorError::Config(
+            "OPENROUTER_MODELS_URL is empty".to_string(),
+        ));
+    }
+    if let Some(stripped) = trimmed.strip_suffix("/models") {
+        Ok(stripped.to_string())
+    } else {
+        Ok(trimmed.to_string())
+    }
+}
+
+async fn enrich_openrouter_model(
+    client: Arc<OpenRouterClient>,
+    model: OrModel,
+) -> Result<OpenRouterModel, CuratorError> {
+    let slug = model.id.clone();
+    let (author, slug_part) = match split_author_slug(&slug) {
+        Some(parts) => parts,
+        None => {
+            return Ok(OpenRouterModel {
+                slug,
+                name: model.name,
+                created_at: parse_created_timestamp(model.created),
+                context_length: parse_context_length(model.context_length),
+                prompt_price_per_million: parse_price_str(model.pricing.prompt.as_str()),
+                completion_price_per_million: parse_price_str(model.pricing.completion.as_str()),
+                cheapest_endpoint: None,
+            });
+        }
+    };
+
+    let endpoint_data = match client.list_model_endpoints(author, slug_part).await {
+        Ok(data) => Some(data),
+        Err(err) => {
+            eprintln!(
+                "[curator] failed to fetch endpoints for {}: {}",
+                model.id, err
+            );
+            None
+        }
+    };
+
+    let cheapest_endpoint = endpoint_data
+        .as_ref()
+        .and_then(|data| compute_cheapest_endpoint(&data.endpoints));
+
+    let fallback_prompt = parse_price_str(model.pricing.prompt.as_str());
+    let fallback_completion = parse_price_str(model.pricing.completion.as_str());
+    let prompt_price = cheapest_endpoint
+        .as_ref()
+        .and_then(|meta| meta.prompt_price_per_million)
+        .or(fallback_prompt);
+    let completion_price = cheapest_endpoint
+        .as_ref()
+        .and_then(|meta| meta.completion_price_per_million)
+        .or(fallback_completion);
+
+    Ok(OpenRouterModel {
+        slug,
+        name: model.name,
+        created_at: parse_created_timestamp(model.created),
+        context_length: parse_context_length(model.context_length),
+        prompt_price_per_million: prompt_price,
+        completion_price_per_million: completion_price,
+        cheapest_endpoint,
+    })
+}
+
+fn enrich_future(
+    client: Arc<OpenRouterClient>,
+    model: OrModel,
+    index: usize,
+) -> impl std::future::Future<Output = Result<(usize, OpenRouterModel), CuratorError>> {
+    async move {
+        let enriched = enrich_openrouter_model(client, model).await;
+        enriched.map(|model| (index, model))
+    }
+}
+
+fn split_author_slug(id: &str) -> Option<(&str, &str)> {
+    id.split_once('/')
+}
+
+fn compute_cheapest_endpoint(endpoints: &[Endpoint]) -> Option<CheapestEndpoint> {
+    let mut best: Option<(f64, f64, f64, CheapestEndpoint)> = None;
+    for endpoint in endpoints {
+        let prompt = parse_price_str(endpoint.pricing.prompt.as_str());
+        let completion = parse_price_str(endpoint.pricing.completion.as_str());
+        if prompt.is_none() && completion.is_none() {
+            continue;
+        }
+
+        let prompt_value = prompt.unwrap_or(f64::INFINITY);
+        let completion_value = completion.unwrap_or(f64::INFINITY);
+        let total = prompt_value + completion_value;
+
+        let candidate = CheapestEndpoint {
+            endpoint_name: endpoint.name.clone(),
+            provider_name: endpoint.provider_name.clone(),
+            prompt_price_per_million: prompt,
+            completion_price_per_million: completion,
+        };
+
+        match &mut best {
+            None => {
+                best = Some((total, prompt_value, completion_value, candidate));
+            }
+            Some(current) => {
+                let (best_total, best_prompt, best_completion, _) = current;
+                let ordering = total
+                    .partial_cmp(best_total)
+                    .unwrap_or(std::cmp::Ordering::Greater);
+                let should_replace = if ordering == std::cmp::Ordering::Less {
+                    true
+                } else if ordering == std::cmp::Ordering::Equal {
+                    match prompt_value
+                        .partial_cmp(best_prompt)
+                        .unwrap_or(std::cmp::Ordering::Greater)
+                    {
+                        std::cmp::Ordering::Less => true,
+                        std::cmp::Ordering::Equal => completion_value
+                            .partial_cmp(best_completion)
+                            .map(|ord| ord == std::cmp::Ordering::Less)
+                            .unwrap_or(false),
+                        _ => false,
+                    }
+                } else {
+                    false
+                };
+
+                if should_replace {
+                    *current = (total, prompt_value, completion_value, candidate);
+                }
+            }
+        }
+    }
+
+    best.map(|(_, _, _, endpoint)| endpoint)
+}
+
+fn parse_price_str(raw: &str) -> Option<f64> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    trimmed.parse::<f64>().ok().and_then(|value| {
+        if value.is_finite() && value >= 0.0 {
+            Some(value)
+        } else {
+            None
+        }
+    })
+}
+
+fn parse_context_length(value: f64) -> Option<u32> {
+    if value.is_finite() && value > 0.0 {
+        Some(value.round() as u32)
+    } else {
+        None
+    }
+}
+
+fn parse_created_timestamp(value: f64) -> Option<DateTime<Utc>> {
+    if value.is_finite() && value > 0.0 {
+        let seconds = value.floor() as i64;
+        let nanos = ((value - value.floor()) * 1_000_000_000.0) as u32;
+        DateTime::<Utc>::from_timestamp(seconds, nanos)
+            .or_else(|| DateTime::<Utc>::from_timestamp(seconds, 0))
+    } else {
+        None
+    }
 }
 
 async fn fetch_aa_models(
@@ -138,60 +350,6 @@ where
             }
         }
     }
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterResponse {
-    data: Vec<OpenRouterPayload>,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterPayload {
-    id: String,
-    #[serde(default)]
-    name: Option<String>,
-    #[serde(default)]
-    created: Option<i64>,
-    #[serde(default)]
-    pricing: Option<OpenRouterPricing>,
-    #[serde(default)]
-    context_length: Option<u32>,
-}
-
-#[derive(Debug, Deserialize, Default)]
-struct OpenRouterPricing {
-    #[serde(default)]
-    prompt: Option<String>,
-    #[serde(default)]
-    completion: Option<String>,
-}
-
-impl From<OpenRouterPayload> for OpenRouterModel {
-    fn from(payload: OpenRouterPayload) -> Self {
-        let OpenRouterPayload {
-            id,
-            name,
-            created,
-            pricing,
-            context_length,
-        } = payload;
-
-        let pricing = pricing.unwrap_or_default();
-        let created_at =
-            created.and_then(|timestamp| DateTime::<Utc>::from_timestamp(timestamp, 0));
-        Self {
-            slug: id.clone(),
-            name: name.unwrap_or_else(|| id.clone()),
-            created_at,
-            context_length,
-            prompt_price_per_million: parse_price_field(pricing.prompt),
-            completion_price_per_million: parse_price_field(pricing.completion),
-        }
-    }
-}
-
-fn parse_price_field(value: Option<String>) -> Option<f64> {
-    value.and_then(|raw| raw.parse::<f64>().ok())
 }
 
 #[derive(Debug, Deserialize)]

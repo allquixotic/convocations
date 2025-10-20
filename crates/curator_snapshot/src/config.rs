@@ -7,7 +7,7 @@ use clap::Parser;
 use crate::error::CuratorError;
 
 /// Default schema version emitted into the snapshot.
-pub const SNAPSHOT_SCHEMA_VERSION: u32 = 1;
+pub const SNAPSHOT_SCHEMA_VERSION: u32 = 2;
 
 /// CLI surface for the snapshot generator.
 #[derive(Debug, Parser, Clone)]

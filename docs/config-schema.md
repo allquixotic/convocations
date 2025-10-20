@@ -16,7 +16,7 @@ The system automatically migrates from the legacy `settings.json` format:
 **Location**: `~/.config/convocations/config.toml`
 
 **Structure**:
-- `schema_version`: Integer version for future migration handling (currently 1)
+- `schema_version`: Integer version for future migration handling (currently 2)
 - `[runtime]`: Runtime preferences shared between CLI and GUI
 - `[ui]`: GUI-only preferences (theme, technical log visibility, etc.)
 - `[[presets]]`: Array of preset definitions (both built-in and user-defined)
@@ -28,7 +28,7 @@ The system automatically migrates from the legacy `settings.json` format:
 **Presets**: Built-in presets ("Saturday 10pm-midnight", "Tuesday 7pm", "Tuesday 8pm", "Friday 6pm") preserve their original semantics. User-defined presets use the same structure with `builtin = false`.
 
 ```toml
-schema_version = 1
+schema_version = 2
 
 [runtime]
 chat_log_path = "~/Documents/Elder Scrolls Online/live/Logs/ChatLog.log"
@@ -112,7 +112,7 @@ builtin = false
 | `duration_override.hours` | f32 | 1.0 | Custom duration in hours (minimum 1.0) |
 | `openrouter_model` | Option<string> | `google/gemini-2.5-flash-lite` | Default OpenRouter model used for AI corrections |
 | `openrouter_api_key` | secret reference | n/a | Secure reference describing where the OpenRouter key is stored (`{ backend = \"keyring\", account = \"...\" }` or `{ backend = \"local-encrypted\", nonce = \"...\", ciphertext = \"...\" }`). Managed automatically—do not edit manually. |
-| `free_models_only` | bool | false | When true, restricts the recommended model list to free OpenRouter models |
+| `free_models_only` | bool | false | When true, filters the full OpenRouter model list to show only free entries |
 
 `openrouter_api_key` always resolves to a `SecretValue`. Plaintext entries are migrated during load; if the keyring backend is unavailable, the encrypted fallback uses the master key at `~/.config/convocations/secret.key` (0600 permissions).
 

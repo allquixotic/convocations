@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "generated_at": "2025-10-18T20:21:02.689721+00:00",
+  "schema_version": 2,
+  "generated_at": "2025-10-19T01:33:09.635403+00:00",
   "metadata": {
     "thresholds": {
       "min_free_aaii": 60.0,
@@ -17,8 +17,8 @@
     "counts": {
       "curated_free": 6,
       "curated_cheap": 4,
-      "unmatched": 236,
-      "discarded": 66
+      "unmatched": 214,
+      "discarded": 90
     }
   },
   "free": [
@@ -32,7 +32,14 @@
       "price_source": "openrouter",
       "context_length": 128000,
       "modalities": [],
-      "match_strategy": "fuzzy:NVIDIA: Nemotron Nano 9B V2 (free)"
+      "match_strategy": "fuzzy:NVIDIA: Nemotron Nano 9B V2 (free)",
+      "openrouter_created_at": "2025-09-05T21:13:27+00:00",
+      "cheapest_endpoint": {
+        "name": "Nvidia | nvidia/nemotron-nano-9b-v2:free",
+        "provider": "Nvidia",
+        "prompt_price_per_million": 0.0,
+        "completion_price_per_million": 0.0
+      }
     },
     {
       "slug": "deepseek/deepseek-chat-v3.1:free",
@@ -45,7 +52,14 @@
       "context_length": 163800,
       "modalities": [],
       "match_strategy": "manual-series:deepseek",
-      "aa_last_updated": "2025-08-21T12:33:48+00:00"
+      "aa_last_updated": "2025-08-21T12:33:48+00:00",
+      "openrouter_created_at": "2025-08-21T12:33:48+00:00",
+      "cheapest_endpoint": {
+        "name": "OpenInference | deepseek/deepseek-chat-v3.1:free",
+        "provider": "OpenInference",
+        "prompt_price_per_million": 0.0,
+        "completion_price_per_million": 0.0
+      }
     },
     {
       "slug": "meta-llama/llama-3.3-8b-instruct:free",
@@ -58,7 +72,14 @@
       "context_length": 128000,
       "modalities": [],
       "match_strategy": "manual-series:meta-llama",
-      "aa_last_updated": "2025-05-14T13:42:34+00:00"
+      "aa_last_updated": "2025-05-14T13:42:34+00:00",
+      "openrouter_created_at": "2025-05-14T13:42:34+00:00",
+      "cheapest_endpoint": {
+        "name": "Meta | meta-llama/llama-3.3-8b-instruct:free",
+        "provider": "Meta",
+        "prompt_price_per_million": 0.0,
+        "completion_price_per_million": 0.0
+      }
     },
     {
       "slug": "moonshotai/kimi-k2:free",
@@ -71,7 +92,14 @@
       "context_length": 32768,
       "modalities": [],
       "match_strategy": "manual-series:kimi",
-      "aa_last_updated": "2025-07-11T19:47:32+00:00"
+      "aa_last_updated": "2025-07-11T19:47:32+00:00",
+      "openrouter_created_at": "2025-07-11T19:47:32+00:00",
+      "cheapest_endpoint": {
+        "name": "OpenInference | moonshotai/kimi-k2:free",
+        "provider": "OpenInference",
+        "prompt_price_per_million": 0.0,
+        "completion_price_per_million": 0.0
+      }
     },
     {
       "slug": "qwen/qwen2.5-vl-32b-instruct:free",
@@ -84,7 +112,14 @@
       "context_length": 16384,
       "modalities": [],
       "match_strategy": "manual-series:qwen",
-      "aa_last_updated": "2025-03-24T18:10:38+00:00"
+      "aa_last_updated": "2025-03-24T18:10:38+00:00",
+      "openrouter_created_at": "2025-03-24T18:10:38+00:00",
+      "cheapest_endpoint": {
+        "name": "Chutes | qwen/qwen2.5-vl-32b-instruct:free",
+        "provider": "Chutes",
+        "prompt_price_per_million": 0.0,
+        "completion_price_per_million": 0.0
+      }
     },
     {
       "slug": "z-ai/glm-4.5-air:free",
@@ -97,45 +132,73 @@
       "context_length": 131072,
       "modalities": [],
       "match_strategy": "manual-series:zai-glm",
-      "aa_last_updated": "2025-07-25T19:20:58+00:00"
+      "aa_last_updated": "2025-07-25T19:20:58+00:00",
+      "openrouter_created_at": "2025-07-25T19:20:58+00:00",
+      "cheapest_endpoint": {
+        "name": "Chutes | z-ai/glm-4.5-air:free",
+        "provider": "Chutes",
+        "prompt_price_per_million": 0.0,
+        "completion_price_per_million": 0.0
+      }
     }
   ],
   "cheap": [
     {
-      "slug": "openai/o3",
-      "display_name": "OpenAI: o3",
+      "slug": "openai/gpt-4o-mini",
+      "display_name": "OpenAI: GPT-4o-mini",
       "provider": "openai",
-      "aaii": 65.5,
-      "price_in_per_million": 2e-6,
-      "price_out_per_million": 8e-6,
+      "aaii": 21.2,
+      "price_in_per_million": 1.5e-7,
+      "price_out_per_million": 6e-7,
       "price_source": "openrouter",
-      "context_length": 200000,
+      "context_length": 128000,
       "modalities": [],
-      "match_strategy": "derived:suffix:o3"
+      "match_strategy": "derived:suffix:gpt-4o-mini",
+      "openrouter_created_at": "2024-07-18T00:00:00+00:00",
+      "cheapest_endpoint": {
+        "name": "OpenAI | openai/gpt-4o-mini",
+        "provider": "OpenAI",
+        "prompt_price_per_million": 1.5e-7,
+        "completion_price_per_million": 6e-7
+      }
     },
     {
-      "slug": "x-ai/grok-4",
-      "display_name": "xAI: Grok 4",
+      "slug": "x-ai/grok-4-fast",
+      "display_name": "xAI: Grok 4 Fast",
       "provider": "x-ai",
-      "aaii": 65.3,
-      "price_in_per_million": 3e-6,
-      "price_out_per_million": 0.000015,
+      "aaii": 38.6,
+      "price_in_per_million": 2e-7,
+      "price_out_per_million": 5e-7,
       "price_source": "openrouter",
-      "context_length": 256000,
+      "context_length": 2000000,
       "modalities": [],
-      "match_strategy": "derived:suffix:grok-4"
+      "match_strategy": "derived:suffix:grok-4-fast",
+      "openrouter_created_at": "2025-09-19T00:01:30+00:00",
+      "cheapest_endpoint": {
+        "name": "xAI | x-ai/grok-4-fast",
+        "provider": "xAI",
+        "prompt_price_per_million": 2e-7,
+        "completion_price_per_million": 5e-7
+      }
     },
     {
-      "slug": "google/gemini-2.5-flash",
-      "display_name": "Google: Gemini 2.5 Flash",
+      "slug": "google/gemini-2.5-flash-lite-preview-09-2025",
+      "display_name": "Google: Gemini 2.5 Flash Lite Preview 09-2025",
       "provider": "google",
-      "aaii": 40.4,
-      "price_in_per_million": 3e-7,
-      "price_out_per_million": 2.5e-6,
+      "aaii": 41.6,
+      "price_in_per_million": 1e-7,
+      "price_out_per_million": 4e-7,
       "price_source": "openrouter",
       "context_length": 1048576,
       "modalities": [],
-      "match_strategy": "alias:gemini-2-5-flash"
+      "match_strategy": "alias:gemini-2-5-flash-lite-preview-09-2025",
+      "openrouter_created_at": "2025-09-25T17:01:26+00:00",
+      "cheapest_endpoint": {
+        "name": "Google AI Studio | google/gemini-2.5-flash-lite-preview-09-2025",
+        "provider": "Google AI Studio",
+        "prompt_price_per_million": 1e-7,
+        "completion_price_per_million": 4e-7
+      }
     },
     {
       "slug": "anthropic/claude-haiku-4.5",
@@ -147,7 +210,14 @@
       "price_source": "openrouter",
       "context_length": 200000,
       "modalities": [],
-      "match_strategy": "alias:claude-4-5-haiku"
+      "match_strategy": "alias:claude-4-5-haiku",
+      "openrouter_created_at": "2025-10-15T17:00:38+00:00",
+      "cheapest_endpoint": {
+        "name": "Anthropic | anthropic/claude-4.5-haiku-20251001",
+        "provider": "Anthropic",
+        "prompt_price_per_million": 1e-6,
+        "completion_price_per_million": 5e-6
+      }
     }
   ],
   "unmatched": [
@@ -232,11 +302,6 @@
       "slug": "gemma-3-12b"
     },
     {
-      "name": "Gemini 2.5 Pro",
-      "provider": "google",
-      "slug": "gemini-2-5-pro"
-    },
-    {
       "name": "Gemini 2.5 Flash-Lite Preview (Sep '25) (Reasoning)",
       "provider": "google",
       "slug": "gemini-2-5-flash-lite-preview-09-2025-reasoning"
@@ -260,16 +325,6 @@
       "name": "Gemma 3 270M",
       "provider": "google",
       "slug": "gemma-3-270m"
-    },
-    {
-      "name": "Gemini 2.5 Flash Preview (Sep '25) (Non-reasoning)",
-      "provider": "google",
-      "slug": "gemini-2-5-flash-preview-09-2025"
-    },
-    {
-      "name": "Gemini 2.5 Flash-Lite Preview (Sep '25) (Non-reasoning)",
-      "provider": "google",
-      "slug": "gemini-2-5-flash-lite-preview-09-2025"
     },
     {
       "name": "Gemini 2.5 Flash Preview (Sep '25) (Reasoning)",
@@ -317,11 +372,6 @@
       "slug": "magistral-small-2509"
     },
     {
-      "name": "Mistral Medium 3.1",
-      "provider": "mistral",
-      "slug": "mistral-medium-3-1"
-    },
-    {
       "name": "Codestral (Jan '25)",
       "provider": "mistral",
       "slug": "codestral"
@@ -337,19 +387,9 @@
       "slug": "deepseek-v3-2"
     },
     {
-      "name": "DeepSeek V3.1 Terminus (Non-reasoning)",
-      "provider": "deepseek",
-      "slug": "deepseek-v3-1-terminus"
-    },
-    {
       "name": "DeepSeek V3.1 Terminus (Reasoning)",
       "provider": "deepseek",
       "slug": "deepseek-v3-1-terminus-reasoning"
-    },
-    {
-      "name": "DeepSeek R1 0528 Qwen3 8B",
-      "provider": "deepseek",
-      "slug": "deepseek-r1-qwen3-8b"
     },
     {
       "name": "DeepSeek V3.2 Exp (Reasoning)",
@@ -477,11 +517,6 @@
       "slug": "llama-3-1-nemotron-nano-4b-reasoning"
     },
     {
-      "name": "NVIDIA Nemotron Nano 9B V2 (Non-reasoning)",
-      "provider": "nvidia",
-      "slug": "nvidia-nemotron-nano-9b-v2"
-    },
-    {
       "name": "Granite 3.3 8B (Non-reasoning)",
       "provider": "ibm",
       "slug": "granite-3-3-8b-instruct"
@@ -547,34 +582,14 @@
       "slug": "exaone-4-0-1-2b-reasoning"
     },
     {
-      "name": "ERNIE 4.5 300B A47B",
-      "provider": "baidu",
-      "slug": "ernie-4-5-300b-a47b"
-    },
-    {
       "name": "GLM-4.5V (Reasoning)",
       "provider": "zai",
       "slug": "glm-4-5v-reasoning"
     },
     {
-      "name": "GLM-4.6 (Non-reasoning)",
-      "provider": "zai",
-      "slug": "glm-4-6"
-    },
-    {
       "name": "GLM-4.6 (Reasoning)",
       "provider": "zai",
       "slug": "glm-4-6-reasoning"
-    },
-    {
-      "name": "GLM-4.5-Air",
-      "provider": "zai",
-      "slug": "glm-4-5-air"
-    },
-    {
-      "name": "GLM-4.5V (Non-reasoning)",
-      "provider": "zai",
-      "slug": "glm-4-5v"
     },
     {
       "name": "Aya Expanse 32B",
@@ -690,26 +705,6 @@
       "name": "Llama 65B",
       "provider": "meta",
       "slug": "llama-65b"
-    },
-    {
-      "name": "GPT-3.5 Turbo",
-      "provider": "openai",
-      "slug": "gpt-35-turbo"
-    },
-    {
-      "name": "GPT-4.1 mini",
-      "provider": "openai",
-      "slug": "gpt-4-1-mini"
-    },
-    {
-      "name": "GPT-4.1 nano",
-      "provider": "openai",
-      "slug": "gpt-4-1-nano"
-    },
-    {
-      "name": "GPT-3.5 Turbo (0613)",
-      "provider": "openai",
-      "slug": "gpt-3-5-turbo-0613"
     },
     {
       "name": "GPT-4.5 (Preview)",
@@ -877,11 +872,6 @@
       "slug": "gemini-1-0-pro"
     },
     {
-      "name": "Gemini 2.0 Flash-Lite (Feb '25)",
-      "provider": "google",
-      "slug": "gemini-2-0-flash-lite-001"
-    },
-    {
       "name": "Gemini 2.5 Flash-Lite (Reasoning)",
       "provider": "google",
       "slug": "gemini-2-5-flash-lite-reasoning"
@@ -902,11 +892,6 @@
       "slug": "gemini-1-5-flash-may-2024"
     },
     {
-      "name": "Gemini 2.5 Flash-Lite (Non-reasoning)",
-      "provider": "google",
-      "slug": "gemini-2-5-flash-lite"
-    },
-    {
       "name": "Gemini 2.0 Flash Thinking Experimental (Dec '24)",
       "provider": "google",
       "slug": "gemini-2-0-flash-thinking-exp-1219"
@@ -920,11 +905,6 @@
       "name": "Claude 3.5 Sonnet (June '24)",
       "provider": "anthropic",
       "slug": "claude-35-sonnet-june-24"
-    },
-    {
-      "name": "Claude 3.5 Haiku",
-      "provider": "anthropic",
-      "slug": "claude-3-5-haiku"
     },
     {
       "name": "Claude 3 Sonnet",
@@ -942,19 +922,9 @@
       "slug": "claude-4-opus-thinking"
     },
     {
-      "name": "Claude 3.7 Sonnet (Non-reasoning)",
-      "provider": "anthropic",
-      "slug": "claude-3-7-sonnet"
-    },
-    {
       "name": "Claude 2.0",
       "provider": "anthropic",
       "slug": "claude-2"
-    },
-    {
-      "name": "Claude 3.7 Sonnet (Reasoning)",
-      "provider": "anthropic",
-      "slug": "claude-3-7-sonnet-thinking"
     },
     {
       "name": "Claude 4 Opus (Non-reasoning)",
@@ -1152,11 +1122,6 @@
       "slug": "reka-edge"
     },
     {
-      "name": "Hermes 3 - Llama-3.1 70B",
-      "provider": "nous-research",
-      "slug": "hermes-3-llama-3-1-70b"
-    },
-    {
       "name": "Command-R+ (Aug '24)",
       "provider": "cohere",
       "slug": "command-r-plus"
@@ -1215,11 +1180,6 @@
       "name": "Qwen2 Instruct 72B",
       "provider": "alibaba",
       "slug": "qwen2-72b-instruct"
-    },
-    {
-      "name": "Qwen2.5 Coder Instruct 7B ",
-      "provider": "alibaba",
-      "slug": "qwen2-5-coder-7b-instruct"
     },
     {
       "name": "Qwen3 30B A3B (Reasoning)",
@@ -1338,12 +1298,12 @@
       "reason": "missing-aaii"
     },
     {
-      "slug": "qwen/qwen3-vl-8b-instruct",
-      "reason": "missing-aaii"
-    },
-    {
       "slug": "openai/gpt-4",
       "reason": "insufficient-context:min=8192,actual=8191"
+    },
+    {
+      "slug": "openai/gpt-3.5-turbo-0613",
+      "reason": "missing-aaii"
     },
     {
       "slug": "openai/gpt-oss-120b",
@@ -1352,6 +1312,10 @@
     {
       "slug": "openai/gpt-5-mini",
       "reason": "aaii-threshold:min=65.00,actual=64.30"
+    },
+    {
+      "slug": "google/gemini-2.5-pro",
+      "reason": "aaii-threshold:min=65.00,actual=59.60"
     },
     {
       "slug": "openai/o4-mini",
@@ -1374,8 +1338,16 @@
       "reason": "aaii-threshold:min=65.00,actual=35.80"
     },
     {
-      "slug": "qwen/qwen-turbo",
-      "reason": "aaii-threshold:min=65.00,actual=19.10"
+      "slug": "google/gemini-2.5-flash-preview-09-2025",
+      "reason": "aaii-threshold:min=65.00,actual=46.70"
+    },
+    {
+      "slug": "google/gemini-2.5-flash-lite-preview-09-2025",
+      "reason": "aaii-threshold:min=65.00,actual=41.60"
+    },
+    {
+      "slug": "anthropic/claude-haiku-4.5",
+      "reason": "aaii-threshold:min=65.00,actual=41.70"
     },
     {
       "slug": "mistralai/ministral-8b",
@@ -1394,12 +1366,24 @@
       "reason": "aaii-threshold:min=65.00,actual=29.10"
     },
     {
+      "slug": "mistralai/mistral-medium-3.1",
+      "reason": "aaii-threshold:min=65.00,actual=35.40"
+    },
+    {
       "slug": "mistralai/devstral-medium",
       "reason": "aaii-threshold:min=65.00,actual=27.90"
     },
     {
       "slug": "deepseek/deepseek-r1",
       "reason": "aaii-threshold:min=65.00,actual=52.00"
+    },
+    {
+      "slug": "deepseek/deepseek-v3.1-terminus",
+      "reason": "aaii-threshold:min=65.00,actual=45.70"
+    },
+    {
+      "slug": "deepseek/deepseek-r1-0528-qwen3-8b",
+      "reason": "aaii-threshold:min=65.00,actual=31.00"
     },
     {
       "slug": "x-ai/grok-4-fast",
@@ -1414,12 +1398,32 @@
       "reason": "aaii-threshold:min=65.00,actual=22.70"
     },
     {
+      "slug": "nvidia/nemotron-nano-9b-v2",
+      "reason": "aaii-threshold:min=65.00,actual=36.10"
+    },
+    {
       "slug": "moonshotai/kimi-k2-0905",
       "reason": "aaii-threshold:min=65.00,actual=50.40"
     },
     {
       "slug": "nousresearch/deephermes-3-mistral-24b-preview",
       "reason": "aaii-threshold:min=65.00,actual=15.50"
+    },
+    {
+      "slug": "baidu/ernie-4.5-300b-a47b",
+      "reason": "aaii-threshold:min=65.00,actual=32.90"
+    },
+    {
+      "slug": "z-ai/glm-4.6",
+      "reason": "aaii-threshold:min=65.00,actual=44.70"
+    },
+    {
+      "slug": "z-ai/glm-4.5-air",
+      "reason": "aaii-threshold:min=65.00,actual=48.80"
+    },
+    {
+      "slug": "z-ai/glm-4.5v",
+      "reason": "aaii-threshold:min=65.00,actual=26.00"
     },
     {
       "slug": "cohere/command-a",
@@ -1432,6 +1436,10 @@
     {
       "slug": "qwen/qwen3-next-80b-a3b-instruct",
       "reason": "aaii-threshold:min=65.00,actual=44.80"
+    },
+    {
+      "slug": "qwen/qwen3-vl-8b-instruct",
+      "reason": "aaii-threshold:min=65.00,actual=27.10"
     },
     {
       "slug": "qwen/qwen3-max",
@@ -1466,8 +1474,20 @@
       "reason": "aaii-threshold:min=65.00,actual=21.20"
     },
     {
+      "slug": "openai/gpt-3.5-turbo",
+      "reason": "aaii-threshold:min=65.00,actual=8.30"
+    },
+    {
+      "slug": "openai/gpt-4.1-mini",
+      "reason": "aaii-threshold:min=65.00,actual=42.50"
+    },
+    {
       "slug": "openai/gpt-4.1",
       "reason": "aaii-threshold:min=65.00,actual=43.40"
+    },
+    {
+      "slug": "openai/gpt-4.1-nano",
+      "reason": "aaii-threshold:min=65.00,actual=27.30"
     },
     {
       "slug": "openai/o3-mini-high",
@@ -1482,16 +1502,36 @@
       "reason": "aaii-threshold:min=65.00,actual=48.00"
     },
     {
-      "slug": "qwen/qwq-32b",
-      "reason": "aaii-threshold:min=65.00,actual=37.90"
+      "slug": "google/gemini-2.5-flash",
+      "reason": "aaii-threshold:min=65.00,actual=40.40"
+    },
+    {
+      "slug": "google/gemini-2.0-flash-lite-001",
+      "reason": "aaii-threshold:min=65.00,actual=26.80"
+    },
+    {
+      "slug": "google/gemini-2.5-flash-lite",
+      "reason": "aaii-threshold:min=65.00,actual=30.10"
     },
     {
       "slug": "anthropic/claude-3-opus",
       "reason": "aaii-threshold:min=65.00,actual=20.60"
     },
     {
+      "slug": "anthropic/claude-3.5-haiku",
+      "reason": "aaii-threshold:min=65.00,actual=20.20"
+    },
+    {
       "slug": "anthropic/claude-3-haiku",
       "reason": "aaii-threshold:min=65.00,actual=9.60"
+    },
+    {
+      "slug": "anthropic/claude-3.7-sonnet",
+      "reason": "aaii-threshold:min=65.00,actual=41.10"
+    },
+    {
+      "slug": "anthropic/claude-3.7-sonnet:thinking",
+      "reason": "aaii-threshold:min=65.00,actual=49.90"
     },
     {
       "slug": "mistralai/mistral-large-2407",
@@ -1586,6 +1626,10 @@
       "reason": "aaii-threshold:min=65.00,actual=48.10"
     },
     {
+      "slug": "nousresearch/hermes-3-llama-3.1-70b",
+      "reason": "aaii-threshold:min=65.00,actual=14.70"
+    },
+    {
       "slug": "z-ai/glm-4.5",
       "reason": "aaii-threshold:min=65.00,actual=51.30"
     },
@@ -1596,6 +1640,18 @@
     {
       "slug": "qwen/qwen-2.5-coder-32b-instruct",
       "reason": "aaii-threshold:min=65.00,actual=21.80"
+    },
+    {
+      "slug": "qwen/qwen-turbo",
+      "reason": "aaii-threshold:min=65.00,actual=19.10"
+    },
+    {
+      "slug": "qwen/qwen2.5-coder-7b-instruct",
+      "reason": "aaii-threshold:min=65.00,actual=12.20"
+    },
+    {
+      "slug": "qwen/qwq-32b",
+      "reason": "aaii-threshold:min=65.00,actual=37.90"
     }
   ]
 }
