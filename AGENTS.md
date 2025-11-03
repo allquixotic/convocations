@@ -356,3 +356,5 @@ Secrets are managed by the core crate:
     [x] Add `rconv-core` curator module unit tests covering snapshot parsing and discovery helpers.
     [x] Add async tests for curator module covering missing snapshot and API failure scenarios (use mocks).
     [x] Add frontend/unit or component test verifying dropdown renders curated options and handles empty state.
+[] Expand documentation so the CLI chapter covers preset/secret subcommands, links to the config schema for advanced flags, surfaces OAuth PKCE recovery guidance, and adds a concise build-from-source appendix distilled from `WARP.md`.
+[] Improve usability by replacing blocking alerts with inline notifications, adding a `convocations preset list/show` command, supporting directory-mode CLI flags, and splitting the monolithic frontend app into focused modules.

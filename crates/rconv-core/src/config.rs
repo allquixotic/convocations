@@ -756,6 +756,28 @@ fn sanitize_config(mut config: FileConfig) -> (FileConfig, Vec<String>, bool) {
         }
     }
 
+    if config.runtime.has_openrouter_api_key() {
+        match config.runtime.resolve_openrouter_api_key() {
+            Ok(Some(_)) => { /* Secret accessible; nothing to do */ }
+            Ok(None) => {
+                warnings.push(
+                    "Stored OpenRouter API key was not found in secure storage; clearing the saved key."
+                        .to_string(),
+                );
+                let _ = config.runtime.clear_openrouter_api_key();
+                secrets_migrated = true;
+            }
+            Err(err) => {
+                warnings.push(format!(
+                    "Failed to retrieve OpenRouter API key: {}. Clearing the saved key.",
+                    err
+                ));
+                let _ = config.runtime.clear_openrouter_api_key();
+                secrets_migrated = true;
+            }
+        }
+    }
+
     (config, warnings, secrets_migrated)
 }
 

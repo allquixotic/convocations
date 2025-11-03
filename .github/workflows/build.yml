@@ -2,11 +2,8 @@ name: Build and Release
 
 on:
   push:
-    branches: [ main, master ]
     tags:
       - 'v*'
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
     inputs:
       build_gui:
@@ -220,6 +217,7 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version '^2' --locked
 
+
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -275,6 +273,7 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version '^2' --locked
 
+
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -307,6 +306,10 @@ jobs:
     name: Build GUI - MacOS Universal
     runs-on: macos-14
     if: github.event.inputs.build_gui == 'true' || startsWith(github.ref, 'refs/tags/v')
+    env:
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -334,6 +337,16 @@ jobs:
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version '^2' --locked
+      - name: Validate macOS signing secrets
+        run: |
+          test -n "${{ secrets.APPLE_CERTIFICATE }}" || { echo "Missing APPLE_CERTIFICATE secret"; exit 1; }
+          test -n "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" || { echo "Missing APPLE_CERTIFICATE_PASSWORD secret"; exit 1; }
+          test -n "${{ secrets.APPLE_API_KEY }}" || { echo "Missing APPLE_API_KEY secret"; exit 1; }
+          test -n "${{ secrets.APPLE_API_KEY_BASE64 }}" || { echo "Missing APPLE_API_KEY_BASE64 secret"; exit 1; }
+          test -n "${{ secrets.APPLE_API_ISSUER }}" || { echo "Missing APPLE_API_ISSUER secret"; exit 1; }
+          test -n "${{ secrets.APPLE_TEAM_ID }}" || { echo "Missing APPLE_TEAM_ID secret"; exit 1; }
+        shell: bash
+
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -353,6 +366,26 @@ jobs:
           path: target
           key: ${{ runner.os }}-gui-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Import signing certificate
+        id: import-cert
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Configure notarization credentials
+        id: notarization-key
+        run: |
+          mkdir -p "$RUNNER_TEMP/apple_keys"
+          printf '%s' "${{ secrets.APPLE_API_KEY_BASE64 }}" | base64 -d > "$RUNNER_TEMP/apple_keys/AuthKey_${{ secrets.APPLE_API_KEY }}.p8"
+          chmod 600 "$RUNNER_TEMP/apple_keys/AuthKey_${{ secrets.APPLE_API_KEY }}.p8"
+          echo "key-path=$RUNNER_TEMP/apple_keys/AuthKey_${{ secrets.APPLE_API_KEY }}.p8" >> "$GITHUB_OUTPUT"
+          {
+            echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/apple_keys/AuthKey_${{ secrets.APPLE_API_KEY }}.p8"
+            echo "APPLE_SIGNING_IDENTITY=${{ steps.import-cert.outputs.codesign_identity }}"
+          } >> "$GITHUB_ENV"
+        shell: bash
+
       - name: Build Tauri application (Universal)
         env:
           OPENSSL_DIR: ${{ env.OPENSSL_DIR_ARM }}
@@ -361,6 +394,11 @@ jobs:
           PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH_UNIVERSAL }}
           PKG_CONFIG_PATH_AARCH64_APPLE_DARWIN: ${{ env.PKG_CONFIG_PATH_ARM }}
           PKG_CONFIG_PATH_X86_64_APPLE_DARWIN: ${{ env.PKG_CONFIG_PATH_X86 }}
+          APPLE_SIGNING_IDENTITY: ${{ steps.import-cert.outputs.codesign_identity }}
+          APPLE_API_KEY_PATH: ${{ steps.notarization-key.outputs.key-path }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           PKG_CONFIG_ALLOW_CROSS: 1
         run: cargo tauri build --target universal-apple-darwin
 

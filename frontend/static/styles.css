@@ -21,6 +21,42 @@ main.container {
   opacity: 0.8;
 }
 
+/* Sticky toolbar */
+.sticky-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--pico-background-color);
+  border-bottom: 1px solid var(--pico-muted-border-color);
+  margin-bottom: var(--pico-spacing);
+  padding: calc(var(--pico-spacing) * 0.5) 0;
+  backdrop-filter: blur(6px);
+}
+
+.sticky-toolbar__content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pico-spacing);
+}
+
+.sticky-toolbar__status {
+  min-height: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.sticky-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sticky-toolbar__message {
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
 /* Status indicators */
 .status-ok {
   color: var(--pico-ins-color);
@@ -168,6 +204,22 @@ main.container {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.ai-config-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pico-spacing);
+  padding: calc(var(--pico-spacing) * 1.25);
+  border: 1px solid var(--pico-primary);
+  border-radius: var(--pico-border-radius);
+  background: color-mix(in srgb, var(--pico-primary) 12%, transparent);
+}
+
+@supports not (color-mix(in srgb, red, red)) {
+  .ai-config-box {
+    background: var(--pico-primary-background);
+  }
 }
 
 /* Radio groups */

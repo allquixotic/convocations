@@ -262,6 +262,29 @@ function App() {
     }
   }, [progressLog, ui?.show_technical_log, ui?.follow_technical_log]);
 
+  const saveButtonDisabled = loading || !config;
+  const saveButtonLabel = saveState.status === 'saving' ? 'Saving…' : 'Save Settings';
+  let saveStatusContent = null;
+  if (saveState.status === 'saved') {
+    saveStatusContent = h(
+      'span',
+      { class: 'status-ok' },
+      saveState.message ?? 'Settings saved.',
+    );
+  } else if (saveState.status === 'error') {
+    saveStatusContent = h(
+      'span',
+      { class: 'status-error' },
+      saveState.message ?? 'Save failed.',
+    );
+  } else if (saveState.status === 'saving') {
+    saveStatusContent = h(
+      'span',
+      { class: 'sticky-toolbar__message' },
+      'Saving…',
+    );
+  }
+
   const outputTarget = config?.output_target === 'directory' ? 'directory' : 'file';
   const defaultOutfile = derived?.outfile?.default ?? null;
   const defaultDirectory = useMemo(() => {
@@ -1569,6 +1592,33 @@ function App() {
         ),
       ),
     ),
+    config
+      ? h(
+          'div',
+          { class: 'sticky-toolbar' },
+          h(
+            'div',
+            { class: 'sticky-toolbar__content' },
+            saveStatusContent
+              ? h('div', { class: 'sticky-toolbar__status' }, saveStatusContent)
+              : h('div', { class: 'sticky-toolbar__status' }),
+            h(
+              'div',
+              { class: 'sticky-toolbar__actions' },
+              h(
+                'button',
+                {
+                  type: 'button',
+                  class: 'button button--secondary',
+                  onClick: handleSave,
+                  disabled: saveButtonDisabled,
+                },
+                saveButtonLabel,
+              ),
+            ),
+          ),
+        )
+      : null,
     loading
       ? h(
           'section',
@@ -1927,158 +1977,174 @@ function App() {
                 ),
               ),
             ),
-            h(
-              'div',
-              { class: 'form-group' },
-              h('h3', { class: 'group-title' }, 'OpenRouter AI Configuration'),
-              h('p', { class: 'muted', style: 'margin-bottom: 1rem;' }, 'Configure OpenRouter API for AI-powered corrections'),
-              h(
-                'div',
-                { class: 'field-grid' },
-                h(
-                  'label',
-                  { class: fieldClasses('field field--full', 'openrouter_key_input') },
-                  h('span', { class: 'field-label' }, 'OpenRouter API Key'),
+            config.use_llm
+              ? h(
+                  'div',
+                  { class: 'form-group' },
                   h(
                     'div',
-                    {
-                      style:
-                        'display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;',
-                    },
-                    h('input', {
-                      type: 'password',
-                      placeholder: 'sk-or-v1-...',
-                      value: config.openrouter_key_input ?? '',
-                      onInput: handleText('openrouter_key_input'),
-                      style: 'flex: 1 1 220px;',
+                    { class: 'ai-config-box' },
+                    h('h3', { class: 'group-title' }, 'OpenRouter AI Configuration'),
+                    h(
+                      'p',
+                      { class: 'muted', style: 'margin-bottom: 1rem;' },
+                      'Configure OpenRouter for AI-powered corrections',
+                    ),
+                    h(
+                      'div',
+                      { class: 'field-grid' },
+                      h(
+                        'label',
+                        { class: fieldClasses('field field--full', 'openrouter_key_input') },
+                        h('span', { class: 'field-label' }, 'OpenRouter API Key'),
+                        h(
+                          'div',
+                          {
+                            style:
+                              'display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;',
+                          },
+                          h('input', {
+                            type: 'password',
+                            placeholder: 'sk-or-v1-...',
+                            value: config.openrouter_key_input ?? '',
+                            onInput: handleText('openrouter_key_input'),
+                            style: 'flex: 1 1 220px;',
+                          }),
+                          h(
+                            'button',
+                            {
+                              type: 'button',
+                              class: 'button button--secondary',
+                              onClick: handleStoreOpenRouterKey,
+                              disabled:
+                                oauthInProgress || !(config.openrouter_key_input ?? '').trim().length,
+                            },
+                            'Save Key',
+                          ),
+                          config.openrouter_has_secret
+                            ? h(
+                                'button',
+                                {
+                                  type: 'button',
+                                  class: 'button button--secondary',
+                                  onClick: handleClearOpenRouterKey,
+                                  disabled: oauthInProgress,
+                                },
+                                'Remove Saved Key',
+                              )
+                            : null,
+                          h(
+                            'button',
+                            {
+                              type: 'button',
+                              class: 'button button--secondary',
+                              onClick: handleOAuthLogin,
+                              disabled: oauthInProgress,
+                            },
+                            oauthInProgress ? 'Opening...' : 'Login',
+                          ),
+                        ),
+                        h(
+                          'span',
+                          { class: 'field-hint' },
+                          config.openrouter_has_secret
+                            ? 'Key saved securely. Saving a new key will replace it.'
+                            : 'Enter your OpenRouter key or use OAuth to fetch one automatically.',
+                        ),
+                        secretSaveState.status === 'error'
+                          ? h('span', { class: 'field-error' }, secretSaveState.message)
+                          : null,
+                        secretSaveState.status === 'saved'
+                          ? h('span', { class: 'field-success' }, secretSaveState.message)
+                          : null,
+                        renderFieldMessages('openrouter_key_input'),
+                      ),
+                    ),
+                    h(
+                      'div',
+                      { class: 'checkbox-grid' },
+                      h(
+                        'label',
+                        { class: checkboxClasses('free_models_only') },
+                        h('input', {
+                          type: 'checkbox',
+                          checked: Boolean(config.free_models_only),
+                          onChange: handleCheckbox('free_models_only'),
+                        }),
+                        h('span', null, 'Show only free models'),
+                        renderFieldMessages('free_models_only'),
+                      ),
+                    ),
+                    h(CuratedModelSelect, {
+                      curatedModels,
+                      value: curatedSelectValue,
+                      onChange: handleCuratedSelect,
+                      fieldClass: fieldClasses('field field--full', 'curated_model'),
+                      autoValue: CURATED_AUTO_VALUE,
+                      manualValue: CURATED_MANUAL_VALUE,
                     }),
                     h(
-                      'button',
-                      {
-                        type: 'button',
-                        class: 'button button--secondary',
-                        onClick: handleStoreOpenRouterKey,
-                        disabled:
-                          oauthInProgress || !(config.openrouter_key_input ?? '').trim().length,
-                      },
-                      'Save Key',
-                    ),
-                    config.openrouter_has_secret
-                      ? h(
-                          'button',
-                          {
-                            type: 'button',
-                            class: 'button button--secondary',
-                            onClick: handleClearOpenRouterKey,
-                            disabled: oauthInProgress,
-                          },
-                          'Remove Saved Key',
-                        )
-                      : null,
-                    h(
-                      'button',
-                      {
-                        type: 'button',
-                        class: 'button button--secondary',
-                        onClick: handleOAuthLogin,
-                        disabled: oauthInProgress,
-                      },
-                      oauthInProgress ? 'Opening...' : 'OAuth Login',
-                    ),
-                  ),
-                  h(
-                    'span',
-                    { class: 'field-hint' },
-                    config.openrouter_has_secret
-                      ? 'Key saved securely. Saving a new key will replace it.'
-                      : 'Enter your OpenRouter key or use OAuth to fetch one automatically.',
-                  ),
-                  secretSaveState.status === 'error'
-                    ? h('span', { class: 'field-error' }, secretSaveState.message)
-                    : null,
-                  secretSaveState.status === 'saved'
-                    ? h('span', { class: 'field-success' }, secretSaveState.message)
-                    : null,
-                  renderFieldMessages('openrouter_key_input'),
-                ),
-              ),
-              h(
-                'div',
-                { class: 'checkbox-grid' },
-                h(
-                  'label',
-                  { class: checkboxClasses('free_models_only') },
-                  h('input', {
-                    type: 'checkbox',
-                    checked: Boolean(config.free_models_only),
-                    onChange: handleCheckbox('free_models_only'),
-                  }),
-                  h('span', null, 'Show only free models'),
-                  renderFieldMessages('free_models_only'),
-                ),
-              ),
-              h(CuratedModelSelect, {
-                curatedModels,
-                value: curatedSelectValue,
-                onChange: handleCuratedSelect,
-                fieldClass: fieldClasses('field field--full', 'curated_model'),
-                autoValue: CURATED_AUTO_VALUE,
-                manualValue: CURATED_MANUAL_VALUE,
-              }),
-              h(
-                'div',
-                { class: 'field-grid', style: 'margin-top: 1rem;' },
-                h(
-                  'label',
-                  { class: fieldClasses('field field--full', 'openrouter_model') },
-                  h(
-                    'span',
-                    { class: 'field-label' },
-                    'Model ',
-                    h(
-                      'button',
-                      {
-                        type: 'button',
-                        class: 'button button--small button--secondary',
-                        onClick: fetchModels,
-                        disabled: loadingModels,
-                        style: 'margin-left: 0.5rem; padding: 4px 8px; font-size: 0.8rem;',
-                      },
-                      loadingModels ? 'Loading...' : 'Load Models',
-                    ),
-                  ),
-                  models.length > 0
-                    ? h(
-                        'select',
-                        {
-                          value: config.openrouter_model ?? '',
-                          onChange: handleText('openrouter_model'),
-                          style: 'width: 100%;',
-                        },
-                        h('option', { value: '' }, 'Select a model or use default'),
-                        models
-                          .filter((model) =>
-                            config.free_models_only ? model.pricing.prompt === '0' && model.pricing.completion === '0' : true
-                          )
-                          .map((model) =>
-                            h(
-                              'option',
-                              { key: model.id, value: model.id },
-                              `${model.name} (${model.id})${model.pricing.prompt === '0' && model.pricing.completion === '0' ? ' - FREE' : ''}`,
-                            ),
+                      'div',
+                      { class: 'field-grid', style: 'margin-top: 1rem;' },
+                      h(
+                        'label',
+                        { class: fieldClasses('field field--full', 'openrouter_model') },
+                        h(
+                          'span',
+                          { class: 'field-label' },
+                          'Model ',
+                          h(
+                            'button',
+                            {
+                              type: 'button',
+                              class: 'button button--small button--secondary',
+                              onClick: fetchModels,
+                              disabled: loadingModels,
+                              style: 'margin-left: 0.5rem; padding: 4px 8px; font-size: 0.8rem;',
+                            },
+                            loadingModels ? 'Loading...' : 'Load Models',
                           ),
-                      )
-                    : h('input', {
-                        type: 'text',
-                        placeholder: 'google/gemini-2.5-flash-lite',
-                        value: config.openrouter_model ?? '',
-                        onInput: handleText('openrouter_model'),
-                      }),
-                  h('span', { class: 'field-hint' }, models.length > 0 ? 'Select a model from the dropdown' : 'Click "Load Models" to see available options, or enter manually'),
-                  renderFieldMessages('openrouter_model'),
-                ),
-              ),
-            ),
+                        ),
+                        models.length > 0
+                          ? h(
+                              'select',
+                              {
+                                value: config.openrouter_model ?? '',
+                                onChange: handleText('openrouter_model'),
+                                style: 'width: 100%;',
+                              },
+                              h('option', { value: '' }, 'Select a model or use default'),
+                              models
+                                .filter((model) =>
+                                  config.free_models_only ? model.pricing.prompt === '0' && model.pricing.completion === '0' : true
+                                )
+                                .map((model) =>
+                                  h(
+                                    'option',
+                                    { key: model.id, value: model.id },
+                                    `${model.name} (${model.id})${model.pricing.prompt === '0' && model.pricing.completion === '0' ? ' - FREE' : ''}`,
+                                  ),
+                                ),
+                            )
+                          : h('input', {
+                              type: 'text',
+                              placeholder: 'google/gemini-2.5-flash-lite',
+                              value: config.openrouter_model ?? '',
+                              onInput: handleText('openrouter_model'),
+                            }),
+                        h(
+                          'span',
+                          { class: 'field-hint' },
+                          models.length > 0
+                            ? 'Select a model from the dropdown'
+                            : 'Click "Load Models" to see available options, or enter manually',
+                        ),
+                        renderFieldMessages('openrouter_model'),
+                      ),
+                    ),
+                  ),
+                )
+              : null,
             h(
               'div',
               { class: 'form-group' },
@@ -2345,16 +2411,6 @@ function App() {
           'button',
           {
             type: 'button',
-            class: 'button button--secondary',
-            onClick: handleSave,
-            disabled: loading || !config,
-          },
-          saveState.status === 'saving' ? 'Saving…' : 'Save Settings',
-        ),
-        h(
-          'button',
-          {
-            type: 'button',
             class: 'button button--primary',
             onClick: handleProcess,
             disabled: loading || !config || runDisabled,
@@ -2362,12 +2418,6 @@ function App() {
           processingState.active ? 'Processing…' : 'Run Processor',
         ),
       ),
-      saveState.status === 'saved'
-        ? h('p', { class: 'status-ok' }, saveState.message ?? 'Settings saved.')
-        : null,
-      saveState.status === 'error'
-        ? h('p', { class: 'status-error' }, saveState.message ?? 'Save failed.')
-        : null,
     ),
     ui?.show_technical_log
       ? h(
