@@ -129,7 +129,20 @@ pub fn resolve_outfile_paths(
     let working_dir_buf = resolve_working_dir(working_dir);
     let working_dir_ref = working_dir_buf.as_deref();
 
-    let default = derive_default_outfile(config, working_dir_ref, today)?;
+    let directory_override = config
+        .output_directory
+        .as_ref()
+        .map(|value| value.trim())
+        .filter(|trimmed| !trimmed.is_empty())
+        .map(|trimmed| trimmed.to_string());
+    let directory_buf = directory_override
+        .as_ref()
+        .map(|dir| resolve_output_directory(dir, working_dir_ref));
+    let directory_ref = directory_buf.as_deref();
+
+    let base_for_defaults = directory_ref.or(working_dir_ref);
+
+    let default = derive_default_outfile(config, base_for_defaults, today)?;
 
     let override_path = config
         .outfile
@@ -139,8 +152,10 @@ pub fn resolve_outfile_paths(
         .map(|trimmed| trimmed.to_string());
     let was_overridden = override_path.is_some();
 
+    let base_for_overrides = directory_ref.or(working_dir_ref);
+
     let effective = match override_path {
-        Some(ref value) => qualify_outfile_path(value, working_dir_ref),
+        Some(ref value) => qualify_outfile_path(value, base_for_overrides),
         None => default.clone(),
     };
 
@@ -244,6 +259,22 @@ fn derive_file_prefix(config: &ConvocationsConfig, event_type: &EventType) -> St
 
 fn sanitize_for_filename(value: &str) -> String {
     value.replace(':', "-").replace('T', "_")
+}
+
+fn resolve_output_directory(directory: &str, working_dir: Option<&Path>) -> PathBuf {
+    let expanded = shellexpand::tilde(directory).to_string();
+    let candidate = PathBuf::from(&expanded);
+    if candidate.is_absolute() {
+        return candidate;
+    }
+
+    if let Some(base) = working_dir {
+        let mut combined = PathBuf::from(base);
+        combined.push(candidate);
+        combined
+    } else {
+        PathBuf::from(expanded)
+    }
 }
 
 fn resolve_working_dir(provided: Option<&Path>) -> Option<PathBuf> {
@@ -1811,6 +1842,7 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
     use std::path::Path;
+    use std::path::Path;
 
     #[test]
     fn test_resolve_outfile_paths_uses_preset_prefix() {
@@ -1989,5 +2021,43 @@ mod tests {
         // Find most recent Friday
         let friday = find_weekday_occurrence(today, chrono::Weekday::Fri, 0);
         assert_eq!(friday, NaiveDate::from_ymd_opt(2025, 10, 10).unwrap());
+    }
+
+    #[test]
+    fn resolve_outfile_paths_uses_directory_override() {
+        let mut config = ConvocationsConfig::default();
+        config.output_directory = Some("exports".to_string());
+        let today = NaiveDate::from_ymd_opt(2025, 10, 16).unwrap();
+
+        let result = resolve_outfile_paths(&config, Some(Path::new("workspace")), Some(today))
+            .expect("resolve");
+
+        assert_eq!(
+            Path::new(&result.default),
+            Path::new("workspace/exports/conv-101125.txt")
+        );
+        assert_eq!(Path::new(&result.effective), Path::new(&result.default));
+        assert!(!result.was_overridden);
+    }
+
+    #[test]
+    fn resolve_outfile_paths_applies_file_override_with_directory() {
+        let mut config = ConvocationsConfig::default();
+        config.output_directory = Some("exports".to_string());
+        config.outfile = Some("custom.txt".to_string());
+        let today = NaiveDate::from_ymd_opt(2025, 10, 16).unwrap();
+
+        let result = resolve_outfile_paths(&config, Some(Path::new("workspace")), Some(today))
+            .expect("resolve");
+
+        assert_eq!(
+            Path::new(&result.default),
+            Path::new("workspace/exports/conv-101125.txt")
+        );
+        assert_eq!(
+            Path::new(&result.effective),
+            Path::new("workspace/exports/custom.txt")
+        );
+        assert!(result.was_overridden);
     }
 }

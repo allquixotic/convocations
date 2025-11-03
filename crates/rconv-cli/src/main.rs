@@ -3,8 +3,10 @@ mod cli_args;
 use clap::Parser;
 use cli_args::{Cli, Command, PresetCommand, SecretCommand};
 use rconv_core::{
-    apply_runtime_overrides, config::PresetDefinition, curator, load_config, run_cli,
-    runtime_preferences_to_convocations, save_config, save_presets_and_ui_only,
+    apply_runtime_overrides,
+    config::{PresetDefinition, preset_id_from_name},
+    curator, load_config, run_cli, runtime_preferences_to_convocations, save_config,
+    save_presets_and_ui_only,
 };
 use rpassword::prompt_password;
 
@@ -114,6 +116,44 @@ fn handle_preset_command(command: PresetCommand) -> Result<(), String> {
     let mut config = load.config;
 
     match command {
+        PresetCommand::List => {
+            let mut entries: Vec<&PresetDefinition> = config.presets.iter().collect();
+            entries.sort_by(|a, b| a.name.cmp(&b.name));
+            if entries.is_empty() {
+                println!("No presets defined.");
+            } else {
+                println!(
+                    "{:<28}  {:<28}  {:<26}  {:>5}m  {:<10}  {:>5}  {}",
+                    "ID", "Name", "When", "Dur", "Prefix", "Weeks", "Source"
+                );
+                for preset in entries {
+                    let id = preset_id_from_name(&preset.name);
+                    let when = format!(
+                        "{} {} {}",
+                        capitalize_ascii(&preset.weekday),
+                        preset.start_time,
+                        preset.timezone
+                    );
+                    let source = if preset.builtin { "builtin" } else { "custom" };
+                    println!(
+                        "{:<28}  {:<28}  {:<26}  {:>5}m  {:<10}  {:>5}  {}",
+                        id,
+                        preset.name,
+                        when,
+                        preset.duration_minutes,
+                        preset.file_prefix,
+                        preset.default_weeks_ago,
+                        source
+                    );
+                }
+            }
+            Ok(())
+        }
+        PresetCommand::Show(args) => {
+            let preset = resolve_preset(&config.presets, &args)?;
+            print_preset_details(preset);
+            Ok(())
+        }
         PresetCommand::Create(args) => {
             if config.presets.iter().any(|preset| preset.name == args.name) {
                 return Err(format!("Preset '{}' already exists.", args.name));
@@ -222,4 +262,63 @@ fn handle_secret_command(command: SecretCommand) -> Result<(), String> {
             Ok(())
         }
     }
+}
+
+fn resolve_preset<'a>(
+    presets: &'a [PresetDefinition],
+    args: &cli_args::PresetShowArgs,
+) -> Result<&'a PresetDefinition, String> {
+    if let Some(ref raw_id) = args.id {
+        let trimmed = raw_id.trim();
+        if trimmed.is_empty() {
+            return Err("Preset ID cannot be empty.".into());
+        }
+        let slug = preset_id_from_name(trimmed);
+        presets
+            .iter()
+            .find(|preset| preset_id_from_name(&preset.name) == slug)
+            .ok_or_else(|| format!("Preset with ID '{}' not found.", trimmed))
+    } else if let Some(ref raw_name) = args.name {
+        let trimmed = raw_name.trim();
+        if trimmed.is_empty() {
+            return Err("Preset name cannot be empty.".into());
+        }
+        presets
+            .iter()
+            .find(|preset| preset.name.eq_ignore_ascii_case(trimmed))
+            .ok_or_else(|| format!("Preset named '{}' not found.", trimmed))
+    } else {
+        Err("Preset show requires either --id or --name.".into())
+    }
+}
+
+fn print_preset_details(preset: &PresetDefinition) {
+    let id = preset_id_from_name(&preset.name);
+    println!("Name        : {}", preset.name);
+    println!("ID          : {}", id);
+    println!(
+        "Source      : {}",
+        if preset.builtin { "builtin" } else { "custom" }
+    );
+    println!(
+        "Schedule    : {} at {} ({})",
+        capitalize_ascii(&preset.weekday),
+        preset.start_time,
+        preset.timezone
+    );
+    println!("Duration    : {} minutes", preset.duration_minutes);
+    println!("File prefix : {}", preset.file_prefix);
+    println!("Weeks ago   : {}", preset.default_weeks_ago);
+}
+
+fn capitalize_ascii(input: &str) -> String {
+    let mut chars = input.chars();
+    let mut result = String::new();
+    if let Some(first) = chars.next() {
+        result.push(first.to_ascii_uppercase());
+    }
+    for ch in chars {
+        result.push(ch.to_ascii_lowercase());
+    }
+    result
 }

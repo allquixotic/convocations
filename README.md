@@ -59,13 +59,36 @@ You can still run everything from a terminal:
 
 ```bash
 convocations --last 1          # last week’s Saturday event
-convocations --rsm7            # Tuesday 7 pm event
+convocations --rsm7            # Tuesday 7 pm event
 convocations --process-file exported.txt
 convocations --outfile ~/Documents/conv-output.txt
 convocations --llm=false       # skip AI clean-up
 ```
 
 The CLI writes files to your current working directory unless you give `--outfile` or set the `CONVOCATIONS_WORKING_DIR` environment variable to a folder of your choice.
+
+### Subcommands worth knowing
+
+- `convocations preset list` – show every built-in and custom preset with its schedule and defaults.
+- `convocations preset show --id saturday-10pm-midnight` – inspect a preset’s duration, prefix, and default week offset.
+- `convocations secret set-openrouter-key` – securely store your OpenRouter key (prompts if you omit the value).
+- `convocations secret clear-openrouter-key` – remove the saved key from the keyring/encrypted store.
+
+Run `convocations preset --help` or `convocations secret --help` to see all options.
+
+### Directory output mode
+
+Switch to directory mode when you want every run to drop files into a folder:
+
+```bash
+convocations --output-target directory --output-directory ~/Documents/Convocations
+```
+
+Provide `--output-directory ""` to clear the override while staying in directory mode. If you skip `--output-target`, supplying a directory automatically flips it for you.
+
+Need the exhaustive flag breakdown or config schema? Open `docs/config-schema.md`.
+
+If OAuth loops or refuses to launch, check `docs/openrouter-oauth.md` for PKCE troubleshooting steps and recovery tips.
 
 ## Output Files
 
@@ -103,8 +126,18 @@ After processing, you’ll see a colorized diff preview in the app that highligh
 
 **OAuth login errors**: If the OpenRouter page shows an error, close the window and try again. You can always paste a key manually with the CLI command above.
 
+## Build From Source (Appendix)
+
+1. Install Rust 1.89+ via `rustup`, then add the WebAssembly target with `rustup target add wasm32-unknown-unknown`.
+2. Install the Tauri CLI (`cargo install tauri-cli --locked --version '^2'`) and any platform dependencies (macOS: Xcode Command Line Tools, Linux: `libwebkit2gtk-4.1-dev` and friends).
+3. Clone the repository and run `cargo build --workspace` once to fetch dependencies.
+4. Build the CLI with `cargo cli-release` (places `rconv` under `target/release/`).
+5. Build the desktop app with `cargo gui-build` (bundles appear under `src-tauri/target/release/bundle/`).
+
+Need more detail? `AGENTS.md` contains the full workspace layout, optional workflows, and deployment scripts.
+
 ## Getting Help
 
-For technical details or advanced features, see `WARP.md` in the project folder.
+For technical details or advanced features, see `AGENTS.md` in the project folder.
 
 For issues or questions, visit: https://github.com/allquixotic/convocations

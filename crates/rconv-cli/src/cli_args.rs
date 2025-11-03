@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use clap::{ArgAction, Args, Parser, Subcommand, ValueHint};
 use rconv_core::config::{
-    DurationOverride, FRIDAY_6_PRESET_NAME, RuntimeOverrides, TUESDAY_7_PRESET_NAME,
+    DurationOverride, FRIDAY_6_PRESET_NAME, OutputTarget, RuntimeOverrides, TUESDAY_7_PRESET_NAME,
     TUESDAY_8_PRESET_NAME,
 };
 use rconv_core::curator::AUTO_SENTINEL;
@@ -30,6 +30,10 @@ pub enum Command {
 /// Preset management subcommands.
 #[derive(Debug, Clone, Subcommand)]
 pub enum PresetCommand {
+    /// List all presets.
+    List,
+    /// Show detailed information about a preset.
+    Show(PresetShowArgs),
     /// Create a new preset stored in config.toml.
     #[command(alias = "add")]
     Create(PresetCreateArgs),
@@ -38,6 +42,18 @@ pub enum PresetCommand {
     /// Delete a preset by ID (builtin presets cannot be removed).
     #[command(alias = "remove")]
     Delete(PresetDeleteArgs),
+}
+
+/// Arguments for showing preset details.
+#[derive(Debug, Clone, Args)]
+pub struct PresetShowArgs {
+    /// Lookup by preset ID (slug form).
+    #[arg(long, value_name = "ID", conflicts_with = "name")]
+    pub id: Option<String>,
+
+    /// Lookup by preset name (case-insensitive).
+    #[arg(long, value_name = "NAME", conflicts_with = "id")]
+    pub name: Option<String>,
 }
 
 /// Secret management commands.
@@ -154,6 +170,14 @@ pub struct ProcessArgs {
     /// List curated model IDs and exit.
     #[arg(long = "list-curated", action = ArgAction::SetTrue)]
     pub list_curated: bool,
+
+    /// Select output target mode (`file` or `directory`).
+    #[arg(long = "output-target", value_name = "MODE")]
+    pub output_target: Option<String>,
+
+    /// Override the directory used when in `directory` mode.
+    #[arg(long = "output-directory", value_hint = ValueHint::DirPath)]
+    pub output_directory: Option<String>,
 }
 
 impl ProcessArgs {
@@ -180,6 +204,8 @@ impl ProcessArgs {
             && self.outfile.is_none()
             && self.model.is_none()
             && !self.list_curated
+            && self.output_target.is_none()
+            && self.output_directory.is_none()
     }
 
     /// Convert CLI flags into runtime overrides plus any advisory warnings.
@@ -224,6 +250,33 @@ impl ProcessArgs {
             } else {
                 overrides.openrouter_model = Some(trimmed.to_string());
             }
+        }
+
+        if let Some(ref mode) = self.output_target {
+            let normalized = mode.trim().to_ascii_lowercase();
+            let target = match normalized.as_str() {
+                "file" => OutputTarget::File,
+                "directory" => OutputTarget::Directory,
+                other => {
+                    return Err(format!(
+                        "Unknown output target '{other}'. Expected 'file' or 'directory'."
+                    ));
+                }
+            };
+            overrides.output_target = Some(target);
+        }
+
+        if let Some(ref dir) = self.output_directory {
+            let parsed = parse_optional_field(dir);
+            if matches!(overrides.output_target, Some(OutputTarget::File)) && parsed.is_some() {
+                return Err(
+                    "Cannot combine --output-directory with --output-target=file.".to_string(),
+                );
+            }
+            if overrides.output_target.is_none() && parsed.is_some() {
+                overrides.output_target = Some(OutputTarget::Directory);
+            }
+            overrides.output_directory = Some(parsed);
         }
 
         let mut preset_ids = HashSet::new();
@@ -391,6 +444,35 @@ mod tests {
         assert_eq!(
             overrides.openrouter_model,
             Some("provider/custom".to_string())
+        );
+    }
+
+    #[test]
+    fn output_directory_implies_directory_target() {
+        let args = ProcessArgs {
+            output_directory: Some("results".to_string()),
+            ..Default::default()
+        };
+        let (overrides, warnings) = args.to_runtime_overrides().expect("overrides");
+        assert!(warnings.is_empty());
+        assert_eq!(overrides.output_target, Some(OutputTarget::Directory));
+        assert_eq!(
+            overrides.output_directory,
+            Some(Some("results".to_string()))
+        );
+    }
+
+    #[test]
+    fn output_directory_conflicts_with_file_target() {
+        let args = ProcessArgs {
+            output_target: Some("file".to_string()),
+            output_directory: Some("any".to_string()),
+            ..Default::default()
+        };
+        let err = args.to_runtime_overrides().expect_err("should fail");
+        assert!(
+            err.contains("--output-directory"),
+            "unexpected error message: {err}"
         );
     }
 }
