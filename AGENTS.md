@@ -356,3 +356,7 @@ Secrets are managed by the core crate:
     [x] Add `rconv-core` curator module unit tests covering snapshot parsing and discovery helpers.
     [x] Add async tests for curator module covering missing snapshot and API failure scenarios (use mocks).
     [x] Add frontend/unit or component test verifying dropdown renders curated options and handles empty state.
+[ ] Harden error paths by surfacing actionable diagnostics across CLI/GUI and adding structured logging for supportability.
+[ ] Expand integration coverage with curator+formatter end-to-end fixtures that assert output consistency and diff behavior.
+[ ] Improve first-run UX with guided CLI/GUI setup covering credential checks, sandboxed dry-run, and config status display.
+[ ] Add packaging polish: sample configs, richer `--help`/man content, and platform signing/notarization guidance for prebuilt binaries.
