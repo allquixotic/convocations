@@ -317,6 +317,7 @@ pub fn curate_models<'a>(
         &mut cheap_aaii_rejects,
         &mut cheap_price_rejects,
         &mut cheap_low_rejects,
+        tunables,
         openrouter,
     );
 
@@ -459,6 +460,7 @@ fn finalize_cheap(
     fallback_aaii: &mut Vec<(CuratedEntry, DiscardReason)>,
     fallback_price: &mut Vec<(CuratedEntry, DiscardReason)>,
     fallback_low: &mut Vec<(CuratedEntry, DiscardReason)>,
+    tunables: &Tunables,
     openrouter: &[OpenRouterModel],
 ) -> Vec<CuratedEntry> {
     let mut provider_pool: HashMap<String, Vec<CuratedEntry>> = HashMap::new();
@@ -498,7 +500,7 @@ fn finalize_cheap(
             continue;
         }
 
-        if let Some(entry) = fallback_first_model(provider, openrouter) {
+        if let Some(entry) = fallback_provider_candidate(provider, openrouter, tunables) {
             winners.push(entry);
         }
     }
@@ -752,6 +754,38 @@ fn fallback_first_model(provider: &str, openrouter: &[OpenRouterModel]) -> Optio
         .map(|model| {
             curated_entry_from_model(model, &format!("provider-fallback:first:{provider}"))
         })
+}
+
+fn fallback_provider_candidate(
+    provider: &str,
+    openrouter: &[OpenRouterModel],
+    tunables: &Tunables,
+) -> Option<CuratedEntry> {
+    let mut priced: Vec<&OpenRouterModel> = openrouter
+        .iter()
+        .filter(|model| provider_from_slug(&model.slug) == provider)
+        .filter(|model| {
+            model
+                .context_length
+                .map(|ctx| ctx >= tunables.min_context_length)
+                .unwrap_or(true)
+        })
+        .filter(|model| {
+            let price_in = sanitize_price(model.prompt_price_per_million);
+            let price_out = sanitize_price(model.completion_price_per_million);
+            meets_pricing_thresholds(price_in, price_out, tunables)
+        })
+        .collect();
+
+    priced.sort_by(|left, right| compare_models_by_price(*left, *right));
+
+    priced
+        .into_iter()
+        .next()
+        .map(|model| {
+            curated_entry_from_model(model, "provider-fallback:openrouter-cheap-thresholds")
+        })
+        .or_else(|| fallback_first_model(provider, openrouter))
 }
 
 fn curated_entry_from_model(model: &OpenRouterModel, strategy: &str) -> CuratedEntry {
@@ -1187,7 +1221,7 @@ mod tests {
         }
 
         let expected = vec![
-            ("openai", "openai/gpt-7-lite"),
+            ("openai", "openai/gpt-5-mini"),
             ("x-ai", "x-ai/grok-4-fast"),
             ("google", "google/gemini-3-flash"),
             ("anthropic", "anthropic/claude-haiku-5"),
@@ -1211,7 +1245,7 @@ mod tests {
     fn pricing_falls_back_to_openrouter_when_aa_missing() {
         let tunables = sample_tunables();
         let openrouter = vec![OpenRouterModel {
-            slug: "provider/test-model".to_string(),
+            slug: "openai/test-model".to_string(),
             name: "Test Model".to_string(),
             created_at: None,
             context_length: Some(16_384),
@@ -1221,8 +1255,8 @@ mod tests {
         }];
         let aa_models = vec![build_aa_model(
             "Test Model",
-            Some("provider"),
-            Some("provider/test-model"),
+            Some("openai"),
+            Some("openai/test-model"),
             80.0,
             None,
             None,
@@ -1243,6 +1277,67 @@ mod tests {
         ));
         assert_eq!(computation.cheap[0].price_in_per_million, Some(1.0));
         assert_eq!(computation.cheap[0].price_out_per_million, Some(5.0));
+    }
+
+    #[test]
+    fn cheap_list_uses_openrouter_fallback_when_no_aa_candidates() {
+        let tunables = sample_tunables();
+        let openrouter = vec![
+            OpenRouterModel {
+                slug: "openai/fallback-mini".to_string(),
+                name: "OpenAI Mini Fallback".to_string(),
+                created_at: None,
+                context_length: Some(16_384),
+                prompt_price_per_million: Some(1.2),
+                completion_price_per_million: Some(4.5),
+                cheapest_endpoint: None,
+            },
+            OpenRouterModel {
+                slug: "x-ai/grok-4-fast".to_string(),
+                name: "Grok 4 Fast".to_string(),
+                created_at: None,
+                context_length: Some(16_384),
+                prompt_price_per_million: Some(1.0),
+                completion_price_per_million: Some(4.0),
+                cheapest_endpoint: None,
+            },
+            OpenRouterModel {
+                slug: "google/gemini-3-flash".to_string(),
+                name: "Gemini 3 Flash".to_string(),
+                created_at: None,
+                context_length: Some(16_384),
+                prompt_price_per_million: Some(0.9),
+                completion_price_per_million: Some(3.5),
+                cheapest_endpoint: None,
+            },
+            OpenRouterModel {
+                slug: "anthropic/claude-haiku-5".to_string(),
+                name: "Claude Haiku 5".to_string(),
+                created_at: None,
+                context_length: Some(16_384),
+                prompt_price_per_million: Some(1.3),
+                completion_price_per_million: Some(4.8),
+                cheapest_endpoint: None,
+            },
+        ];
+
+        let computation = curate_models(
+            std::collections::HashMap::<String, String>::new(),
+            &openrouter,
+            &[],
+            &tunables,
+        );
+
+        assert_eq!(computation.cheap.len(), CHEAP_PROVIDER_ORDER.len());
+        for provider in CHEAP_PROVIDER_ORDER {
+            assert!(
+                computation
+                    .cheap
+                    .iter()
+                    .any(|entry| entry.provider == provider),
+                "expected fallback cheap list to include provider {provider}"
+            );
+        }
     }
 
     #[test]
