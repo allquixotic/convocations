@@ -456,11 +456,17 @@ function AppRoot() {
 
     const timer = setTimeout(async () => {
       try {
-        const payload = normalizeConfigForApi(config);
+        // Wrap runtime config in FileConfig structure as expected by the backend
+        const fileConfig = {
+          schema_version: 2,
+          runtime: normalizeConfigForApi(config),
+          ui: ui,
+          presets: presets,
+        };
         const response = await fetch(`${baseUrl}/api/validate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(fileConfig),
           signal: controller.signal,
         });
         if (!response.ok) {
@@ -496,7 +502,7 @@ function AppRoot() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [baseUrl, config, configLoaded]);
+  }, [baseUrl, config, configLoaded, ui, presets]);
 
   const eventSelection = useMemo(() => {
     if (!config) {
@@ -1037,7 +1043,13 @@ function AppRoot() {
       return;
     }
 
-    const payload = normalizeConfigForApi(workingConfig);
+    // Wrap runtime config in FileConfig structure as expected by the backend
+    const fileConfig = {
+      schema_version: 2,
+      runtime: normalizeConfigForApi(workingConfig),
+      ui: ui,
+      presets: presets,
+    };
     setProcessingState({
       active: true,
       jobId: null,
@@ -1051,7 +1063,7 @@ function AppRoot() {
       const response = await fetch(`${baseUrl}/api/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(fileConfig),
       });
 
       if (!response.ok) {

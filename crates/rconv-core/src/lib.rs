@@ -2,6 +2,7 @@
 
 pub mod config;
 pub mod curator;
+pub mod logging;
 pub mod openrouter;
 pub mod runtime;
 pub mod secret_store;

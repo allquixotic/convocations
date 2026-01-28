@@ -35,6 +35,9 @@ keyring = "2"
 thiserror = "1"
 rpassword = "7"
 strsim = "0.11"
+tracing = { version = "0.1", features = ["std"] }
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter", "json", "time", "local-time"] }
+tracing-appender = "0.2"
 
 [profile.dev]
 incremental = true

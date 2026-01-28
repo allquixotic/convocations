@@ -351,12 +351,5 @@ Secrets are managed by the core crate:
 8. The command "Fix shit" means: identify to-do items or known issues that are about *broken* code or design, i.e. things that have been left incomplete, code that doesn't compile (errors), or problems that need to be solved, then go solve them, then update this document and do a Git commit. Do NOT push.
 
 # THE CHECKLIST - MODIFY THESE!
-[~] Add automated tests across `rconv-core`, CLI, and UI layers to exercise snapshot loading, model selection wiring, and fallback behavior.
-    [x] Extend CLI tests to ensure flag/config interplay picks curated models correctly.
-    [x] Add `rconv-core` curator module unit tests covering snapshot parsing and discovery helpers.
-    [x] Add async tests for curator module covering missing snapshot and API failure scenarios (use mocks).
-    [x] Add frontend/unit or component test verifying dropdown renders curated options and handles empty state.
-[ ] Harden error paths by surfacing actionable diagnostics across CLI/GUI and adding structured logging for supportability.
-[ ] Expand integration coverage with curator+formatter end-to-end fixtures that assert output consistency and diff behavior.
 [ ] Improve first-run UX with guided CLI/GUI setup covering credential checks, sandboxed dry-run, and config status display.
 [ ] Add packaging polish: sample configs, richer `--help`/man content, and platform signing/notarization guidance for prebuilt binaries.

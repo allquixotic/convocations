@@ -2,6 +2,7 @@ mod cli_args;
 
 use clap::Parser;
 use cli_args::{Cli, Command, PresetCommand, SecretCommand};
+use rconv_core::logging::{self, LoggingDestination};
 use rconv_core::{
     apply_runtime_overrides,
     config::{PresetDefinition, preset_id_from_name},
@@ -12,6 +13,10 @@ use rpassword::prompt_password;
 
 #[tokio::main]
 async fn main() {
+    if let Err(err) = logging::init_logging(LoggingDestination::FileAndStderr) {
+        eprintln!("Warning: failed to initialize structured logging: {err}");
+    }
+
     let cli = Cli::parse();
     if let Err(err) = dispatch(cli).await {
         eprintln!("Error: {err}");

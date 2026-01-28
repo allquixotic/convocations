@@ -230,8 +230,25 @@ impl<'a> AliasResolver<'a> {
     }
 
     fn match_by_suffix(&self, slug: &str, provider_slug: Option<&str>) -> Option<MatchResult> {
-        let key = slug.to_ascii_lowercase();
-        let candidates = self.openrouter_by_suffix.get(&key)?;
+        // Try the original key first, then normalized variants
+        let keys_to_try = generate_suffix_variants(slug);
+
+        for key in &keys_to_try {
+            if let Some(result) = self.try_suffix_match(key, slug, provider_slug) {
+                return Some(result);
+            }
+        }
+
+        None
+    }
+
+    fn try_suffix_match(
+        &self,
+        key: &str,
+        original_slug: &str,
+        provider_slug: Option<&str>,
+    ) -> Option<MatchResult> {
+        let candidates = self.openrouter_by_suffix.get(key)?;
         if candidates.is_empty() {
             return None;
         }
@@ -240,7 +257,7 @@ impl<'a> AliasResolver<'a> {
             let model = candidates[0];
             return Some(MatchResult::derived(
                 model.slug.clone(),
-                format!("suffix:{slug}"),
+                format!("suffix:{original_slug}"),
             ));
         }
 
@@ -265,7 +282,7 @@ impl<'a> AliasResolver<'a> {
             if let Some(model) = selected {
                 return Some(MatchResult::derived(
                     model.slug.clone(),
-                    format!("suffix:{slug}"),
+                    format!("suffix:{original_slug}"),
                 ));
             }
         }
@@ -287,6 +304,69 @@ fn build_alias_candidates(aa: &AaModel) -> Vec<String> {
         }
     }
     candidates.into_iter().collect()
+}
+
+/// Generate suffix variants to try for matching.
+///
+/// This handles common naming differences between data sources:
+/// - Version number format: `gpt-5-2` vs `gpt-5.2`
+/// - Preview suffixes: `gemini-3-flash` vs `gemini-3-flash-preview`
+fn generate_suffix_variants(slug: &str) -> Vec<String> {
+    let lower = slug.to_ascii_lowercase();
+    let mut variants = vec![lower.clone()];
+
+    // Try converting version dashes to dots (e.g., "gpt-5-2" -> "gpt-5.2")
+    // Look for patterns like "-X-Y" where X and Y are digits
+    let with_dots = normalize_version_separators(&lower);
+    if with_dots != lower {
+        variants.push(with_dots.clone());
+    }
+
+    // Try common suffixes for Google models
+    if lower.contains("gemini") || lower.contains("gemma") {
+        if !lower.ends_with("-preview") {
+            variants.push(format!("{}-preview", lower));
+            if with_dots != lower {
+                variants.push(format!("{}-preview", with_dots));
+            }
+        }
+    }
+
+    variants
+}
+
+/// Normalize version separators in model names.
+///
+/// Converts patterns like "model-5-2" to "model-5.2" to handle
+/// the difference between AA's dash-separated versions and
+/// OpenRouter's dot-separated versions.
+fn normalize_version_separators(slug: &str) -> String {
+    let mut result = String::with_capacity(slug.len());
+    let chars: Vec<char> = slug.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        let ch = chars[i];
+
+        // Look for pattern: digit + dash + digit (e.g., "5-2")
+        if ch == '-' && i > 0 && i + 1 < len {
+            let prev = chars[i - 1];
+            let next = chars[i + 1];
+
+            // If surrounded by digits, convert dash to dot
+            if prev.is_ascii_digit() && next.is_ascii_digit() {
+                result.push('.');
+                i += 1;
+                continue;
+            }
+        }
+
+        result.push(ch);
+        i += 1;
+    }
+
+    result
 }
 
 fn provider_matches(provider_lower: &str, candidate_prefix: &str) -> bool {
@@ -463,6 +543,41 @@ mod tests {
             score < 0.6,
             "expected score below 0.6, got {score} between '{left}' and '{right}'"
         );
+    }
+
+    #[test]
+    fn normalize_version_separators_converts_digit_dashes() {
+        assert_eq!(normalize_version_separators("gpt-5-2"), "gpt-5.2");
+        assert_eq!(normalize_version_separators("gpt-5-1-codex"), "gpt-5.1-codex");
+        assert_eq!(normalize_version_separators("claude-4-5-haiku"), "claude-4.5-haiku");
+        assert_eq!(normalize_version_separators("gemini-2-5-flash"), "gemini-2.5-flash");
+        // Should not change non-version dashes
+        assert_eq!(normalize_version_separators("gemini-flash"), "gemini-flash");
+        assert_eq!(normalize_version_separators("claude-haiku"), "claude-haiku");
+    }
+
+    #[test]
+    fn generate_suffix_variants_creates_preview_variants() {
+        let variants = generate_suffix_variants("gemini-3-flash");
+        assert!(variants.contains(&"gemini-3-flash".to_string()));
+        // Note: "3-f" is digit-dash-letter, so no dot conversion happens
+        assert!(variants.contains(&"gemini-3-flash-preview".to_string()));
+
+        // Test with a version pattern that DOES convert
+        let variants_with_version = generate_suffix_variants("gemini-2-5-flash");
+        assert!(variants_with_version.contains(&"gemini-2-5-flash".to_string()));
+        assert!(variants_with_version.contains(&"gemini-2.5-flash".to_string()));
+        assert!(variants_with_version.contains(&"gemini-2-5-flash-preview".to_string()));
+        assert!(variants_with_version.contains(&"gemini-2.5-flash-preview".to_string()));
+    }
+
+    #[test]
+    fn generate_suffix_variants_handles_gpt_versions() {
+        let variants = generate_suffix_variants("gpt-5-2");
+        assert!(variants.contains(&"gpt-5-2".to_string()));
+        assert!(variants.contains(&"gpt-5.2".to_string()));
+        // GPT models shouldn't get -preview suffix
+        assert!(!variants.iter().any(|v| v.ends_with("-preview")));
     }
 
     fn sample_openrouter_models() -> Vec<OpenRouterModel> {

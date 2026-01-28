@@ -11,6 +11,7 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use thiserror::Error;
+use tracing::{info, warn};
 
 use crate::config::config_directory;
 
@@ -122,10 +123,7 @@ fn ensure_fallback_secret(label: &str, secret: &str) {
         return;
     }
     if let Err(err) = store_fallback_secret(label, secret) {
-        eprintln!(
-            "[Convocations] Failed to create fallback secret for {}: {}",
-            label, err
-        );
+        warn!(secret_label = label, error = %err, "Failed to create encrypted fallback secret");
     }
 }
 
@@ -142,34 +140,22 @@ pub fn store_secret(label: &str, secret: &str) -> Result<SecretReference, Secret
     match Entry::new(SERVICE_NAME, &account) {
         Ok(entry) => {
             if let Err(err) = entry.set_password(trimmed) {
-                eprintln!(
-                    "[Convocations] keyring set_password failed for {}: {}. Falling back to local encryption.",
-                    label, err
-                );
+                warn!(secret_label = label, error = %err, "Keyring set_password failed; falling back to encrypted config storage");
             } else {
                 if let Err(err) = store_fallback_secret(label, trimmed) {
-                    eprintln!(
-                        "[Convocations] Failed to persist fallback secret for {}: {}",
-                        label, err
-                    );
+                    warn!(secret_label = label, error = %err, "Failed to persist encrypted fallback secret");
                 }
                 return Ok(SecretReference::Keyring { account });
             }
         }
         Err(err) => {
-            eprintln!(
-                "[Convocations] keyring unavailable for {}: {}. Falling back to local encryption.",
-                label, err
-            );
+            warn!(secret_label = label, error = %err, "Keyring unavailable; falling back to encrypted config storage");
         }
     }
 
     let (nonce, ciphertext) = encrypt_with_local_key(trimmed.as_bytes())?;
     if let Err(err) = delete_fallback_secret(label) {
-        eprintln!(
-            "[Convocations] Failed to remove fallback secret for {}: {}",
-            label, err
-        );
+        warn!(secret_label = label, error = %err, "Failed to remove encrypted fallback secret after keyring failure");
     }
     Ok(SecretReference::LocalEncrypted {
         nonce: STANDARD.encode(nonce),
@@ -194,9 +180,9 @@ pub fn load_secret(reference: &SecretReference) -> Result<Option<String>, Secret
                     }
                     Err(keyring::Error::NoEntry) => {
                         if fallback_secret_exists(label) {
-                            eprintln!(
-                                "[Convocations] keyring entry for {} missing; using encrypted fallback.",
-                                label
+                            warn!(
+                                secret_label = label,
+                                "Keyring entry missing; using encrypted fallback secret"
                             );
                             load_fallback_secret(label)
                         } else {
@@ -204,13 +190,10 @@ pub fn load_secret(reference: &SecretReference) -> Result<Option<String>, Secret
                         }
                     }
                     Err(err) => {
-                        eprintln!(
-                            "[Convocations] keyring get_password failed for {}: {}. Attempting fallback.",
-                            label, err
-                        );
+                        warn!(secret_label = label, error = %err, "Keyring get_password failed; attempting encrypted fallback");
                         match load_fallback_secret(label) {
                             Ok(Some(secret)) => {
-                                eprintln!("[Convocations] Using encrypted fallback for {}.", label);
+                                info!(secret_label = label, "Using encrypted fallback secret");
                                 Ok(Some(secret))
                             }
                             Ok(None) => Err(SecretStoreError::Keyring(err.to_string())),
@@ -219,13 +202,10 @@ pub fn load_secret(reference: &SecretReference) -> Result<Option<String>, Secret
                     }
                 },
                 Err(err) => {
-                    eprintln!(
-                        "[Convocations] keyring unavailable while loading {}: {}. Attempting fallback.",
-                        label, err
-                    );
+                    warn!(secret_label = label, error = %err, "Keyring unavailable while loading secret; attempting encrypted fallback");
                     match load_fallback_secret(label) {
                         Ok(Some(secret)) => {
-                            eprintln!("[Convocations] Using encrypted fallback for {}.", label);
+                            info!(secret_label = label, "Using encrypted fallback secret");
                             Ok(Some(secret))
                         }
                         Ok(None) => Err(SecretStoreError::Keyring(err.to_string())),
@@ -303,10 +283,10 @@ fn get_or_create_master_key() -> Result<[u8; 32], SecretStoreError> {
             key.copy_from_slice(&bytes);
             return Ok(key);
         }
-        eprintln!(
-            "[Convocations] master key at {} had unexpected length {}; regenerating.",
-            path.display(),
-            bytes.len()
+        warn!(
+            path = %path.display(),
+            length = bytes.len(),
+            "Master key had unexpected length; regenerating"
         );
     }
 

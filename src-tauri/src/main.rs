@@ -16,6 +16,7 @@ use chrono::Local;
 use dirs::{document_dir, home_dir};
 use rconv_core::config::SecretValue;
 use rconv_core::curator;
+use rconv_core::logging::{self, LoggingDestination};
 use rconv_core::{
     ConvocationsConfig, FileConfig, PresetDefinition, StageProgressCallback, StageProgressEvent,
     StageProgressEventKind, load_config, resolve_outfile_paths, run_with_config_with_progress,
@@ -31,6 +32,7 @@ use tauri::{
 use tokio::sync::{Mutex, mpsc};
 use tokio::time::sleep;
 use tower_http::cors::{Any, CorsLayer};
+use tracing::{error, info, warn};
 use url::Url;
 use uuid::Uuid;
 
@@ -383,7 +385,7 @@ impl ConsolePipe {
 
         let line = format_console_line(payload);
         if let Err(err) = self.target.write_line(&line) {
-            eprintln!("[Convocations] Failed to pipe progress event: {err}");
+            warn!(error = %err, "Failed to pipe progress event to console");
         }
     }
 }
@@ -449,7 +451,7 @@ impl HttpContext {
 
     fn emit_oauth_event(&self, payload: OAuthEventPayload) {
         if let Err(err) = self.app_handle.emit("openrouter-auth-complete", payload) {
-            eprintln!("[Convocations] Failed to emit OAuth event: {err}");
+            warn!(error = %err, "Failed to emit OAuth completion event");
         }
     }
 
@@ -463,14 +465,14 @@ impl HttpContext {
 
 fn emit_progress(app: &AppHandle, payload: ProcessEventPayload) {
     if let Err(err) = app.emit("process-progress", payload) {
-        eprintln!("[Convocations] Failed to emit process event: {err}");
+        warn!(error = %err, "Failed to emit process progress event");
     }
 }
 
 fn close_oauth_window(app: &AppHandle, label: &str) {
     if let Some(window) = app.get_webview_window(label) {
         if let Err(err) = window.close() {
-            eprintln!("[Convocations] Failed to close OAuth window '{label}': {err}");
+            warn!(window = label, error = %err, "Failed to close OAuth window");
         }
     }
 }
@@ -494,10 +496,7 @@ fn open_oauth_window(app: &AppHandle, label: &str, auth_url: &str) -> Result<(),
         .center()
         .visible(true)
         .on_navigation(|url| {
-            eprintln!(
-                "[Convocations] OAuth webview navigating to {}",
-                url.as_str()
-            );
+            info!(target: "tauri::oauth", url = %url, "OAuth webview navigating");
             true
         })
         .build()
@@ -574,9 +573,9 @@ async fn health_handler() -> Json<HealthResponse> {
 async fn get_settings_handler() -> Result<Json<SettingsResponse>, ApiError> {
     let load_result = load_config();
     if !load_result.warnings.is_empty() {
-        eprintln!(
-            "[Convocations] Configuration warnings: {}",
-            load_result.warnings.join("; ")
+        warn!(
+            warnings = ?load_result.warnings,
+            "Configuration warnings surfaced while loading settings"
         );
     }
     let config = load_result.config;
@@ -615,9 +614,9 @@ async fn set_openrouter_secret_handler(
 
     let load_result = load_config();
     if !load_result.warnings.is_empty() {
-        eprintln!(
-            "[Convocations] Configuration warnings: {}",
-            load_result.warnings.join("; ")
+        warn!(
+            warnings = ?load_result.warnings,
+            "Configuration warnings surfaced while handling secret update"
         );
     }
     let mut config = load_result.config;
@@ -634,9 +633,9 @@ async fn set_openrouter_secret_handler(
 async fn clear_openrouter_secret_handler() -> Result<Json<OpenRouterSecretResponse>, ApiError> {
     let load_result = load_config();
     if !load_result.warnings.is_empty() {
-        eprintln!(
-            "[Convocations] Configuration warnings: {}",
-            load_result.warnings.join("; ")
+        warn!(
+            warnings = ?load_result.warnings,
+            "Configuration warnings surfaced while clearing secret"
         );
     }
     let mut config = load_result.config;
@@ -706,9 +705,10 @@ async fn process_handler(
     // Log any conversion warnings
     if !conversion_warnings.is_empty() {
         let warnings_str = conversion_warnings.join("; ");
-        eprintln!(
-            "[Convocations] Configuration conversion warnings: {}",
-            warnings_str
+        warn!(
+            job = job_id_arc.as_ref(),
+            warnings = ?conversion_warnings,
+            "Configuration conversion warnings detected"
         );
         ctx.emit_info(
             job_id_arc.as_ref(),
@@ -1231,7 +1231,7 @@ async fn oauth_start_handler(
     let in_app_window = match open_oauth_window(&ctx.app_handle, &window_label, &auth_url) {
         Ok(()) => true,
         Err(err) => {
-            eprintln!("[Convocations] Unable to launch in-app OAuth login window: {err}");
+            warn!(error = %err, window = %window_label, "Unable to launch in-app OAuth login window");
             false
         }
     };
@@ -1591,9 +1591,10 @@ async fn launch_http_server(
     let listener = match tokio::net::TcpListener::bind(("127.0.0.1", preferred_port)).await {
         Ok(bound) => bound,
         Err(err) => {
-            eprintln!(
-                "[Convocations] Failed to bind preferred port {}: {}. Falling back to random port.",
-                preferred_port, err
+            warn!(
+                port = preferred_port,
+                error = %err,
+                "Failed to bind preferred port; falling back to random port"
             );
             tokio::net::TcpListener::bind(("127.0.0.1", 0)).await?
         }
@@ -1606,9 +1607,10 @@ async fn launch_http_server(
     let (progress_tx, mut progress_rx) = mpsc::unbounded_channel::<ProcessEventPayload>();
     let console_pipe = detect_console_pipe_from_env();
     if let Some(pipe) = console_pipe {
-        eprintln!(
-            "[Convocations] Progress console piping enabled ({:?}, {:?})",
-            pipe.target, pipe.mode
+        info!(
+            target = ?pipe.target,
+            mode = ?pipe.mode,
+            "Progress console piping enabled"
         );
     }
 
@@ -1625,7 +1627,7 @@ async fn launch_http_server(
 
     let emitter: ProgressEmitter = Arc::new(move |payload: ProcessEventPayload| {
         if let Err(err) = progress_tx.send(payload) {
-            eprintln!("[Convocations] Dropped progress event: {err}");
+            warn!(error = %err, "Dropped progress event");
         }
     });
 
@@ -1673,6 +1675,9 @@ async fn launch_http_server(
 }
 
 fn main() {
+    if let Err(err) = logging::init_logging(LoggingDestination::FileOnly) {
+        eprintln!("[Convocations] Failed to initialize structured logging: {err}");
+    }
     tauri::Builder::default()
         .manage(Arc::new(ApiServerState::default()))
         .setup(|app| {
@@ -1740,7 +1745,7 @@ fn main() {
             let task_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(err) = launch_http_server(shared, task_handle).await {
-                    eprintln!("[Convocations] HTTP server error: {err}");
+                    error!(error = %err, "HTTP server task terminated with error");
                 }
             });
             Ok(())
@@ -1760,10 +1765,12 @@ mod tests {
     use axum::Json;
     use axum::extract::State;
     use std::sync::Arc;
+    use tauri::Builder;
     use tokio::sync::mpsc;
     use tokio::time::{Duration, Instant, timeout};
 
     #[tokio::test]
+    #[cfg_attr(target_os = "macos", ignore = "Tauri EventLoop requires main thread on macOS")]
     async fn process_handler_emits_info_and_completion() {
         let (tx, mut rx) = mpsc::unbounded_channel::<ProcessEventPayload>();
         let emitter: ProgressEmitter = {
@@ -1774,9 +1781,18 @@ mod tests {
         };
         drop(tx);
 
+        let app = Builder::default()
+            .build(tauri::generate_context!(
+                "tauri.test.conf.json",
+                test = true
+            ))
+            .expect("build tauri app");
         let ctx = HttpContext {
             process_manager: ProcessManager::default(),
             emitter,
+            oauth_sessions: OAuthSessionManager::default(),
+            app_handle: app.handle().clone(),
+            base_url: "http://127.0.0.1:0".to_string(),
         };
 
         let infile_path = std::env::current_dir().expect("cwd").join("Cargo.toml");

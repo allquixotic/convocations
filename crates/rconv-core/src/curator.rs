@@ -11,6 +11,7 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde::Serialize;
 use thiserror::Error;
+use tracing::warn;
 
 use crate::openrouter;
 use crate::openrouter::ModelInfo;
@@ -333,15 +334,17 @@ pub fn load_catalog() -> Result<CuratedCatalog, CuratorError> {
             Ok(snapshot) => {
                 match convert_snapshot(snapshot, CatalogSource::Remote(REMOTE_SNAPSHOT_URL)) {
                     Ok(catalog) => return Ok(catalog),
-                    Err(err) => eprintln!(
-                        "[curator] remote snapshot at {} invalid: {}",
-                        REMOTE_SNAPSHOT_URL, err
+                    Err(err) => warn!(
+                        error = %err,
+                        url = REMOTE_SNAPSHOT_URL,
+                        "Remote curated snapshot invalid; falling back to local candidates"
                     ),
                 }
             }
-            Err(err) => eprintln!(
-                "[curator] failed to parse remote snapshot at {}: {}",
-                REMOTE_SNAPSHOT_URL, err
+            Err(err) => warn!(
+                error = %err,
+                url = REMOTE_SNAPSHOT_URL,
+                "Failed to parse remote curated snapshot; falling back to local candidates"
             ),
         }
     }
@@ -354,19 +357,19 @@ pub fn load_catalog() -> Result<CuratedCatalog, CuratorError> {
                         return convert_snapshot(snapshot, CatalogSource::File(path.clone()));
                     }
                     Err(err) => {
-                        eprintln!(
-                            "[curator] failed to parse snapshot at {}: {}",
-                            path.display(),
-                            err
+                        warn!(
+                            error = %err,
+                            path = %path.display(),
+                            "Failed to parse curated snapshot on disk; continuing search"
                         );
                         continue;
                     }
                 },
                 Err(err) => {
-                    eprintln!(
-                        "[curator] unable to read snapshot at {}: {}",
-                        path.display(),
-                        err
+                    warn!(
+                        error = %err,
+                        path = %path.display(),
+                        "Unable to read curated snapshot on disk; continuing search"
                     );
                 }
             }
@@ -410,10 +413,7 @@ fn fetch_remote_snapshot_thread() -> Option<String> {
     {
         Ok(client) => client,
         Err(err) => {
-            eprintln!(
-                "[curator] failed to build HTTP client for snapshot fetch: {}",
-                err
-            );
+            warn!(error = %err, "Failed to build HTTP client for curated snapshot fetch");
             return None;
         }
     };
@@ -421,19 +421,20 @@ fn fetch_remote_snapshot_thread() -> Option<String> {
     let response = match client.get(REMOTE_SNAPSHOT_URL).send() {
         Ok(response) => response,
         Err(err) => {
-            eprintln!(
-                "[curator] failed to fetch remote snapshot from {}: {}",
-                REMOTE_SNAPSHOT_URL, err
+            warn!(
+                error = %err,
+                url = REMOTE_SNAPSHOT_URL,
+                "Failed to fetch remote curated snapshot"
             );
             return None;
         }
     };
 
     if !response.status().is_success() {
-        eprintln!(
-            "[curator] remote snapshot request to {} returned status {}",
-            REMOTE_SNAPSHOT_URL,
-            response.status()
+        warn!(
+            url = REMOTE_SNAPSHOT_URL,
+            status = %response.status(),
+            "Remote curated snapshot request returned non-success status"
         );
         return None;
     }
@@ -441,9 +442,9 @@ fn fetch_remote_snapshot_thread() -> Option<String> {
     match response.text() {
         Ok(body) => {
             if body.trim().is_empty() {
-                eprintln!(
-                    "[curator] remote snapshot at {} returned an empty body",
-                    REMOTE_SNAPSHOT_URL
+                warn!(
+                    url = REMOTE_SNAPSHOT_URL,
+                    "Remote curated snapshot body was empty"
                 );
                 None
             } else {
@@ -451,9 +452,10 @@ fn fetch_remote_snapshot_thread() -> Option<String> {
             }
         }
         Err(err) => {
-            eprintln!(
-                "[curator] failed to read remote snapshot body from {}: {}",
-                REMOTE_SNAPSHOT_URL, err
+            warn!(
+                error = %err,
+                url = REMOTE_SNAPSHOT_URL,
+                "Failed to read remote curated snapshot body"
             );
             None
         }
@@ -492,7 +494,7 @@ pub async fn resolve_preference(
     let live_models = match fetch_live_models().await {
         Ok(models) => Some(models),
         Err(err) => {
-            eprintln!("[curator] failed to fetch live OpenRouter models: {}", err);
+            warn!(error = %err, "Failed to fetch live OpenRouter models; using curated snapshot only");
             None
         }
     };

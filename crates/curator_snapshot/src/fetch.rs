@@ -257,14 +257,19 @@ fn compute_cheapest_endpoint(endpoints: &[Endpoint]) -> Option<CheapestEndpoint>
     best.map(|(_, _, _, endpoint)| endpoint)
 }
 
+/// Parse OpenRouter price string (per-token) and convert to per-million-tokens.
+///
+/// OpenRouter returns prices like "0.0000001" meaning $0.0000001 per token.
+/// We convert this to per-million-tokens for easier display (e.g., $0.10/MTok).
 fn parse_price_str(raw: &str) -> Option<f64> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return None;
     }
-    trimmed.parse::<f64>().ok().and_then(|value| {
-        if value.is_finite() && value >= 0.0 {
-            Some(value)
+    trimmed.parse::<f64>().ok().and_then(|per_token| {
+        if per_token.is_finite() && per_token >= 0.0 {
+            // Convert from per-token to per-million-tokens
+            Some(per_token * 1_000_000.0)
         } else {
             None
         }

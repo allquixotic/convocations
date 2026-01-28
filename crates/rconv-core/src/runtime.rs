@@ -14,6 +14,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
+use tracing::{error, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConvocationsConfig {
@@ -1054,6 +1055,7 @@ fn display_diff_and_cleanup(
     let unedited_content = match fs::read_to_string(unedited_file) {
         Ok(content) => content,
         Err(e) => {
+            warn!(path = unedited_file, error = %e, "Could not read unedited file for diff");
             eprintln!("Warning: Could not read unedited file for diff: {}", e);
             logger.end("Generate and display diff");
             return;
@@ -1063,6 +1065,7 @@ fn display_diff_and_cleanup(
     let edited_content = match fs::read_to_string(edited_file) {
         Ok(content) => content,
         Err(e) => {
+            warn!(path = edited_file, error = %e, "Could not read edited file for diff");
             eprintln!("Warning: Could not read edited file for diff: {}", e);
             logger.end("Generate and display diff");
             return;
@@ -1073,6 +1076,7 @@ fn display_diff_and_cleanup(
     let theme = termdiff::SignsTheme::default();
     let mut diff_buffer: Vec<u8> = Vec::new();
     if let Err(e) = termdiff::diff(&mut diff_buffer, &unedited_content, &edited_content, &theme) {
+        warn!(error = %e, "Error generating diff for AI corrections");
         eprintln!("Warning: Error generating diff: {}", e);
         logger.end("Generate and display diff");
         return;
@@ -1099,6 +1103,7 @@ fn display_diff_and_cleanup(
     use std::io::Write;
     let mut stdout = std::io::stdout();
     if let Err(e) = stdout.write_all(display.as_bytes()) {
+        warn!(error = %e, "Failed to write diff output to stdout");
         eprintln!("Warning: Failed to write diff to stdout: {}", e);
     }
     let _ = stdout.flush();
@@ -1111,6 +1116,7 @@ fn display_diff_and_cleanup(
     // Clean up unedited file if not keeping it
     if !keep_orig {
         if let Err(e) = fs::remove_file(unedited_file) {
+            warn!(path = unedited_file, error = %e, "Could not remove temporary unedited file");
             eprintln!("Warning: Could not remove temporary unedited file: {}", e);
         } else {
             println!("Removed temporary file: {}", unedited_file);
@@ -1138,6 +1144,7 @@ async fn process_log_file(
     let data = match fs::read_to_string(&expanded_infile) {
         Ok(data) => data,
         Err(e) => {
+            error!(path = %expanded_infile, error = %e, "Failed to read input log file");
             eprintln!("Error reading file {}: {}", expanded_infile, e);
             logger.end("Read input file");
             return;
@@ -1269,6 +1276,12 @@ async fn process_log_file(
 
     // Check if we found any data
     if final_output.is_empty() {
+        warn!(
+            path = %expanded_infile,
+            start = start_date.unwrap_or("<none>"),
+            end = end_date.unwrap_or("<none>"),
+            "No log data found for the requested date range"
+        );
         eprintln!("Warning: No log data found for the specified date range!");
         if let (Some(start), Some(end)) = (start_date, end_date) {
             eprintln!("  Searched for entries between {} and {}", start, end);
@@ -1297,7 +1310,10 @@ async fn process_log_file(
             logger.begin("Write output file");
             match fs::write(outfile, &final_output) {
                 Ok(_) => println!("Successfully wrote to {}", outfile),
-                Err(e) => eprintln!("Error writing to file {}: {}", outfile, e),
+                Err(e) => {
+                    error!(path = outfile, error = %e, "Failed to write processed output file");
+                    eprintln!("Error writing to file {}: {}", outfile, e);
+                }
             }
             logger.end("Write output file");
         } else {
@@ -1309,6 +1325,7 @@ async fn process_log_file(
             match fs::write(&unedited_file, &final_output) {
                 Ok(_) => println!("Saved unedited version to {}", unedited_file),
                 Err(e) => {
+                    error!(path = %unedited_file, error = %e, "Failed to write unedited output snapshot");
                     eprintln!("Error writing unedited file {}: {}", unedited_file, e);
                     logger.end("Write unedited file");
                     return;
@@ -1328,6 +1345,7 @@ async fn process_log_file(
             match fs::write(outfile, &final_output) {
                 Ok(_) => println!("Successfully wrote to {}", outfile),
                 Err(e) => {
+                    error!(path = outfile, error = %e, "Failed to write processed output file");
                     eprintln!("Error writing to file {}: {}", outfile, e);
                     logger.end("Write output file");
                     return;
@@ -1344,7 +1362,10 @@ async fn process_log_file(
         logger.begin("Write output file");
         match fs::write(outfile, final_output) {
             Ok(_) => println!("Successfully wrote to {}", outfile),
-            Err(e) => eprintln!("Error writing to file {}: {}", outfile, e),
+            Err(e) => {
+                error!(path = outfile, error = %e, "Failed to write processed output file");
+                eprintln!("Error writing to file {}: {}", outfile, e);
+            }
         }
         logger.end("Write output file");
     }
@@ -1368,6 +1389,7 @@ async fn process_filtered_file(
     let data = match fs::read_to_string(&expanded_infile) {
         Ok(data) => data,
         Err(e) => {
+            error!(path = %expanded_infile, error = %e, "Failed to read pre-filtered input file");
             eprintln!("Error reading file {}: {}", expanded_infile, e);
             logger.end("Read input file");
             return;
@@ -1529,6 +1551,12 @@ async fn process_filtered_file(
 
     // Warn if empty
     if final_output.is_empty() {
+        warn!(
+            path = %expanded_infile,
+            format_dialogue,
+            cleanup,
+            "No log data produced from pre-filtered input"
+        );
         eprintln!("Warning: No log data produced from pre-filtered file!");
         eprintln!("  Input file: {}", expanded_infile);
         eprintln!(
@@ -1551,7 +1579,10 @@ async fn process_filtered_file(
             logger.begin("Write output file");
             match fs::write(outfile, &final_output) {
                 Ok(_) => println!("Successfully wrote to {}", outfile),
-                Err(e) => eprintln!("Error writing to file {}: {}", outfile, e),
+                Err(e) => {
+                    error!(path = outfile, error = %e, "Failed to write processed output file");
+                    eprintln!("Error writing to file {}: {}", outfile, e);
+                }
             }
             logger.end("Write output file");
         } else {
@@ -1563,6 +1594,7 @@ async fn process_filtered_file(
             match fs::write(&unedited_file, &final_output) {
                 Ok(_) => println!("Saved unedited version to {}", unedited_file),
                 Err(e) => {
+                    error!(path = %unedited_file, error = %e, "Failed to write unedited output snapshot");
                     eprintln!("Error writing unedited file {}: {}", unedited_file, e);
                     logger.end("Write unedited file");
                     return;
@@ -1582,6 +1614,7 @@ async fn process_filtered_file(
             match fs::write(outfile, &final_output) {
                 Ok(_) => println!("Successfully wrote to {}", outfile),
                 Err(e) => {
+                    error!(path = outfile, error = %e, "Failed to write processed output file");
                     eprintln!("Error writing to file {}: {}", outfile, e);
                     logger.end("Write output file");
                     return;
@@ -1598,7 +1631,10 @@ async fn process_filtered_file(
         logger.begin("Write output file");
         match fs::write(outfile, final_output) {
             Ok(_) => println!("Successfully wrote to {}", outfile),
-            Err(e) => eprintln!("Error writing to file {}: {}", outfile, e),
+            Err(e) => {
+                error!(path = outfile, error = %e, "Failed to write processed output file");
+                eprintln!("Error writing to file {}: {}", outfile, e);
+            }
         }
         logger.end("Write output file");
     }
@@ -1730,6 +1766,7 @@ async fn apply_llm_correction(
     let api_key = match api_key {
         Some(value) if !value.is_empty() => value,
         _ => {
+            warn!("OpenRouter API key not configured; skipping AI corrections");
             eprintln!("Warning: OpenRouter API key not configured; skipping AI corrections.");
             return text;
         }
@@ -1741,6 +1778,7 @@ async fn apply_llm_correction(
             corrected
         }
         Err(e) => {
+            warn!(error = %e, model = %model, "OpenRouter correction request failed; keeping original content");
             eprintln!(
                 "Warning: Could not apply OpenRouter corrections: {}. Using original text.",
                 e
@@ -1841,7 +1879,6 @@ Corrected text:",
 mod tests {
     use super::*;
     use chrono::NaiveDate;
-    use std::path::Path;
     use std::path::Path;
 
     #[test]
