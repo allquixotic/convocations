@@ -1,7 +1,0 @@
-{
-  "tauri": {
-    "bundle": {
-      "identifier": "com.convocations.test"
-    }
-  }
-}

@@ -1,7 +1,15 @@
 [package]
-name = "rconv"
+name = "rconv-cli"
 version.workspace = true
 edition.workspace = true
+
+[lib]
+name = "rconv_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "rconv-cli"
+path = "src/main.rs"
 
 [dependencies]
 rconv-core = { path = "../rconv-core" }

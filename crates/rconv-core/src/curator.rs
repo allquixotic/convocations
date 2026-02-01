@@ -524,11 +524,25 @@ pub async fn resolve_preference(
             }
         }
         None => {
-            let reason = match preference {
-                ModelPreference::Auto => ResolutionSource::FallbackEmpty,
-                ModelPreference::Explicit(_) => ResolutionSource::FallbackMissingEntry,
-            };
-            CuratedResolution::fallback(reason, "no curated entry matched the request")
+            match preference {
+                ModelPreference::Auto => {
+                    // Auto mode with no curated models: use fallback
+                    CuratedResolution::fallback(
+                        ResolutionSource::FallbackEmpty,
+                        "no curated entry matched the request",
+                    )
+                }
+                ModelPreference::Explicit(slug) => {
+                    // Explicit model ID not in curated catalog: use it directly
+                    // This allows using any OpenRouter model, not just curated ones
+                    CuratedResolution {
+                        model_slug: slug.clone(),
+                        entry: None,
+                        source: ResolutionSource::CuratedExplicit,
+                        message: String::new(),
+                    }
+                }
+            }
         }
     }
 }

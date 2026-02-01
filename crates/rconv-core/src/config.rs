@@ -346,6 +346,8 @@ pub struct UiPreferences {
     pub show_technical_log: bool,
     #[serde(default = "UiPreferences::default_follow_technical_log")]
     pub follow_technical_log: bool,
+    #[serde(default = "UiPreferences::default_model_selection_mode")]
+    pub model_selection_mode: String,
 }
 
 impl Default for UiPreferences {
@@ -354,6 +356,7 @@ impl Default for UiPreferences {
             theme: ThemePreference::Dark,
             show_technical_log: false,
             follow_technical_log: true,
+            model_selection_mode: Self::default_model_selection_mode(),
         }
     }
 }
@@ -361,6 +364,10 @@ impl Default for UiPreferences {
 impl UiPreferences {
     const fn default_follow_technical_log() -> bool {
         true
+    }
+
+    fn default_model_selection_mode() -> String {
+        "curated".to_string()
     }
 }
 

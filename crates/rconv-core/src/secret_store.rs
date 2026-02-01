@@ -229,7 +229,7 @@ pub fn delete_secret(reference: &SecretReference) -> Result<(), SecretStoreError
         SecretReference::Keyring { account } => {
             let label = label_from_account(account);
             match Entry::new(SERVICE_NAME, account) {
-                Ok(entry) => match entry.delete_password() {
+                Ok(entry) => match entry.delete_credential() {
                     Ok(()) | Err(keyring::Error::NoEntry) => (),
                     Err(err) => return Err(SecretStoreError::Keyring(err.to_string())),
                 },

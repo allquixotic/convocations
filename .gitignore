@@ -4,16 +4,6 @@
 **/*.rs.bk
 *.pdb
 
-# Tauri
-src-tauri/gen/
-src-tauri/target/
-
-# Frontend
-frontend/dist/
-frontend/node_modules/
-node_modules/
-dist/
-
 # Environment & Secrets
 .env
 .env.*
@@ -44,22 +34,12 @@ Thumbs.db
 # Logs
 *.log
 logs/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # Build artifacts
 *.exe
 *.dll
 *.so
 *.dylib
-
-# Tauri build outputs
-src-tauri/target/
-WixTools/
-
-# Frontend build staging
-frontend/dist/.stage/
 
 # Backup and temporary files
 *.bak
@@ -69,13 +49,3 @@ frontend/dist/.stage/
 *.orig
 *.rej
 .*.sw[op]
-
-# Lock files (except Cargo.lock which is needed for apps)
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-bun.lockb
-
-# Development/working documents (uncomment if you want to ignore these)
-# status.md
-# *_FEATURES.md

@@ -1,0 +1,19 @@
+[package]
+name = "rconv"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "rconv"
+path = "src/main.rs"
+
+[dependencies]
+rconv-core = { path = "../rconv-core" }
+rconv-cli = { path = "../rconv-cli" }
+rconv-gui = { path = "../rconv-gui" }
+
+# For async CLI execution
+tokio.workspace = true
+
+# For error handling
+anyhow.workspace = true

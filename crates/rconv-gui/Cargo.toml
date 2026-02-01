@@ -1,0 +1,40 @@
+[package]
+name = "rconv-gui"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "rconv_gui"
+path = "src/lib.rs"
+
+[dependencies]
+rconv-core = { path = "../rconv-core" }
+
+# GUI framework
+eframe.workspace = true
+egui.workspace = true
+
+# System integration
+rfd.workspace = true
+tray-icon.workspace = true
+open.workspace = true
+image.workspace = true
+
+# Async runtime
+tokio.workspace = true
+
+# Serialization for state persistence
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+
+# Utilities
+anyhow.workspace = true
+thiserror.workspace = true
+directories.workspace = true
+
+# Date/time
+chrono.workspace = true
+
+[features]
+default = []

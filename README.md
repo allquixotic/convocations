@@ -128,11 +128,10 @@ After processing, you’ll see a colorized diff preview in the app that highligh
 
 ## Build From Source (Appendix)
 
-1. Install Rust 1.89+ via `rustup`, then add the WebAssembly target with `rustup target add wasm32-unknown-unknown`.
-2. Install the Tauri CLI (`cargo install tauri-cli --locked --version '^2'`) and any platform dependencies (macOS: Xcode Command Line Tools, Linux: `libwebkit2gtk-4.1-dev` and friends).
-3. Clone the repository and run `cargo build --workspace` once to fetch dependencies.
-4. Build the CLI with `cargo cli-release` (places `rconv` under `target/release/`).
-5. Build the desktop app with `cargo gui-build` (bundles appear under `src-tauri/target/release/bundle/`).
+1. Install Rust 1.89+ via `rustup`.
+2. Clone the repository and run `cargo build --workspace` once to fetch dependencies.
+3. Build the application with `cargo build --release` (places `rconv` binary under `target/release/`).
+   - The `rconv` binary includes both CLI and GUI modes - it automatically launches the GUI when run without CLI arguments.
 
 Need more detail? `AGENTS.md` contains the full workspace layout, optional workflows, and deployment scripts.
 
