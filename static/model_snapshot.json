@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-08-15T08:25:32.738664466+00:00",
+  "generated_at": "2026-09-01T08:16:29.987732984+00:00",
   "metadata": {
     "thresholds": {
       "min_free_aaii": 60.0,
@@ -15,51 +15,26 @@
       "aa_models_url": "https://artificialanalysis.ai/api/v2/data/llms/models"
     },
     "counts": {
-      "curated_free": 3,
+      "curated_free": 1,
       "curated_cheap": 4,
-      "unmatched": 456,
-      "discarded": 145
+      "unmatched": 476,
+      "discarded": 144
     }
   },
   "free": [
     {
-      "slug": "nvidia/nemotron-3-nano-30b-a3b:free",
-      "display_name": "NVIDIA: Nemotron 3 Nano 30B A3B (free)",
-      "provider": "nvidia",
-      "aaii": 14.5,
+      "slug": "z-ai/glm-5.2:free",
+      "display_name": "Z.ai: GLM 5.2 (free)",
+      "provider": "z-ai",
+      "aaii": 0.0,
       "price_in_per_million": 0.0,
       "price_out_per_million": 0.0,
       "price_source": "openrouter",
       "context_length": 256000,
       "modalities": [],
-      "match_strategy": "fuzzy:NVIDIA: Nemotron 3 Nano 30B A3B (free)",
-      "openrouter_created_at": "2025-12-14T16:54:35+00:00"
-    },
-    {
-      "slug": "nvidia/nemotron-nano-12b-v2-vl:free",
-      "display_name": "NVIDIA: Nemotron Nano 12B 2 VL (free)",
-      "provider": "nvidia",
-      "aaii": 8.8,
-      "price_in_per_million": 0.0,
-      "price_out_per_million": 0.0,
-      "price_source": "openrouter",
-      "context_length": 128000,
-      "modalities": [],
-      "match_strategy": "fuzzy:NVIDIA: Nemotron Nano 12B 2 VL (free)",
-      "openrouter_created_at": "2025-10-28T18:19:25+00:00"
-    },
-    {
-      "slug": "nvidia/nemotron-nano-9b-v2:free",
-      "display_name": "NVIDIA: Nemotron Nano 9B V2 (free)",
-      "provider": "nvidia",
-      "aaii": 8.7,
-      "price_in_per_million": 0.0,
-      "price_out_per_million": 0.0,
-      "price_source": "openrouter",
-      "context_length": 128000,
-      "modalities": [],
-      "match_strategy": "fuzzy:NVIDIA: Nemotron Nano 9B V2 (free)",
-      "openrouter_created_at": "2025-09-05T21:13:27+00:00"
+      "match_strategy": "manual-series:zai-glm",
+      "aa_last_updated": "2026-06-16T17:45:30+00:00",
+      "openrouter_created_at": "2026-06-16T17:45:30+00:00"
     }
   ],
   "cheap": [
@@ -94,8 +69,8 @@
       "display_name": "Google: Gemini 3.7 Flash",
       "provider": "google",
       "aaii": 56.0,
-      "price_in_per_million": 0.375,
-      "price_out_per_million": 1.875,
+      "price_in_per_million": 0.75,
+      "price_out_per_million": 3.75,
       "price_source": "openrouter",
       "context_length": 1048576,
       "modalities": [],
@@ -118,9 +93,9 @@
   ],
   "unmatched": [
     {
-      "name": "gpt-oss-120b (low)",
-      "provider": "openai",
-      "slug": "gpt-oss-120b-low"
+      "name": "Qwen3.8-Flash-Next",
+      "provider": "alibaba",
+      "slug": "qwen3-8-flash-next"
     },
     {
       "name": "gpt-oss-20b (low)",
@@ -128,9 +103,49 @@
       "slug": "gpt-oss-20b-low"
     },
     {
+      "name": "GPT-5.6 Terra (medium)",
+      "provider": "openai",
+      "slug": "gpt-5-6-terra-medium"
+    },
+    {
+      "name": "GPT-5.6 Sol (low)",
+      "provider": "openai",
+      "slug": "gpt-5-6-sol-low"
+    },
+    {
+      "name": "GPT-5.6 Luna (low)",
+      "provider": "openai",
+      "slug": "gpt-5-6-luna-low"
+    },
+    {
+      "name": "gpt-oss-120b (low)",
+      "provider": "openai",
+      "slug": "gpt-oss-120b-low"
+    },
+    {
       "name": "Grok-1",
       "provider": "xai",
       "slug": "grok-1"
+    },
+    {
+      "name": "GPT-5.6 Sol (Non-reasoning)",
+      "provider": "openai",
+      "slug": "gpt-5-6-sol-non-reasoning"
+    },
+    {
+      "name": "GPT-5.6 Terra (Non-reasoning)",
+      "provider": "openai",
+      "slug": "gpt-5-6-terra-non-reasoning"
+    },
+    {
+      "name": "GPT-5.6 Luna (Non-reasoning)",
+      "provider": "openai",
+      "slug": "gpt-5-6-luna-non-reasoning"
+    },
+    {
+      "name": "GPT-5.6 Sol (medium)",
+      "provider": "openai",
+      "slug": "gpt-5-6-sol-medium"
     },
     {
       "name": "GPT-5.6 Sol (xhigh)",
@@ -173,44 +188,9 @@
       "slug": "gpt-5-6-terra-high"
     },
     {
-      "name": "GPT-5.6 Sol (medium)",
-      "provider": "openai",
-      "slug": "gpt-5-6-sol-medium"
-    },
-    {
       "name": "GPT-5.6 Luna (medium)",
       "provider": "openai",
       "slug": "gpt-5-6-luna-medium"
-    },
-    {
-      "name": "GPT-5.6 Terra (medium)",
-      "provider": "openai",
-      "slug": "gpt-5-6-terra-medium"
-    },
-    {
-      "name": "GPT-5.6 Sol (low)",
-      "provider": "openai",
-      "slug": "gpt-5-6-sol-low"
-    },
-    {
-      "name": "GPT-5.6 Luna (low)",
-      "provider": "openai",
-      "slug": "gpt-5-6-luna-low"
-    },
-    {
-      "name": "GPT-5.6 Luna (Non-reasoning)",
-      "provider": "openai",
-      "slug": "gpt-5-6-luna-non-reasoning"
-    },
-    {
-      "name": "GPT-5.6 Terra (Non-reasoning)",
-      "provider": "openai",
-      "slug": "gpt-5-6-terra-non-reasoning"
-    },
-    {
-      "name": "GPT-5.6 Sol (Non-reasoning)",
-      "provider": "openai",
-      "slug": "gpt-5-6-sol-non-reasoning"
     },
     {
       "name": "Llama 3.3 Instruct 70B",
@@ -238,14 +218,14 @@
       "slug": "muse-glimmer"
     },
     {
+      "name": "Gemma 4 26B A4B (Reasoning)",
+      "provider": "google",
+      "slug": "gemma-4-26b-a4b"
+    },
+    {
       "name": "Gemma 4 12B (Reasoning)",
       "provider": "google",
       "slug": "gemma-4-12b"
-    },
-    {
-      "name": "Gemma 4 12B (Non-reasoning)",
-      "provider": "google",
-      "slug": "gemma-4-12b-non-reasoning"
     },
     {
       "name": "Gemma 4 31B (Reasoning)",
@@ -253,9 +233,14 @@
       "slug": "gemma-4-31b"
     },
     {
-      "name": "DiffusionGemma 26B A4B",
+      "name": "Gemini 3.5 Flash (medium)",
       "provider": "google",
-      "slug": "diffusiongemma-26b-a4b"
+      "slug": "gemini-3-5-flash-medium"
+    },
+    {
+      "name": "Gemma 4 26B A4B (Non-reasoning)",
+      "provider": "google",
+      "slug": "gemma-4-26b-a4b-non-reasoning"
     },
     {
       "name": "Gemma 4 E2B (Reasoning)",
@@ -268,26 +253,6 @@
       "slug": "gemma-4-31b-non-reasoning"
     },
     {
-      "name": "Gemma 4 E2B (Non-reasoning)",
-      "provider": "google",
-      "slug": "gemma-4-e2b-non-reasoning"
-    },
-    {
-      "name": "Gemma 4 26B A4B (Non-reasoning)",
-      "provider": "google",
-      "slug": "gemma-4-26b-a4b-non-reasoning"
-    },
-    {
-      "name": "Gemma 4 26B A4B (Reasoning)",
-      "provider": "google",
-      "slug": "gemma-4-26b-a4b"
-    },
-    {
-      "name": "Gemma 3 270M",
-      "provider": "google",
-      "slug": "gemma-3-270m"
-    },
-    {
       "name": "Gemma 4 E4B (Non-reasoning)",
       "provider": "google",
       "slug": "gemma-4-e4b-non-reasoning"
@@ -298,19 +263,24 @@
       "slug": "gemma-4-e4b"
     },
     {
-      "name": "Gemini 3.5 Flash (minimal)",
+      "name": "DiffusionGemma 26B A4B",
       "provider": "google",
-      "slug": "gemini-3-5-flash-minimal"
+      "slug": "diffusiongemma-26b-a4b"
     },
     {
-      "name": "Gemini 3.5 Flash (medium)",
+      "name": "Gemma 4 12B (Non-reasoning)",
       "provider": "google",
-      "slug": "gemini-3-5-flash-medium"
+      "slug": "gemma-4-12b-non-reasoning"
     },
     {
       "name": "Gemini 3 Deep Think",
       "provider": "google",
       "slug": "gemini-3-deep-think"
+    },
+    {
+      "name": "Gemma 3 270M",
+      "provider": "google",
+      "slug": "gemma-3-270m"
     },
     {
       "name": "Gemini 3.7 Flash (low)",
@@ -323,14 +293,19 @@
       "slug": "gemini-3-7-flash-medium"
     },
     {
+      "name": "Gemma 4 E2B (Non-reasoning)",
+      "provider": "google",
+      "slug": "gemma-4-e2b-non-reasoning"
+    },
+    {
+      "name": "Gemini 3.5 Flash (minimal)",
+      "provider": "google",
+      "slug": "gemini-3-5-flash-minimal"
+    },
+    {
       "name": "Claude 4.5 Haiku (Reasoning)",
       "provider": "anthropic",
       "slug": "claude-4-5-haiku-reasoning"
-    },
-    {
-      "name": "Claude Sonnet 5 (Non-reasoning, High Effort)",
-      "provider": "anthropic",
-      "slug": "claude-sonnet-5-non-reasoning"
     },
     {
       "name": "Claude Opus 5 (Adaptive Reasoning, Xhigh Effort)",
@@ -343,19 +318,19 @@
       "slug": "claude-opus-5-low"
     },
     {
-      "name": "Claude Opus 5 (Adaptive Reasoning, Medium Effort)",
-      "provider": "anthropic",
-      "slug": "claude-opus-5-medium"
-    },
-    {
       "name": "Claude Opus 5 (Adaptive Reasoning, High Effort)",
       "provider": "anthropic",
       "slug": "claude-opus-5-high"
     },
     {
-      "name": "Claude Sonnet 4.6 (Non-reasoning, Low Effort)",
+      "name": "Claude Sonnet 5 (Non-reasoning, High Effort)",
       "provider": "anthropic",
-      "slug": "claude-sonnet-4-6-non-reasoning-low-effort"
+      "slug": "claude-sonnet-5-non-reasoning"
+    },
+    {
+      "name": "Claude Opus 5 (Adaptive Reasoning, Medium Effort)",
+      "provider": "anthropic",
+      "slug": "claude-opus-5-medium"
     },
     {
       "name": "Claude Sonnet 5 (Adaptive Reasoning, Medium Effort)",
@@ -378,9 +353,9 @@
       "slug": "claude-sonnet-5-low"
     },
     {
-      "name": "Ministral 3 8B",
-      "provider": "mistral",
-      "slug": "ministral-3-8b"
+      "name": "Claude Sonnet 4.6 (Non-reasoning, Low Effort)",
+      "provider": "anthropic",
+      "slug": "claude-sonnet-4-6-non-reasoning-low-effort"
     },
     {
       "name": "Ministral 3 14B",
@@ -388,19 +363,19 @@
       "slug": "ministral-3-14b"
     },
     {
-      "name": "Mistral Small 4 (Non-reasoning)",
+      "name": "Magistral Medium 1.2",
       "provider": "mistral",
-      "slug": "mistral-small-4-non-reasoning"
+      "slug": "magistral-medium-2509"
     },
     {
-      "name": "Mistral Small 4 (Reasoning)",
+      "name": "Ministral 3 8B",
       "provider": "mistral",
-      "slug": "mistral-small-4"
+      "slug": "ministral-3-8b"
     },
     {
-      "name": "Devstral 2",
+      "name": "Ministral 3 3B",
       "provider": "mistral",
-      "slug": "devstral-2"
+      "slug": "ministral-3-3b"
     },
     {
       "name": "Magistral Small 1.2",
@@ -413,19 +388,19 @@
       "slug": "devstral-small-2"
     },
     {
-      "name": "Ministral 3 3B",
+      "name": "Mistral Small 4 (Reasoning)",
       "provider": "mistral",
-      "slug": "ministral-3-3b"
+      "slug": "mistral-small-4"
     },
     {
-      "name": "Magistral Medium 1.2",
+      "name": "Devstral 2",
       "provider": "mistral",
-      "slug": "magistral-medium-2509"
+      "slug": "devstral-2"
     },
     {
-      "name": "DeepSeek V4 Pro (Non-reasoning)",
-      "provider": "deepseek",
-      "slug": "deepseek-v4-pro-0424-non-reasoning"
+      "name": "Mistral Small 4 (Non-reasoning)",
+      "provider": "mistral",
+      "slug": "mistral-small-4-non-reasoning"
     },
     {
       "name": "DeepSeek V4 Pro (Reasoning, Max Effort)",
@@ -433,19 +408,29 @@
       "slug": "deepseek-v4-pro-0424"
     },
     {
-      "name": "DeepSeek V4 Pro (Reasoning, High Effort)",
-      "provider": "deepseek",
-      "slug": "deepseek-v4-pro-0424-high"
-    },
-    {
       "name": "DeepSeek V4 Flash (Non-reasoning)",
       "provider": "deepseek",
       "slug": "deepseek-v4-flash-non-reasoning"
     },
     {
+      "name": "DeepSeek V4 Pro (Non-reasoning)",
+      "provider": "deepseek",
+      "slug": "deepseek-v4-pro-0424-non-reasoning"
+    },
+    {
+      "name": "DeepSeek V4 Pro (Reasoning, High Effort)",
+      "provider": "deepseek",
+      "slug": "deepseek-v4-pro-0424-high"
+    },
+    {
       "name": "Llama 65B",
       "provider": "meta",
       "slug": "llama-65b"
+    },
+    {
+      "name": "DeepSeek V4 Flash Vision (Reasoning, Max Effort)",
+      "provider": "deepseek",
+      "slug": "deepseek-v4-flash-vision"
     },
     {
       "name": "R1 1776",
@@ -463,19 +448,64 @@
       "slug": "grok-4-3-medium"
     },
     {
-      "name": "Grok 4.3 (low)",
-      "provider": "xai",
-      "slug": "grok-4-3-low"
-    },
-    {
       "name": "Grok 4.3 (Non-reasoning)",
       "provider": "xai",
       "slug": "grok-4-3-non-reasoning"
     },
     {
+      "name": "Grok 4.3 (low)",
+      "provider": "xai",
+      "slug": "grok-4-3-low"
+    },
+    {
+      "name": "Grok 4.6 (xhigh)",
+      "provider": "xai",
+      "slug": "grok-4-6-xhigh"
+    },
+    {
+      "name": "Grok 4.6 (low)",
+      "provider": "xai",
+      "slug": "grok-4-6-low"
+    },
+    {
+      "name": "Grok 4.6 (medium)",
+      "provider": "xai",
+      "slug": "grok-4-6-medium"
+    },
+    {
       "name": "Nova Micro",
       "provider": "aws",
       "slug": "nova-micro"
+    },
+    {
+      "name": "Nova 2.0 Omni (medium)",
+      "provider": "aws",
+      "slug": "nova-2-0-omni-reasoning-medium"
+    },
+    {
+      "name": "Nova 2.0 Pro Preview (medium)",
+      "provider": "aws",
+      "slug": "nova-2-0-pro-reasoning-medium"
+    },
+    {
+      "name": "Qwen Chat 14B",
+      "provider": "alibaba",
+      "slug": "qwen-chat-14b"
+    },
+    {
+      "name": "Nova 2.0 Omni (Non-reasoning)",
+      "provider": "aws",
+      "slug": "nova-2-0-omni"
+    },
+    {
+      "name": "Nova 2.0 Lite (high)",
+      "provider": "aws",
+      "slug": "nova-2-0-lite-reasoning"
+    },
+    {
+      "name": "Nova 2.0 Lite (low)",
+      "provider": "aws",
+      "slug": "nova-2-0-lite-reasoning-low"
     },
     {
       "name": "Nova 2.0 Lite (Non-reasoning)",
@@ -493,34 +523,9 @@
       "slug": "nova-2-0-omni-reasoning-low"
     },
     {
-      "name": "Nova 2.0 Pro Preview (medium)",
-      "provider": "aws",
-      "slug": "nova-2-0-pro-reasoning-medium"
-    },
-    {
-      "name": "Nova 2.0 Lite (low)",
-      "provider": "aws",
-      "slug": "nova-2-0-lite-reasoning-low"
-    },
-    {
-      "name": "Nova 2.0 Lite (high)",
-      "provider": "aws",
-      "slug": "nova-2-0-lite-reasoning"
-    },
-    {
-      "name": "Nova 2.0 Omni (medium)",
-      "provider": "aws",
-      "slug": "nova-2-0-omni-reasoning-medium"
-    },
-    {
       "name": "Nova Premier",
       "provider": "aws",
       "slug": "nova-premier"
-    },
-    {
-      "name": "Nova 2.0 Omni (Non-reasoning)",
-      "provider": "aws",
-      "slug": "nova-2-0-omni"
     },
     {
       "name": "Nova 2.0 Pro Preview (low)",
@@ -543,34 +548,9 @@
       "slug": "phi-4-mini"
     },
     {
-      "name": "LFM2.5-1.2B-Thinking",
+      "name": "LFM2.5-2.6B",
       "provider": "liquidai",
-      "slug": "lfm2-5-1-2b-thinking"
-    },
-    {
-      "name": "LFM2 2.6B",
-      "provider": "liquidai",
-      "slug": "lfm2-2-6b"
-    },
-    {
-      "name": "LFM2 24B A2B",
-      "provider": "liquidai",
-      "slug": "lfm2-24b-a2b"
-    },
-    {
-      "name": "LFM2.5-VL-1.6B",
-      "provider": "liquidai",
-      "slug": "lfm2-5-vl-1-6b"
-    },
-    {
-      "name": "LFM2 8B A1B",
-      "provider": "liquidai",
-      "slug": "lfm2-8b-a1b"
-    },
-    {
-      "name": "Qwen Chat 14B",
-      "provider": "alibaba",
-      "slug": "qwen-chat-14b"
+      "slug": "lfm2-5-2-6b"
     },
     {
       "name": "LFM2.5-8B-A1B",
@@ -578,9 +558,34 @@
       "slug": "lfm2-5-8b-a1b"
     },
     {
+      "name": "LFM2.5-1.2B-Thinking",
+      "provider": "liquidai",
+      "slug": "lfm2-5-1-2b-thinking"
+    },
+    {
+      "name": "LFM2 8B A1B",
+      "provider": "liquidai",
+      "slug": "lfm2-8b-a1b"
+    },
+    {
+      "name": "LFM2 2.6B",
+      "provider": "liquidai",
+      "slug": "lfm2-2-6b"
+    },
+    {
+      "name": "LFM2.5-VL-1.6B",
+      "provider": "liquidai",
+      "slug": "lfm2-5-vl-1-6b"
+    },
+    {
       "name": "LFM2.5-1.2B-Instruct",
       "provider": "liquidai",
       "slug": "lfm2-5-1-2b-instruct"
+    },
+    {
+      "name": "LFM2 24B A2B",
+      "provider": "liquidai",
+      "slug": "lfm2-24b-a2b"
     },
     {
       "name": "Solar Open 100B (Reasoning)",
@@ -598,14 +603,9 @@
       "slug": "llama-3-1-nemotron-instruct-70b"
     },
     {
-      "name": "Nemotron 3 Nano Omni 30B A3B Reasoning",
+      "name": "NVIDIA Nemotron Nano 9B V2 (Non-reasoning)",
       "provider": "nvidia",
-      "slug": "nemotron-3-nano-omni-30b-a3b"
-    },
-    {
-      "name": "Nemotron 3 Super 120B A12B (Reasoning)",
-      "provider": "nvidia",
-      "slug": "nvidia-nemotron-3-super-120b-a12b"
+      "slug": "nvidia-nemotron-nano-9b-v2"
     },
     {
       "name": "Nemotron 3 Ultra 550B A55B (Reasoning)",
@@ -613,19 +613,9 @@
       "slug": "nvidia-nemotron-3-ultra-550b-a55b"
     },
     {
-      "name": "NVIDIA Nemotron 3 Nano 30B A3B (Non-reasoning)",
+      "name": "Nemotron 3 Nano Omni 30B A3B Reasoning",
       "provider": "nvidia",
-      "slug": "nvidia-nemotron-3-nano-30b-a3b"
-    },
-    {
-      "name": "NVIDIA Nemotron Nano 9B V2 (Non-reasoning)",
-      "provider": "nvidia",
-      "slug": "nvidia-nemotron-nano-9b-v2"
-    },
-    {
-      "name": "Nemotron Cascade 2 30B A3B",
-      "provider": "nvidia",
-      "slug": "nemotron-cascade-2-30b-a3b"
+      "slug": "nemotron-3-nano-omni-30b-a3b"
     },
     {
       "name": "NVIDIA Nemotron Nano 12B v2 VL (Non-reasoning)",
@@ -638,9 +628,19 @@
       "slug": "llama-3-1-nemotron-ultra-253b-v1-reasoning"
     },
     {
-      "name": "Llama Nemotron Super 49B v1.5 (Reasoning)",
+      "name": "NVIDIA Nemotron Nano 9B V2 (Reasoning)",
       "provider": "nvidia",
-      "slug": "llama-nemotron-super-49b-v1-5-reasoning"
+      "slug": "nvidia-nemotron-nano-9b-v2-reasoning"
+    },
+    {
+      "name": "NVIDIA Nemotron Nano 12B v2 VL (Reasoning)",
+      "provider": "nvidia",
+      "slug": "nvidia-nemotron-nano-12b-v2-vl-reasoning"
+    },
+    {
+      "name": "Nemotron 3 Super 120B A12B (Reasoning)",
+      "provider": "nvidia",
+      "slug": "nvidia-nemotron-3-super-120b-a12b"
     },
     {
       "name": "Llama Nemotron Super 49B v1.5 (Non-reasoning)",
@@ -648,9 +648,19 @@
       "slug": "llama-nemotron-super-49b-v1-5"
     },
     {
-      "name": "Kimi K3 (low)",
-      "provider": "kimi",
-      "slug": "kimi-k3-low"
+      "name": "Llama Nemotron Super 49B v1.5 (Reasoning)",
+      "provider": "nvidia",
+      "slug": "llama-nemotron-super-49b-v1-5-reasoning"
+    },
+    {
+      "name": "NVIDIA Nemotron 3 Nano 30B A3B (Non-reasoning)",
+      "provider": "nvidia",
+      "slug": "nvidia-nemotron-3-nano-30b-a3b"
+    },
+    {
+      "name": "Nemotron Cascade 2 30B A3B",
+      "provider": "nvidia",
+      "slug": "nemotron-cascade-2-30b-a3b"
     },
     {
       "name": "Kimi Linear 48B A3B Instruct",
@@ -658,14 +668,14 @@
       "slug": "kimi-linear-48b-a3b-instruct"
     },
     {
+      "name": "Kimi K3 (low)",
+      "provider": "kimi",
+      "slug": "kimi-k3-low"
+    },
+    {
       "name": "Step3 VL 10B",
       "provider": "stepfun",
       "slug": "step-3-vl-10b"
-    },
-    {
-      "name": "Olmo 3 7B Instruct",
-      "provider": "ai2",
-      "slug": "olmo-3-7b-instruct"
     },
     {
       "name": "Olmo 3.1 32B Instruct",
@@ -688,14 +698,34 @@
       "slug": "molmo2-8b"
     },
     {
+      "name": "Olmo 3 7B Instruct",
+      "provider": "ai2",
+      "slug": "olmo-3-7b-instruct"
+    },
+    {
       "name": "Molmo 7B-D",
       "provider": "ai2",
       "slug": "molmo-7b-d"
     },
     {
-      "name": "Granite 4.0 H 350M",
+      "name": "Granite 4.1 3B",
       "provider": "ibm",
-      "slug": "granite-4-0-h-350m"
+      "slug": "granite-4-1-3b"
+    },
+    {
+      "name": "Granite 4.0 350M",
+      "provider": "ibm",
+      "slug": "granite-4-0-350m"
+    },
+    {
+      "name": "Granite 4.2 3B",
+      "provider": "ibm",
+      "slug": "granite-4-2-3b"
+    },
+    {
+      "name": "Granite 4.2 30B",
+      "provider": "ibm",
+      "slug": "granite-4-2-30b"
     },
     {
       "name": "Granite 4.0 H Small",
@@ -708,16 +738,6 @@
       "slug": "granite-4-1-8b"
     },
     {
-      "name": "Granite 4.0 350M",
-      "provider": "ibm",
-      "slug": "granite-4-0-350m"
-    },
-    {
-      "name": "Granite 4.0 Micro",
-      "provider": "ibm",
-      "slug": "granite-4-0-micro"
-    },
-    {
       "name": "Granite 4.0 H 1B",
       "provider": "ibm",
       "slug": "granite-4-0-h-nano-1b"
@@ -728,9 +748,14 @@
       "slug": "granite-4-1-30b"
     },
     {
-      "name": "Granite 4.1 3B",
+      "name": "Granite 4.2 8B",
       "provider": "ibm",
-      "slug": "granite-4-1-3b"
+      "slug": "granite-4-2-8b"
+    },
+    {
+      "name": "Granite 4.0 H 350M",
+      "provider": "ibm",
+      "slug": "granite-4-0-h-350m"
     },
     {
       "name": "Granite 4.0 1B",
@@ -738,24 +763,9 @@
       "slug": "granite-4-0-nano-1b"
     },
     {
-      "name": "Hermes 4 - Llama-3.1 405B (Non-reasoning)",
-      "provider": "nous-research",
-      "slug": "hermes-4-llama-3-1-405b"
-    },
-    {
-      "name": "DeepHermes 3 - Llama-3.1 8B Preview (Non-reasoning)",
-      "provider": "nous-research",
-      "slug": "deephermes-3-llama-3-1-8b-preview"
-    },
-    {
-      "name": "DeepHermes 3 - Mistral 24B Preview (Non-reasoning)",
-      "provider": "nous-research",
-      "slug": "deephermes-3-mistral-24b-preview"
-    },
-    {
-      "name": "Hermes 4 - Llama-3.1 405B (Reasoning)",
-      "provider": "nous-research",
-      "slug": "hermes-4-llama-3-1-405b-reasoning"
+      "name": "Granite 4.0 Micro",
+      "provider": "ibm",
+      "slug": "granite-4-0-micro"
     },
     {
       "name": "Hermes 4 - Llama-3.1 70B (Non-reasoning)",
@@ -763,29 +773,29 @@
       "slug": "hermes-4-llama-3-1-70b"
     },
     {
+      "name": "DeepHermes 3 - Mistral 24B Preview (Non-reasoning)",
+      "provider": "nous-research",
+      "slug": "deephermes-3-mistral-24b-preview"
+    },
+    {
+      "name": "DeepHermes 3 - Llama-3.1 8B Preview (Non-reasoning)",
+      "provider": "nous-research",
+      "slug": "deephermes-3-llama-3-1-8b-preview"
+    },
+    {
+      "name": "Hermes 4 - Llama-3.1 405B (Non-reasoning)",
+      "provider": "nous-research",
+      "slug": "hermes-4-llama-3-1-405b"
+    },
+    {
       "name": "Hermes 4 - Llama-3.1 70B (Reasoning)",
       "provider": "nous-research",
       "slug": "hermes-4-llama-3-1-70b-reasoning"
     },
     {
-      "name": "EXAONE 4.0 32B (Non-reasoning)",
-      "provider": "lg",
-      "slug": "exaone-4-0-32b"
-    },
-    {
-      "name": "EXAONE 4.5 33B (Non-reasoning)",
-      "provider": "lg",
-      "slug": "exaone-4-5-33b-non-reasoning"
-    },
-    {
-      "name": "Exaone 4.0 1.2B (Reasoning)",
-      "provider": "lg",
-      "slug": "exaone-4-0-1-2b-reasoning"
-    },
-    {
-      "name": "K-EXAONE (Non-reasoning)",
-      "provider": "lg",
-      "slug": "k-exaone-non-reasoning"
+      "name": "Hermes 4 - Llama-3.1 405B (Reasoning)",
+      "provider": "nous-research",
+      "slug": "hermes-4-llama-3-1-405b-reasoning"
     },
     {
       "name": "K-EXAONE (Reasoning)",
@@ -793,19 +803,19 @@
       "slug": "k-exaone"
     },
     {
-      "name": "EXAONE 4.5 33B",
-      "provider": "lg",
-      "slug": "exaone-4-5-33b"
-    },
-    {
       "name": "EXAONE 4.0 32B (Reasoning)",
       "provider": "lg",
       "slug": "exaone-4-0-32b-reasoning"
     },
     {
-      "name": "K-EXAONE 2.0 0803",
+      "name": "Exaone 4.0 1.2B (Reasoning)",
       "provider": "lg",
-      "slug": "k-exaone-2-0-0803"
+      "slug": "exaone-4-0-1-2b-reasoning"
+    },
+    {
+      "name": "EXAONE 4.5 33B",
+      "provider": "lg",
+      "slug": "exaone-4-5-33b"
     },
     {
       "name": "Exaone 4.0 1.2B (Non-reasoning)",
@@ -813,14 +823,29 @@
       "slug": "exaone-4-0-1-2b"
     },
     {
+      "name": "EXAONE 4.0 32B (Non-reasoning)",
+      "provider": "lg",
+      "slug": "exaone-4-0-32b"
+    },
+    {
+      "name": "K-EXAONE 2.0",
+      "provider": "lg",
+      "slug": "k-exaone-2-0-0803"
+    },
+    {
+      "name": "K-EXAONE (Non-reasoning)",
+      "provider": "lg",
+      "slug": "k-exaone-non-reasoning"
+    },
+    {
+      "name": "EXAONE 4.5 33B (Non-reasoning)",
+      "provider": "lg",
+      "slug": "exaone-4-5-33b-non-reasoning"
+    },
+    {
       "name": "MiMo-V2.5-Pro (Non-reasoning)",
       "provider": "xiaomi",
       "slug": "mimo-v2-5-pro-non-reasoning"
-    },
-    {
-      "name": "MiMo-V2-Omni-0327",
-      "provider": "xiaomi",
-      "slug": "mimo-v2-omni-0327"
     },
     {
       "name": "MiMo-V2-Flash (Feb 2026)",
@@ -838,9 +863,9 @@
       "slug": "mimo-v2-flash"
     },
     {
-      "name": "ERNIE 5.0 Thinking Preview",
-      "provider": "baidu",
-      "slug": "ernie-5-0-thinking-preview"
+      "name": "MiMo-V2-Omni-0327",
+      "provider": "xiaomi",
+      "slug": "mimo-v2-omni-0327"
     },
     {
       "name": "ERNIE 4.5 300B A47B",
@@ -848,14 +873,19 @@
       "slug": "ernie-4-5-300b-a47b"
     },
     {
-      "name": "Sarvam 30B (high)",
-      "provider": "sarvam",
-      "slug": "sarvam-30b"
+      "name": "ERNIE 5.0 Thinking Preview",
+      "provider": "baidu",
+      "slug": "ernie-5-0-thinking-preview"
     },
     {
       "name": "Sarvam 105B (high)",
       "provider": "sarvam",
       "slug": "sarvam-105b"
+    },
+    {
+      "name": "Sarvam 30B (high)",
+      "provider": "sarvam",
+      "slug": "sarvam-30b"
     },
     {
       "name": "HyperNova 60B 2605",
@@ -873,11 +903,6 @@
       "slug": "intellect-3"
     },
     {
-      "name": "Motif-2-12.7B-Reasoning",
-      "provider": "motif-technologies",
-      "slug": "motif-2-12-7b"
-    },
-    {
       "name": "Motif 3 (Beta)",
       "provider": "motif-technologies",
       "slug": "motif-0714"
@@ -888,14 +913,9 @@
       "slug": "motif-3"
     },
     {
-      "name": "K2-V2 (medium)",
-      "provider": "mbzuai",
-      "slug": "k2-v2-medium"
-    },
-    {
-      "name": "K2-V2 (high)",
-      "provider": "mbzuai",
-      "slug": "k2-v2"
+      "name": "Motif-2-12.7B-Reasoning",
+      "provider": "motif-technologies",
+      "slug": "motif-2-12-7b"
     },
     {
       "name": "K2-V2 (low)",
@@ -906,6 +926,16 @@
       "name": "K2 Think V2",
       "provider": "mbzuai",
       "slug": "k2-think-v2"
+    },
+    {
+      "name": "K2-V2 (medium)",
+      "provider": "mbzuai",
+      "slug": "k2-v2-medium"
+    },
+    {
+      "name": "K2-V2 (high)",
+      "provider": "mbzuai",
+      "slug": "k2-v2"
     },
     {
       "name": "Mi:dm K 2.5 Pro",
@@ -933,14 +963,14 @@
       "slug": "nanbeige4-1-3b"
     },
     {
-      "name": "Apertus 8B Instruct",
-      "provider": "swiss-ai-initiative",
-      "slug": "apertus-8b-instruct"
-    },
-    {
       "name": "Apertus 70B Instruct",
       "provider": "swiss-ai-initiative",
       "slug": "apertus-70b-instruct"
+    },
+    {
+      "name": "Apertus 8B Instruct",
+      "provider": "swiss-ai-initiative",
+      "slug": "apertus-8b-instruct"
     },
     {
       "name": "MiniCPM-V 4.6 1.3B",
@@ -948,14 +978,19 @@
       "slug": "minicpm-v4-6-1-3b"
     },
     {
+      "name": "MiniCPM5-1B (Reasoning)",
+      "provider": "openbmb",
+      "slug": "minicpm5-1b"
+    },
+    {
       "name": "MiniCPM5-1B (Non-reasoning)",
       "provider": "openbmb",
       "slug": "minicpm5-1b-non-reasoning"
     },
     {
-      "name": "MiniCPM5-1B (Reasoning)",
-      "provider": "openbmb",
-      "slug": "minicpm5-1b"
+      "name": "JT-35B-Flash",
+      "provider": "china-mobile",
+      "slug": "jt-35b-flash"
     },
     {
       "name": "JT-4.1 Flash 236B A21B",
@@ -966,11 +1001,6 @@
       "name": "JT-MINI",
       "provider": "china-mobile",
       "slug": "jt-mini"
-    },
-    {
-      "name": "JT-35B-Flash",
-      "provider": "china-mobile",
-      "slug": "jt-35b-flash"
     },
     {
       "name": "A.X-K2",
@@ -1013,14 +1043,14 @@
       "slug": "apriel-v1-6-15b-thinker"
     },
     {
-      "name": "Jamba Reasoning 3B",
-      "provider": "ai21-labs",
-      "slug": "jamba-reasoning-3b"
-    },
-    {
       "name": "Jamba 1.7 Mini",
       "provider": "ai21-labs",
       "slug": "jamba-1-7-mini"
+    },
+    {
+      "name": "Jamba Reasoning 3B",
+      "provider": "ai21-labs",
+      "slug": "jamba-reasoning-3b"
     },
     {
       "name": "Jamba 1.7 Large",
@@ -1028,44 +1058,9 @@
       "slug": "jamba-1-7-large"
     },
     {
-      "name": "Qwen3.5 4B (Non-reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-5-4b-non-reasoning"
-    },
-    {
-      "name": "Qwen3.5 35B A3B (Non-reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-5-35b-a3b-non-reasoning"
-    },
-    {
-      "name": "Qwen3.6 35B A3B (Non-reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-6-35b-a3b-non-reasoning"
-    },
-    {
-      "name": "Qwen3.5 397B A17B (Non-reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-5-397b-a17b-non-reasoning"
-    },
-    {
-      "name": "Qwen3.8 2.4T A95B",
-      "provider": "alibaba",
-      "slug": "qwen3-8-2-4t-a95b"
-    },
-    {
       "name": "Qwen3.5 Omni Plus",
       "provider": "alibaba",
       "slug": "qwen3-5-omni-plus"
-    },
-    {
-      "name": "Qwen3.6 35B A3B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-6-35b-a3b"
-    },
-    {
-      "name": "Qwen3.5 122B A10B (Non-reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-5-122b-a10b-non-reasoning"
     },
     {
       "name": "Qwen3.6 27B (Non-reasoning)",
@@ -1073,14 +1068,19 @@
       "slug": "qwen3-6-27b-non-reasoning"
     },
     {
-      "name": "Qwen3.5 0.8B (Reasoning)",
+      "name": "Qwen3.6 35B A3B (Non-reasoning)",
       "provider": "alibaba",
-      "slug": "qwen3-5-0-8b"
+      "slug": "qwen3-6-35b-a3b-non-reasoning"
     },
     {
-      "name": "Qwen3 Omni 30B A3B Instruct",
+      "name": "Qwen3.8 27B (low)",
       "provider": "alibaba",
-      "slug": "qwen3-omni-30b-a3b-instruct"
+      "slug": "qwen3-8-27b-low"
+    },
+    {
+      "name": "Qwen3.6 35B A3B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-6-35b-a3b"
     },
     {
       "name": "Qwen3.6 27B (Reasoning)",
@@ -1088,14 +1088,9 @@
       "slug": "qwen3-6-27b"
     },
     {
-      "name": "Qwen3.5 0.8B (Non-reasoning)",
+      "name": "Qwen3.5 122B A10B (Reasoning)",
       "provider": "alibaba",
-      "slug": "qwen3-5-0-8b-non-reasoning"
-    },
-    {
-      "name": "Qwen3 Next 80B A3B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-next-80b-a3b-reasoning"
+      "slug": "qwen3-5-122b-a10b"
     },
     {
       "name": "Qwen3.5 397B A17B (Reasoning)",
@@ -1103,24 +1098,14 @@
       "slug": "qwen3-5-397b-a17b"
     },
     {
-      "name": "Qwen3.5 122B A10B (Reasoning)",
+      "name": "Qwen3.5 0.8B (Reasoning)",
       "provider": "alibaba",
-      "slug": "qwen3-5-122b-a10b"
+      "slug": "qwen3-5-0-8b"
     },
     {
-      "name": "Qwen3.5 2B (Non-reasoning)",
+      "name": "Qwen3 Next 80B A3B (Reasoning)",
       "provider": "alibaba",
-      "slug": "qwen3-5-2b-non-reasoning"
-    },
-    {
-      "name": "Qwen3.5 2B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-5-2b"
-    },
-    {
-      "name": "Qwen3.5 4B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-5-4b"
+      "slug": "qwen3-next-80b-a3b-reasoning"
     },
     {
       "name": "Qwen3.5 9B (Reasoning)",
@@ -1128,14 +1113,79 @@
       "slug": "qwen3-5-9b"
     },
     {
+      "name": "Qwen3.8 2.4T A95B",
+      "provider": "alibaba",
+      "slug": "qwen3-8-2-4t-a95b"
+    },
+    {
+      "name": "Qwen3.5 397B A17B (Non-reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-397b-a17b-non-reasoning"
+    },
+    {
+      "name": "Qwen3.8 27B (xhigh)",
+      "provider": "alibaba",
+      "slug": "qwen3-8-27b"
+    },
+    {
       "name": "Qwen3 Omni 30B A3B (Reasoning)",
       "provider": "alibaba",
       "slug": "qwen3-omni-30b-a3b-reasoning"
     },
     {
+      "name": "Qwen3.5 35B A3B (Non-reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-35b-a3b-non-reasoning"
+    },
+    {
+      "name": "Qwen3.5 122B A10B (Non-reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-122b-a10b-non-reasoning"
+    },
+    {
+      "name": "Qwen3 Omni 30B A3B Instruct",
+      "provider": "alibaba",
+      "slug": "qwen3-omni-30b-a3b-instruct"
+    },
+    {
+      "name": "Qwen3.5 4B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-4b"
+    },
+    {
+      "name": "Qwen3.8 27B (Non-reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-8-27b-non-reasoning"
+    },
+    {
       "name": "Qwen3.5 9B (Non-reasoning)",
       "provider": "alibaba",
       "slug": "qwen3-5-9b-non-reasoning"
+    },
+    {
+      "name": "Qwen3.5 2B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-2b"
+    },
+    {
+      "name": "Qwen3.5 0.8B (Non-reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-0-8b-non-reasoning"
+    },
+    {
+      "name": "Qwen3.5 4B (Non-reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-4b-non-reasoning"
+    },
+    {
+      "name": "Qwen3.8 27B (medium)",
+      "provider": "alibaba",
+      "slug": "qwen3-8-27b-medium"
+    },
+    {
+      "name": "Qwen3.5 2B (Non-reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-2b-non-reasoning"
     },
     {
       "name": "Qwen3.5 Omni Flash",
@@ -1153,6 +1203,11 @@
       "slug": "ling-3-0-tiny"
     },
     {
+      "name": "Ring-2.6-1T",
+      "provider": "inclusionai",
+      "slug": "ring-2-6-1t"
+    },
+    {
       "name": "Doubao Seed Code",
       "provider": "bytedance_seed",
       "slug": "doubao-seed-code"
@@ -1161,6 +1216,11 @@
       "name": "Agnes 2.5 Pro Alpha",
       "provider": "agnes-ai",
       "slug": "agnes-2-5-pro-alpha"
+    },
+    {
+      "name": "Agnes 2.5 Pro Beta",
+      "provider": "agnes-ai",
+      "slug": "agnes-2-5-pro-beta"
     },
     {
       "name": "Celeris-1",
@@ -1178,34 +1238,14 @@
       "slug": "o1-mini"
     },
     {
-      "name": "GPT-4o Realtime (Dec '24)",
+      "name": "GPT-5.5 (Non-reasoning)",
       "provider": "openai",
-      "slug": "gpt-4o-realtime-dec-2024"
+      "slug": "gpt-5-5-non-reasoning"
     },
     {
-      "name": "GPT-5 (minimal)",
+      "name": "GPT-5.2 (Non-reasoning)",
       "provider": "openai",
-      "slug": "gpt-5-minimal"
-    },
-    {
-      "name": "GPT-4o (March 2025, chatgpt-4o-latest)",
-      "provider": "openai",
-      "slug": "gpt-4o-chatgpt-03-25"
-    },
-    {
-      "name": "GPT-4.5 (Preview)",
-      "provider": "openai",
-      "slug": "gpt-4-5"
-    },
-    {
-      "name": "GPT-5.1 (Non-reasoning)",
-      "provider": "openai",
-      "slug": "gpt-5-1-non-reasoning"
-    },
-    {
-      "name": "GPT-5 (medium)",
-      "provider": "openai",
-      "slug": "gpt-5-medium"
+      "slug": "gpt-5-2-non-reasoning"
     },
     {
       "name": "GPT-5.5 (medium)",
@@ -1213,9 +1253,64 @@
       "slug": "gpt-5-5-medium"
     },
     {
-      "name": "GPT-5.5 (Non-reasoning)",
+      "name": "GPT-5 (medium)",
       "provider": "openai",
-      "slug": "gpt-5-5-non-reasoning"
+      "slug": "gpt-5-medium"
+    },
+    {
+      "name": "GPT-5 Codex (high)",
+      "provider": "openai",
+      "slug": "gpt-5-codex"
+    },
+    {
+      "name": "GPT-4.5 (Preview)",
+      "provider": "openai",
+      "slug": "gpt-4-5"
+    },
+    {
+      "name": "GPT-4o (March 2025, chatgpt-4o-latest)",
+      "provider": "openai",
+      "slug": "gpt-4o-chatgpt-03-25"
+    },
+    {
+      "name": "GPT-5.4 (low)",
+      "provider": "openai",
+      "slug": "gpt-5-4-low"
+    },
+    {
+      "name": "GPT-5.4 (Non-reasoning)",
+      "provider": "openai",
+      "slug": "gpt-5-4-non-reasoning"
+    },
+    {
+      "name": "GPT-4o mini Realtime (Dec '24)",
+      "provider": "openai",
+      "slug": "gpt-4o-mini-realtime-dec-2024"
+    },
+    {
+      "name": "GPT-5.4 mini (medium)",
+      "provider": "openai",
+      "slug": "gpt-5-4-mini-medium"
+    },
+    {
+      "name": "GPT-5 nano (minimal)",
+      "provider": "openai",
+      "slug": "gpt-5-nano-minimal"
+    },
+    {
+      "name": "GPT-5.1 (Non-reasoning)",
+      "provider": "openai",
+      "slug": "gpt-5-1-non-reasoning"
+    },
+    {
+      "name": "GPT-5.2 (medium)",
+      "provider": "openai",
+      "slug": "gpt-5-2-medium"
+    },
+    {
+      "name": "GPT-5 nano (medium)",
+      "provider": "openai",
+      "slug": "gpt-5-nano-medium"
     },
     {
       "name": "GPT-5 (low)",
@@ -1223,14 +1318,49 @@
       "slug": "gpt-5-low"
     },
     {
-      "name": "GPT-5.4 nano (medium)",
+      "name": "GPT-5 mini (minimal)",
       "provider": "openai",
-      "slug": "gpt-5-4-nano-medium"
+      "slug": "gpt-5-mini-minimal"
     },
     {
-      "name": "GPT-5.2 (medium)",
+      "name": "GPT-5.4 mini (Non-Reasoning)",
       "provider": "openai",
-      "slug": "gpt-5-2-medium"
+      "slug": "gpt-5-4-mini-non-reasoning"
+    },
+    {
+      "name": "GPT-5 (ChatGPT)",
+      "provider": "openai",
+      "slug": "gpt-5-chatgpt"
+    },
+    {
+      "name": "GPT-5 (minimal)",
+      "provider": "openai",
+      "slug": "gpt-5-minimal"
+    },
+    {
+      "name": "GPT-5.5 Instant (May 2026)",
+      "provider": "openai",
+      "slug": "gpt-5-5-instant-05-26"
+    },
+    {
+      "name": "GPT-5.5 (low)",
+      "provider": "openai",
+      "slug": "gpt-5-5-low"
+    },
+    {
+      "name": "GPT-4o Realtime (Dec '24)",
+      "provider": "openai",
+      "slug": "gpt-4o-realtime-dec-2024"
+    },
+    {
+      "name": "GPT-5 mini (medium)",
+      "provider": "openai",
+      "slug": "gpt-5-mini-medium"
+    },
+    {
+      "name": "GPT-5.4 nano (Non-Reasoning)",
+      "provider": "openai",
+      "slug": "gpt-5-4-nano-non-reasoning"
     },
     {
       "name": "GPT-5.5 (high)",
@@ -1243,79 +1373,9 @@
       "slug": "gpt-4o-chatgpt"
     },
     {
-      "name": "GPT-5 mini (minimal)",
+      "name": "GPT-5.4 nano (medium)",
       "provider": "openai",
-      "slug": "gpt-5-mini-minimal"
-    },
-    {
-      "name": "GPT-5.4 nano (Non-Reasoning)",
-      "provider": "openai",
-      "slug": "gpt-5-4-nano-non-reasoning"
-    },
-    {
-      "name": "GPT-5 mini (medium)",
-      "provider": "openai",
-      "slug": "gpt-5-mini-medium"
-    },
-    {
-      "name": "GPT-5.5 (low)",
-      "provider": "openai",
-      "slug": "gpt-5-5-low"
-    },
-    {
-      "name": "GPT-5.5 Instant (May 2026)",
-      "provider": "openai",
-      "slug": "gpt-5-5-instant-05-26"
-    },
-    {
-      "name": "GPT-5 (ChatGPT)",
-      "provider": "openai",
-      "slug": "gpt-5-chatgpt"
-    },
-    {
-      "name": "GPT-5 nano (medium)",
-      "provider": "openai",
-      "slug": "gpt-5-nano-medium"
-    },
-    {
-      "name": "GPT-5.4 (low)",
-      "provider": "openai",
-      "slug": "gpt-5-4-low"
-    },
-    {
-      "name": "GPT-5.2 (Non-reasoning)",
-      "provider": "openai",
-      "slug": "gpt-5-2-non-reasoning"
-    },
-    {
-      "name": "GPT-5.4 mini (Non-Reasoning)",
-      "provider": "openai",
-      "slug": "gpt-5-4-mini-non-reasoning"
-    },
-    {
-      "name": "GPT-5 Codex (high)",
-      "provider": "openai",
-      "slug": "gpt-5-codex"
-    },
-    {
-      "name": "GPT-5 nano (minimal)",
-      "provider": "openai",
-      "slug": "gpt-5-nano-minimal"
-    },
-    {
-      "name": "GPT-5.4 mini (medium)",
-      "provider": "openai",
-      "slug": "gpt-5-4-mini-medium"
-    },
-    {
-      "name": "GPT-4o mini Realtime (Dec '24)",
-      "provider": "openai",
-      "slug": "gpt-4o-mini-realtime-dec-2024"
-    },
-    {
-      "name": "GPT-5.4 (Non-reasoning)",
-      "provider": "openai",
-      "slug": "gpt-5-4-non-reasoning"
+      "slug": "gpt-5-4-nano-medium"
     },
     {
       "name": "Llama 3.1 Instruct 70B",
@@ -1348,11 +1408,6 @@
       "slug": "llama-3-2-instruct-1b"
     },
     {
-      "name": "Llama 2 Chat 7B",
-      "provider": "meta",
-      "slug": "llama-2-chat-7b"
-    },
-    {
       "name": "Llama 2 Chat 70B",
       "provider": "meta",
       "slug": "llama-2-chat-70b"
@@ -1361,6 +1416,11 @@
       "name": "Llama 2 Chat 13B",
       "provider": "meta",
       "slug": "llama-2-chat-13b"
+    },
+    {
+      "name": "Llama 2 Chat 7B",
+      "provider": "meta",
+      "slug": "llama-2-chat-7b"
     },
     {
       "name": "Muse Spark",
@@ -1403,9 +1463,79 @@
       "slug": "gemini-1-5-flash-8b"
     },
     {
-      "name": "Gemini 2.0 Flash-Lite (Feb '25)",
+      "name": "Gemma 3 27B Instruct",
       "provider": "google",
-      "slug": "gemini-2-0-flash-lite-001"
+      "slug": "gemma-3-27b"
+    },
+    {
+      "name": "Gemini 2.5 Flash Preview (Reasoning)",
+      "provider": "google",
+      "slug": "gemini-2-5-flash-reasoning-04-2025"
+    },
+    {
+      "name": "Gemini 2.0 Flash Thinking Experimental (Jan '25)",
+      "provider": "google",
+      "slug": "gemini-2-0-flash-thinking-exp-0121"
+    },
+    {
+      "name": "Gemini 2.5 Pro Preview (Mar' 25)",
+      "provider": "google",
+      "slug": "gemini-2-5-pro-03-25"
+    },
+    {
+      "name": "Gemini 2.5 Flash Preview (Non-reasoning)",
+      "provider": "google",
+      "slug": "gemini-2-5-flash-04-2025"
+    },
+    {
+      "name": "PALM-2",
+      "provider": "google",
+      "slug": "palm-2"
+    },
+    {
+      "name": "Gemma 3 1B Instruct",
+      "provider": "google",
+      "slug": "gemma-3-1b"
+    },
+    {
+      "name": "Gemma 3 12B Instruct",
+      "provider": "google",
+      "slug": "gemma-3-12b"
+    },
+    {
+      "name": "Gemini 3 Pro Preview (high)",
+      "provider": "google",
+      "slug": "gemini-3-pro"
+    },
+    {
+      "name": "Gemini 1.0 Pro",
+      "provider": "google",
+      "slug": "gemini-1-0-pro"
+    },
+    {
+      "name": "Gemini 2.5 Flash Preview (Sep '25) (Reasoning)",
+      "provider": "google",
+      "slug": "gemini-2-5-flash-preview-09-2025-reasoning"
+    },
+    {
+      "name": "Gemma 3 4B Instruct",
+      "provider": "google",
+      "slug": "gemma-3-4b"
+    },
+    {
+      "name": "Gemini 2.5 Flash Preview (Sep '25) (Non-reasoning)",
+      "provider": "google",
+      "slug": "gemini-2-5-flash-preview-09-2025"
+    },
+    {
+      "name": "Gemini 2.5 Flash-Lite Preview (Sep '25) (Reasoning)",
+      "provider": "google",
+      "slug": "gemini-2-5-flash-lite-preview-09-2025-reasoning"
+    },
+    {
+      "name": "Gemini 3 Flash Preview (Reasoning)",
+      "provider": "google",
+      "slug": "gemini-3-flash-reasoning"
     },
     {
       "name": "Gemini 2.0 Flash Thinking Experimental (Dec '24)",
@@ -1413,14 +1543,19 @@
       "slug": "gemini-2-0-flash-thinking-exp-1219"
     },
     {
+      "name": "Gemini 2.0 Flash-Lite (Feb '25)",
+      "provider": "google",
+      "slug": "gemini-2-0-flash-lite-001"
+    },
+    {
+      "name": "Gemini 2.5 Flash-Lite Preview (Sep '25) (Non-reasoning)",
+      "provider": "google",
+      "slug": "gemini-2-5-flash-lite-preview-09-2025"
+    },
+    {
       "name": "Gemini 2.5 Flash-Lite (Reasoning)",
       "provider": "google",
       "slug": "gemini-2-5-flash-lite-reasoning"
-    },
-    {
-      "name": "Gemma 3 27B Instruct",
-      "provider": "google",
-      "slug": "gemma-3-27b"
     },
     {
       "name": "Gemini 2.5 Pro Preview (May' 25)",
@@ -1433,59 +1568,9 @@
       "slug": "gemma-3n-e2b"
     },
     {
-      "name": "Gemma 3 1B Instruct",
-      "provider": "google",
-      "slug": "gemma-3-1b"
-    },
-    {
-      "name": "Gemini 2.0 Flash Thinking Experimental (Jan '25)",
-      "provider": "google",
-      "slug": "gemini-2-0-flash-thinking-exp-0121"
-    },
-    {
-      "name": "Gemma 3 4B Instruct",
-      "provider": "google",
-      "slug": "gemma-3-4b"
-    },
-    {
-      "name": "PALM-2",
-      "provider": "google",
-      "slug": "palm-2"
-    },
-    {
-      "name": "Gemini 2.5 Flash Preview (Non-reasoning)",
-      "provider": "google",
-      "slug": "gemini-2-5-flash-04-2025"
-    },
-    {
-      "name": "Gemma 3 12B Instruct",
-      "provider": "google",
-      "slug": "gemma-3-12b"
-    },
-    {
       "name": "Gemini 2.5 Flash (Reasoning)",
       "provider": "google",
       "slug": "gemini-2-5-flash-reasoning"
-    },
-    {
-      "name": "Gemma 3n E4B Instruct",
-      "provider": "google",
-      "slug": "gemma-3n-e4b"
-    },
-    {
-      "name": "Gemini 3 Pro Preview (high)",
-      "provider": "google",
-      "slug": "gemini-3-pro"
-    },
-    {
-      "name": "Gemini 2.5 Pro Preview (Mar' 25)",
-      "provider": "google",
-      "slug": "gemini-2-5-pro-03-25"
-    },
-    {
-      "name": "Gemini 2.5 Flash Preview (Reasoning)",
-      "provider": "google",
-      "slug": "gemini-2-5-flash-reasoning-04-2025"
     },
     {
       "name": "Gemini 1.5 Pro (May '24)",
@@ -1493,29 +1578,9 @@
       "slug": "gemini-1-5-pro-may-2024"
     },
     {
-      "name": "Gemini 2.5 Flash-Lite Preview (Sep '25) (Non-reasoning)",
+      "name": "Gemini 3 Pro Preview (low)",
       "provider": "google",
-      "slug": "gemini-2-5-flash-lite-preview-09-2025"
-    },
-    {
-      "name": "Gemini 1.0 Ultra",
-      "provider": "google",
-      "slug": "gemini-1-0-ultra"
-    },
-    {
-      "name": "Gemini 2.5 Flash-Lite Preview (Sep '25) (Reasoning)",
-      "provider": "google",
-      "slug": "gemini-2-5-flash-lite-preview-09-2025-reasoning"
-    },
-    {
-      "name": "Gemini 2.5 Flash Preview (Sep '25) (Non-reasoning)",
-      "provider": "google",
-      "slug": "gemini-2-5-flash-preview-09-2025"
-    },
-    {
-      "name": "Gemini 1.0 Pro",
-      "provider": "google",
-      "slug": "gemini-1-0-pro"
+      "slug": "gemini-3-pro-low"
     },
     {
       "name": "Gemini 1.5 Flash (May '24)",
@@ -1523,24 +1588,19 @@
       "slug": "gemini-1-5-flash-may-2024"
     },
     {
-      "name": "Gemini 3 Pro Preview (low)",
-      "provider": "google",
-      "slug": "gemini-3-pro-low"
-    },
-    {
       "name": "Gemma 3n E4B Instruct Preview (May '25)",
       "provider": "google",
       "slug": "gemma-3n-e4b-preview-0520"
     },
     {
-      "name": "Gemini 2.5 Flash Preview (Sep '25) (Reasoning)",
+      "name": "Gemini 1.0 Ultra",
       "provider": "google",
-      "slug": "gemini-2-5-flash-preview-09-2025-reasoning"
+      "slug": "gemini-1-0-ultra"
     },
     {
-      "name": "Gemini 3 Flash Preview (Reasoning)",
+      "name": "Gemma 3n E4B Instruct",
       "provider": "google",
-      "slug": "gemini-3-flash-reasoning"
+      "slug": "gemma-3n-e4b"
     },
     {
       "name": "Claude 3.5 Sonnet (Oct '24)",
@@ -1573,14 +1633,49 @@
       "slug": "claude-instant"
     },
     {
-      "name": "Claude Opus 4.7 (Non-reasoning, High Effort)",
+      "name": "Claude Opus 4.5 (Reasoning)",
       "provider": "anthropic",
-      "slug": "claude-opus-4-7-non-reasoning"
+      "slug": "claude-opus-4-5-thinking"
     },
     {
-      "name": "Claude 4 Opus (Non-reasoning)",
+      "name": "Claude 4 Sonnet (Non-reasoning)",
       "provider": "anthropic",
-      "slug": "claude-4-opus"
+      "slug": "claude-4-sonnet"
+    },
+    {
+      "name": "Claude 4.1 Opus (Reasoning)",
+      "provider": "anthropic",
+      "slug": "claude-4-1-opus-thinking"
+    },
+    {
+      "name": "Claude 4 Sonnet (Reasoning)",
+      "provider": "anthropic",
+      "slug": "claude-4-sonnet-thinking"
+    },
+    {
+      "name": "Claude 2.1",
+      "provider": "anthropic",
+      "slug": "claude-21"
+    },
+    {
+      "name": "Claude 4.5 Sonnet (Reasoning)",
+      "provider": "anthropic",
+      "slug": "claude-4-5-sonnet-thinking"
+    },
+    {
+      "name": "Claude 4 Opus (Reasoning)",
+      "provider": "anthropic",
+      "slug": "claude-4-opus-thinking"
+    },
+    {
+      "name": "Claude Sonnet 4.6 (Adaptive Reasoning, Max Effort)",
+      "provider": "anthropic",
+      "slug": "claude-sonnet-4-6-adaptive"
+    },
+    {
+      "name": "Claude 4.1 Opus (Non-reasoning)",
+      "provider": "anthropic",
+      "slug": "claude-4-1-opus"
     },
     {
       "name": "Claude Opus 4.6 (Adaptive Reasoning, Max Effort)",
@@ -1593,54 +1688,19 @@
       "slug": "claude-3-7-sonnet-thinking"
     },
     {
-      "name": "Claude 4.1 Opus (Non-reasoning)",
+      "name": "Claude Opus 4.7 (Non-reasoning, High Effort)",
       "provider": "anthropic",
-      "slug": "claude-4-1-opus"
+      "slug": "claude-opus-4-7-non-reasoning"
     },
     {
-      "name": "Claude 4.5 Sonnet (Reasoning)",
+      "name": "Claude 4 Opus (Non-reasoning)",
       "provider": "anthropic",
-      "slug": "claude-4-5-sonnet-thinking"
+      "slug": "claude-4-opus"
     },
     {
       "name": "Claude 3.7 Sonnet (Non-reasoning)",
       "provider": "anthropic",
       "slug": "claude-3-7-sonnet"
-    },
-    {
-      "name": "Claude 4 Sonnet (Non-reasoning)",
-      "provider": "anthropic",
-      "slug": "claude-4-sonnet"
-    },
-    {
-      "name": "Claude Sonnet 4.6 (Adaptive Reasoning, Max Effort)",
-      "provider": "anthropic",
-      "slug": "claude-sonnet-4-6-adaptive"
-    },
-    {
-      "name": "Claude 4.1 Opus (Reasoning)",
-      "provider": "anthropic",
-      "slug": "claude-4-1-opus-thinking"
-    },
-    {
-      "name": "Claude Opus 4.5 (Reasoning)",
-      "provider": "anthropic",
-      "slug": "claude-opus-4-5-thinking"
-    },
-    {
-      "name": "Claude 4 Opus (Reasoning)",
-      "provider": "anthropic",
-      "slug": "claude-4-opus-thinking"
-    },
-    {
-      "name": "Claude 2.1",
-      "provider": "anthropic",
-      "slug": "claude-21"
-    },
-    {
-      "name": "Claude 4 Sonnet (Reasoning)",
-      "provider": "anthropic",
-      "slug": "claude-4-sonnet-thinking"
     },
     {
       "name": "Claude 2.0",
@@ -1688,6 +1748,16 @@
       "slug": "mistral-7b-instruct"
     },
     {
+      "name": "Magistral Small 1",
+      "provider": "mistral",
+      "slug": "magistral-small"
+    },
+    {
+      "name": "Mistral Small 3.2",
+      "provider": "mistral",
+      "slug": "mistral-small-3-2"
+    },
+    {
       "name": "Mistral Small 3.1",
       "provider": "mistral",
       "slug": "mistral-small-3-1"
@@ -1696,11 +1766,6 @@
       "name": "Devstral Small (May '25)",
       "provider": "mistral",
       "slug": "devstral-small-2505"
-    },
-    {
-      "name": "Magistral Small 1",
-      "provider": "mistral",
-      "slug": "magistral-small"
     },
     {
       "name": "Devstral Medium",
@@ -1713,19 +1778,14 @@
       "slug": "devstral-small"
     },
     {
-      "name": "Mistral Medium",
-      "provider": "mistral",
-      "slug": "mistral-medium"
-    },
-    {
       "name": "Magistral Medium 1",
       "provider": "mistral",
       "slug": "magistral-medium"
     },
     {
-      "name": "Mistral Small 3.2",
+      "name": "Mistral Medium",
       "provider": "mistral",
-      "slug": "mistral-small-3-2"
+      "slug": "mistral-medium"
     },
     {
       "name": "DeepSeek R1 Distill Qwen 32B",
@@ -1763,26 +1823,6 @@
       "slug": "deepseek-r1-distill-qwen-1-5b"
     },
     {
-      "name": "DeepSeek R1 (Jan '25)",
-      "provider": "deepseek",
-      "slug": "deepseek-r1-0120"
-    },
-    {
-      "name": "DeepSeek V3 0324",
-      "provider": "deepseek",
-      "slug": "deepseek-v3-0324"
-    },
-    {
-      "name": "DeepSeek V3.2 (Reasoning)",
-      "provider": "deepseek",
-      "slug": "deepseek-v3-2-reasoning"
-    },
-    {
-      "name": "DeepSeek V3.1 (Non-reasoning)",
-      "provider": "deepseek",
-      "slug": "deepseek-v3-1"
-    },
-    {
       "name": "DeepSeek V4 Flash (Reasoning, High Effort)",
       "provider": "deepseek",
       "slug": "deepseek-v4-flash-0420-high"
@@ -1793,14 +1833,9 @@
       "slug": "deepseek-v4-flash-0420"
     },
     {
-      "name": "DeepSeek V3.2 Exp (Non-reasoning)",
+      "name": "DeepSeek V3.2 (Reasoning)",
       "provider": "deepseek",
-      "slug": "deepseek-v3-2-0925"
-    },
-    {
-      "name": "DeepSeek V3.1 Terminus (Reasoning)",
-      "provider": "deepseek",
-      "slug": "deepseek-v3-1-terminus-reasoning"
+      "slug": "deepseek-v3-2-reasoning"
     },
     {
       "name": "DeepSeek V3.1 (Reasoning)",
@@ -1808,24 +1843,14 @@
       "slug": "deepseek-v3-1-reasoning"
     },
     {
+      "name": "DeepSeek V3.2 Exp (Non-reasoning)",
+      "provider": "deepseek",
+      "slug": "deepseek-v3-2-0925"
+    },
+    {
       "name": "DeepSeek Coder V2 Lite Instruct",
       "provider": "deepseek",
       "slug": "deepseek-coder-v2-lite"
-    },
-    {
-      "name": "DeepSeek-V2.5",
-      "provider": "deepseek",
-      "slug": "deepseek-v2-5-sep-2024"
-    },
-    {
-      "name": "DeepSeek R1 0528 Qwen3 8B",
-      "provider": "deepseek",
-      "slug": "deepseek-r1-qwen3-8b"
-    },
-    {
-      "name": "DeepSeek V3.2 Speciale",
-      "provider": "deepseek",
-      "slug": "deepseek-v3-2-speciale"
     },
     {
       "name": "DeepSeek V3.2 Exp (Reasoning)",
@@ -1833,9 +1858,44 @@
       "slug": "deepseek-v3-2-reasoning-0925"
     },
     {
+      "name": "DeepSeek R1 (Jan '25)",
+      "provider": "deepseek",
+      "slug": "deepseek-r1-0120"
+    },
+    {
+      "name": "DeepSeek-V2.5",
+      "provider": "deepseek",
+      "slug": "deepseek-v2-5-sep-2024"
+    },
+    {
+      "name": "DeepSeek V3.1 (Non-reasoning)",
+      "provider": "deepseek",
+      "slug": "deepseek-v3-1"
+    },
+    {
+      "name": "DeepSeek V3 0324",
+      "provider": "deepseek",
+      "slug": "deepseek-v3-0324"
+    },
+    {
+      "name": "DeepSeek V3.2 Speciale",
+      "provider": "deepseek",
+      "slug": "deepseek-v3-2-speciale"
+    },
+    {
       "name": "DeepSeek-V2-Chat",
       "provider": "deepseek",
       "slug": "deepseek-v2"
+    },
+    {
+      "name": "DeepSeek V3.1 Terminus (Reasoning)",
+      "provider": "deepseek",
+      "slug": "deepseek-v3-1-terminus-reasoning"
+    },
+    {
+      "name": "DeepSeek R1 0528 Qwen3 8B",
+      "provider": "deepseek",
+      "slug": "deepseek-r1-qwen3-8b"
     },
     {
       "name": "Sonar Reasoning",
@@ -1848,14 +1908,14 @@
       "slug": "grok-beta"
     },
     {
-      "name": "Grok 3 Reasoning Beta",
+      "name": "Grok 4.1 Fast (Reasoning)",
       "provider": "xai",
-      "slug": "grok-3-reasoning"
+      "slug": "grok-4-1-fast-reasoning"
     },
     {
-      "name": "Grok 4",
+      "name": "Grok 3",
       "provider": "xai",
-      "slug": "grok-4"
+      "slug": "grok-3"
     },
     {
       "name": "Grok 2 (Dec '24)",
@@ -1868,6 +1928,41 @@
       "slug": "grok-4-fast"
     },
     {
+      "name": "Grok 3 mini Reasoning (high)",
+      "provider": "xai",
+      "slug": "grok-3-mini-reasoning"
+    },
+    {
+      "name": "Grok Build 0.1 0616",
+      "provider": "xai",
+      "slug": "grok-build-0-1-06-16"
+    },
+    {
+      "name": "Grok 4.1 Fast (Non-reasoning)",
+      "provider": "xai",
+      "slug": "grok-4-1-fast"
+    },
+    {
+      "name": "Grok 4.20 0309 (Non-reasoning)",
+      "provider": "xai",
+      "slug": "grok-4-20-0309-non-reasoning"
+    },
+    {
+      "name": "Grok 4 Fast (Reasoning)",
+      "provider": "xai",
+      "slug": "grok-4-fast-reasoning"
+    },
+    {
+      "name": "Grok 4",
+      "provider": "xai",
+      "slug": "grok-4"
+    },
+    {
+      "name": "Grok 4.20 0309 v2 (Non-reasoning)",
+      "provider": "xai",
+      "slug": "grok-4-20-non-reasoning"
+    },
+    {
       "name": "Grok 4.20 0309 (Reasoning)",
       "provider": "xai",
       "slug": "grok-4-20-0309"
@@ -1878,44 +1973,9 @@
       "slug": "grok-code-fast-1"
     },
     {
-      "name": "Grok 3",
+      "name": "Grok 3 Reasoning Beta",
       "provider": "xai",
-      "slug": "grok-3"
-    },
-    {
-      "name": "Grok 4 Fast (Reasoning)",
-      "provider": "xai",
-      "slug": "grok-4-fast-reasoning"
-    },
-    {
-      "name": "Grok Build 0.1 0616",
-      "provider": "xai",
-      "slug": "grok-build-0-1-06-16"
-    },
-    {
-      "name": "Grok 4.20 0309 (Non-reasoning)",
-      "provider": "xai",
-      "slug": "grok-4-20-0309-non-reasoning"
-    },
-    {
-      "name": "Grok 4.1 Fast (Non-reasoning)",
-      "provider": "xai",
-      "slug": "grok-4-1-fast"
-    },
-    {
-      "name": "Grok 4.1 Fast (Reasoning)",
-      "provider": "xai",
-      "slug": "grok-4-1-fast-reasoning"
-    },
-    {
-      "name": "Grok 4.20 0309 v2 (Non-reasoning)",
-      "provider": "xai",
-      "slug": "grok-4-20-non-reasoning"
-    },
-    {
-      "name": "Grok 3 mini Reasoning (high)",
-      "provider": "xai",
-      "slug": "grok-3-mini-reasoning"
+      "slug": "grok-3-reasoning"
     },
     {
       "name": "OpenChat 3.5 (1210)",
@@ -1953,6 +2013,16 @@
       "slug": "solar-mini"
     },
     {
+      "name": "Solar Pro 2 (Preview) (Non-reasoning)",
+      "provider": "upstage",
+      "slug": "solar-pro-2-preview"
+    },
+    {
+      "name": "Solar Pro 2 (Reasoning)",
+      "provider": "upstage",
+      "slug": "solar-pro-2-reasoning"
+    },
+    {
       "name": "Solar Pro 2 (Preview) (Reasoning)",
       "provider": "upstage",
       "slug": "solar-pro-2-preview-reasoning"
@@ -1961,16 +2031,6 @@
       "name": "Solar Pro 2 (Non-reasoning)",
       "provider": "upstage",
       "slug": "solar-pro-2"
-    },
-    {
-      "name": "Solar Pro 2 (Reasoning)",
-      "provider": "upstage",
-      "slug": "solar-pro-2-reasoning"
-    },
-    {
-      "name": "Solar Pro 2 (Preview) (Non-reasoning)",
-      "provider": "upstage",
-      "slug": "solar-pro-2-preview"
     },
     {
       "name": "DBRX Instruct",
@@ -1988,6 +2048,11 @@
       "slug": "minimax-m1-80k"
     },
     {
+      "name": "Llama 3.3 Nemotron Super 49B v1 (Reasoning)",
+      "provider": "nvidia",
+      "slug": "llama-3-3-nemotron-super-49b-reasoning"
+    },
+    {
       "name": "Llama 3.3 Nemotron Super 49B v1 (Non-reasoning)",
       "provider": "nvidia",
       "slug": "llama-3-3-nemotron-super-49b"
@@ -1996,11 +2061,6 @@
       "name": "Llama 3.1 Nemotron Nano 4B v1.1 (Reasoning)",
       "provider": "nvidia",
       "slug": "llama-3-1-nemotron-nano-4b-reasoning"
-    },
-    {
-      "name": "Llama 3.3 Nemotron Super 49B v1 (Reasoning)",
-      "provider": "nvidia",
-      "slug": "llama-3-3-nemotron-super-49b-reasoning"
     },
     {
       "name": "Kimi K2.5 (Non-reasoning)",
@@ -2023,6 +2083,11 @@
       "slug": "tulu3-405b"
     },
     {
+      "name": "Olmo 3 32B Think",
+      "provider": "ai2",
+      "slug": "olmo-3-32b-think"
+    },
+    {
       "name": "OLMo 2 7B",
       "provider": "ai2",
       "slug": "olmo-2-7b"
@@ -2043,14 +2108,14 @@
       "slug": "reka-flash"
     },
     {
-      "name": "MiMo-V2-Pro",
-      "provider": "xiaomi",
-      "slug": "mimo-v2-pro"
-    },
-    {
       "name": "MiMo-V2-Flash (Reasoning)",
       "provider": "xiaomi",
       "slug": "mimo-v2-flash-reasoning"
+    },
+    {
+      "name": "MiMo-V2-Pro",
+      "provider": "xiaomi",
+      "slug": "mimo-v2-pro"
     },
     {
       "name": "Sarvam M (Reasoning)",
@@ -2078,9 +2143,9 @@
       "slug": "tri-21b-think-preview"
     },
     {
-      "name": "GLM-4.7 (Non-reasoning)",
+      "name": "GLM-4.6V (Reasoning)",
       "provider": "zai",
-      "slug": "glm-4-7-non-reasoning"
+      "slug": "glm-4-6v-reasoning"
     },
     {
       "name": "GLM-5.1 (Non-reasoning)",
@@ -2088,9 +2153,14 @@
       "slug": "glm-5-1-non-reasoning"
     },
     {
-      "name": "GLM-4.5V (Reasoning)",
+      "name": "GLM-4.6 (Reasoning)",
       "provider": "zai",
-      "slug": "glm-4-5v-reasoning"
+      "slug": "glm-4-6-reasoning"
+    },
+    {
+      "name": "GLM-4.7 (Non-reasoning)",
+      "provider": "zai",
+      "slug": "glm-4-7-non-reasoning"
     },
     {
       "name": "GLM-5 (Non-reasoning)",
@@ -2098,19 +2168,14 @@
       "slug": "glm-5-non-reasoning"
     },
     {
-      "name": "GLM-4.6V (Reasoning)",
-      "provider": "zai",
-      "slug": "glm-4-6v-reasoning"
-    },
-    {
       "name": "GLM-4.7-Flash (Non-reasoning)",
       "provider": "zai",
       "slug": "glm-4-7-flash-non-reasoning"
     },
     {
-      "name": "GLM-4.6 (Reasoning)",
+      "name": "GLM-4.5V (Reasoning)",
       "provider": "zai",
-      "slug": "glm-4-6-reasoning"
+      "slug": "glm-4-5v-reasoning"
     },
     {
       "name": "Command-R+ (Apr '24)",
@@ -2128,11 +2193,6 @@
       "slug": "apriel-v1-5-15b-thinker"
     },
     {
-      "name": "Jamba 1.5 Mini",
-      "provider": "ai21-labs",
-      "slug": "jamba-1-5-mini"
-    },
-    {
       "name": "Jamba 1.5 Large",
       "provider": "ai21-labs",
       "slug": "jamba-1-5-large"
@@ -2141,6 +2201,11 @@
       "name": "Jamba 1.6 Mini",
       "provider": "ai21-labs",
       "slug": "jamba-1-6-mini"
+    },
+    {
+      "name": "Jamba 1.5 Mini",
+      "provider": "ai21-labs",
+      "slug": "jamba-1-5-mini"
     },
     {
       "name": "Jamba 1.6 Large",
@@ -2168,39 +2233,29 @@
       "slug": "qwen2-72b-instruct"
     },
     {
-      "name": "Qwen2.5 Coder Instruct 7B ",
+      "name": "Qwen3.6 Max Preview",
       "provider": "alibaba",
-      "slug": "qwen2-5-coder-7b-instruct"
+      "slug": "qwen3-6-max"
     },
     {
-      "name": "Qwen3 235B A22B 2507 Instruct",
+      "name": "QwQ 32B",
       "provider": "alibaba",
-      "slug": "qwen3-235b-a22b-instruct-2507"
+      "slug": "qwq-32b"
     },
     {
-      "name": "Qwen3 Coder 480B A35B Instruct",
+      "name": "Qwen3 VL 30B A3B (Reasoning)",
       "provider": "alibaba",
-      "slug": "qwen3-coder-480b-a35b-instruct"
+      "slug": "qwen3-vl-30b-a3b-reasoning"
     },
     {
-      "name": "Qwen3 30B A3B 2507 Instruct",
+      "name": "QwQ 32B-Preview",
       "provider": "alibaba",
-      "slug": "qwen3-30b-a3b-2507"
+      "slug": "QwQ-32B-Preview"
     },
     {
-      "name": "Qwen3 0.6B (Reasoning)",
+      "name": "Qwen3 235B A22B (Reasoning)",
       "provider": "alibaba",
-      "slug": "qwen3-0.6b-instruct-reasoning"
-    },
-    {
-      "name": "Qwen1.5 Chat 110B",
-      "provider": "alibaba",
-      "slug": "qwen1.5-110b-chat"
-    },
-    {
-      "name": "Qwen3 30B A3B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-30b-a3b-instruct-reasoning"
+      "slug": "qwen3-235b-a22b-instruct-reasoning"
     },
     {
       "name": "Qwen3 235B A22B (Non-reasoning)",
@@ -2213,39 +2268,14 @@
       "slug": "qwen2.5-32b-instruct"
     },
     {
-      "name": "Qwen3 VL 30B A3B (Reasoning)",
+      "name": "Qwen3 235B A22B 2507 Instruct",
       "provider": "alibaba",
-      "slug": "qwen3-vl-30b-a3b-reasoning"
+      "slug": "qwen3-235b-a22b-instruct-2507"
     },
     {
-      "name": "Qwen3 14B (Non-reasoning)",
+      "name": "Qwen3 30B A3B (Reasoning)",
       "provider": "alibaba",
-      "slug": "qwen3-14b-instruct"
-    },
-    {
-      "name": "Qwen3 14B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-14b-instruct-reasoning"
-    },
-    {
-      "name": "Qwen3 235B A22B 2507 (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-235b-a22b-instruct-2507-reasoning"
-    },
-    {
-      "name": "Qwen3 4B (Non-reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-4b-instruct"
-    },
-    {
-      "name": "Qwen3 1.7B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-1.7b-instruct-reasoning"
-    },
-    {
-      "name": "Qwen3 32B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-32b-instruct-reasoning"
+      "slug": "qwen3-30b-a3b-instruct-reasoning"
     },
     {
       "name": "Qwen3 32B (Non-reasoning)",
@@ -2253,19 +2283,14 @@
       "slug": "qwen3-32b-instruct"
     },
     {
-      "name": "Qwen3.5 35B A3B (Reasoning)",
+      "name": "Qwen3 32B (Reasoning)",
       "provider": "alibaba",
-      "slug": "qwen3-5-35b-a3b"
+      "slug": "qwen3-32b-instruct-reasoning"
     },
     {
-      "name": "Qwen3 235B A22B (Reasoning)",
+      "name": "Qwen3 14B (Reasoning)",
       "provider": "alibaba",
-      "slug": "qwen3-235b-a22b-instruct-reasoning"
-    },
-    {
-      "name": "Qwen3.5 27B (Non-reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-5-27b-non-reasoning"
+      "slug": "qwen3-14b-instruct-reasoning"
     },
     {
       "name": "Qwen3 VL 8B (Reasoning)",
@@ -2273,39 +2298,9 @@
       "slug": "qwen3-vl-8b-reasoning"
     },
     {
-      "name": "Qwen3 VL 4B Instruct",
+      "name": "Qwen3 8B (Non-reasoning)",
       "provider": "alibaba",
-      "slug": "qwen3-vl-4b-instruct"
-    },
-    {
-      "name": "QwQ 32B",
-      "provider": "alibaba",
-      "slug": "qwq-32b"
-    },
-    {
-      "name": "Qwen3 8B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-8b-instruct-reasoning"
-    },
-    {
-      "name": "QwQ 32B-Preview",
-      "provider": "alibaba",
-      "slug": "QwQ-32B-Preview"
-    },
-    {
-      "name": "Qwen3 VL 235B A22B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-vl-235b-a22b-reasoning"
-    },
-    {
-      "name": "Qwen3 30B A3B (Non-reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-30b-a3b-instruct"
-    },
-    {
-      "name": "Qwen3 Max Thinking (Preview)",
-      "provider": "alibaba",
-      "slug": "qwen3-max-thinking-preview"
+      "slug": "qwen3-8b-instruct"
     },
     {
       "name": "Qwen3 30B A3B 2507 (Reasoning)",
@@ -2313,14 +2308,54 @@
       "slug": "qwen3-30b-a3b-2507-reasoning"
     },
     {
-      "name": "Qwen3 4B 2507 Instruct",
+      "name": "Qwen3 30B A3B 2507 Instruct",
       "provider": "alibaba",
-      "slug": "qwen3-4b-2507-instruct"
+      "slug": "qwen3-30b-a3b-2507"
     },
     {
-      "name": "Qwen3 8B (Non-reasoning)",
+      "name": "Qwen3 Coder 480B A35B Instruct",
       "provider": "alibaba",
-      "slug": "qwen3-8b-instruct"
+      "slug": "qwen3-coder-480b-a35b-instruct"
+    },
+    {
+      "name": "Qwen2.5 Coder Instruct 7B ",
+      "provider": "alibaba",
+      "slug": "qwen2-5-coder-7b-instruct"
+    },
+    {
+      "name": "Qwen3 4B (Non-reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-4b-instruct"
+    },
+    {
+      "name": "Qwen3 8B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-8b-instruct-reasoning"
+    },
+    {
+      "name": "Qwen3 235B A22B 2507 (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-235b-a22b-instruct-2507-reasoning"
+    },
+    {
+      "name": "Qwen3 VL 235B A22B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-vl-235b-a22b-reasoning"
+    },
+    {
+      "name": "Qwen3 14B (Non-reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-14b-instruct"
+    },
+    {
+      "name": "Qwen3 30B A3B (Non-reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-30b-a3b-instruct"
+    },
+    {
+      "name": "Qwen3.5 35B A3B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-35b-a3b"
     },
     {
       "name": "Qwen3.5 27B (Reasoning)",
@@ -2328,29 +2363,9 @@
       "slug": "qwen3-5-27b"
     },
     {
-      "name": "Qwen3 VL 4B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-vl-4b-reasoning"
-    },
-    {
       "name": "Qwen3 0.6B (Non-reasoning)",
       "provider": "alibaba",
       "slug": "qwen3-0.6b-instruct"
-    },
-    {
-      "name": "Qwen3 1.7B (Non-reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-1.7b-instruct"
-    },
-    {
-      "name": "Qwen3 VL 32B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-vl-32b-reasoning"
-    },
-    {
-      "name": "Qwen3.6 Max Preview",
-      "provider": "alibaba",
-      "slug": "qwen3-6-max"
     },
     {
       "name": "Qwen3 4B (Reasoning)",
@@ -2363,9 +2378,54 @@
       "slug": "qwen3-4b-2507-instruct-reasoning"
     },
     {
-      "name": "Qwen3 Max (Preview)",
+      "name": "Qwen3 1.7B (Non-reasoning)",
       "provider": "alibaba",
-      "slug": "qwen3-max-preview"
+      "slug": "qwen3-1.7b-instruct"
+    },
+    {
+      "name": "Qwen3.5 27B (Non-reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-27b-non-reasoning"
+    },
+    {
+      "name": "Qwen3 VL 32B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-vl-32b-reasoning"
+    },
+    {
+      "name": "Qwen3 0.6B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-0.6b-instruct-reasoning"
+    },
+    {
+      "name": "Qwen3 1.7B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-1.7b-instruct-reasoning"
+    },
+    {
+      "name": "Qwen3 Max Thinking (Preview)",
+      "provider": "alibaba",
+      "slug": "qwen3-max-thinking-preview"
+    },
+    {
+      "name": "Qwen3 VL 4B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-vl-4b-reasoning"
+    },
+    {
+      "name": "Qwen3 VL 4B Instruct",
+      "provider": "alibaba",
+      "slug": "qwen3-vl-4b-instruct"
+    },
+    {
+      "name": "Qwen1.5 Chat 110B",
+      "provider": "alibaba",
+      "slug": "qwen1.5-110b-chat"
+    },
+    {
+      "name": "Qwen3 4B 2507 Instruct",
+      "provider": "alibaba",
+      "slug": "qwen3-4b-2507-instruct"
     },
     {
       "name": "Qwen Chat 72B",
@@ -2373,9 +2433,19 @@
       "slug": "qwen-chat-72b"
     },
     {
+      "name": "Qwen3 Max (Preview)",
+      "provider": "alibaba",
+      "slug": "qwen3-max-preview"
+    },
+    {
       "name": "Ling-flash-2.0",
       "provider": "inclusionai",
       "slug": "ling-flash-2-0"
+    },
+    {
+      "name": "Ling 2.6 Flash",
+      "provider": "inclusionai",
+      "slug": "ling-2-6-flash"
     },
     {
       "name": "Ring-1T",
@@ -2383,14 +2453,19 @@
       "slug": "ring-1t"
     },
     {
-      "name": "Ling-1T",
-      "provider": "inclusionai",
-      "slug": "ling-1t"
-    },
-    {
       "name": "Ling-mini-2.0",
       "provider": "inclusionai",
       "slug": "ling-mini-2-0"
+    },
+    {
+      "name": "Ling-2.6-1T",
+      "provider": "inclusionai",
+      "slug": "ling-2-6-1t"
+    },
+    {
+      "name": "Ling-1T",
+      "provider": "inclusionai",
+      "slug": "ling-1t"
     },
     {
       "name": "Seed-OSS-36B-Instruct",
@@ -2404,6 +2479,10 @@
       "reason": "missing-aaii"
     },
     {
+      "slug": "openai/gpt-4",
+      "reason": "insufficient-context:min=8192,actual=8191"
+    },
+    {
       "slug": "openai/gpt-5.4-pro",
       "reason": "missing-aaii"
     },
@@ -2412,32 +2491,32 @@
       "reason": "missing-aaii"
     },
     {
-      "slug": "openai/gpt-4",
-      "reason": "insufficient-context:min=8192,actual=8191"
-    },
-    {
       "slug": "moonshotai/kimi-k3",
       "reason": "aaii-threshold:min=65.00,actual=59.70"
+    },
+    {
+      "slug": "z-ai/glm-5.3",
+      "reason": "aaii-threshold:min=65.00,actual=59.50"
     },
     {
       "slug": "qwen/qwen3.8-max",
       "reason": "aaii-threshold:min=65.00,actual=58.10"
     },
     {
-      "slug": "anthropic/claude-opus-4.8",
-      "reason": "aaii-threshold:min=65.00,actual=57.30"
+      "slug": "z-ai/glm-5.3-flash",
+      "reason": "aaii-threshold:min=65.00,actual=57.50"
     },
     {
-      "slug": "openai/gpt-oss-120b",
-      "reason": "aaii-threshold:min=65.00,actual=24.10"
+      "slug": "anthropic/claude-opus-4.8",
+      "reason": "aaii-threshold:min=65.00,actual=57.30"
     },
     {
       "slug": "openai/gpt-oss-20b",
       "reason": "aaii-threshold:min=65.00,actual=15.20"
     },
     {
-      "slug": "openai/gpt-5.3-codex",
-      "reason": "aaii-threshold:min=65.00,actual=45.50"
+      "slug": "openai/gpt-oss-120b",
+      "reason": "aaii-threshold:min=65.00,actual=24.10"
     },
     {
       "slug": "openai/o3",
@@ -2452,20 +2531,20 @@
       "reason": "aaii-threshold:min=65.00,actual=52.30"
     },
     {
-      "slug": "meta-llama/llama-4-maverick",
-      "reason": "aaii-threshold:min=65.00,actual=14.50"
-    },
-    {
-      "slug": "meta-llama/llama-4-scout",
-      "reason": "aaii-threshold:min=65.00,actual=10.30"
+      "slug": "openai/gpt-5.3-codex",
+      "reason": "aaii-threshold:min=65.00,actual=45.50"
     },
     {
       "slug": "meta/muse-spark-1.2",
       "reason": "aaii-threshold:min=65.00,actual=56.80"
     },
     {
-      "slug": "google/gemini-3.1-pro-preview",
-      "reason": "aaii-threshold:min=65.00,actual=47.70"
+      "slug": "meta-llama/llama-4-scout",
+      "reason": "aaii-threshold:min=65.00,actual=10.30"
+    },
+    {
+      "slug": "meta-llama/llama-4-maverick",
+      "reason": "aaii-threshold:min=65.00,actual=14.50"
     },
     {
       "slug": "google/gemini-3.6-flash",
@@ -2478,6 +2557,10 @@
     {
       "slug": "google/gemini-3.7-flash",
       "reason": "aaii-threshold:min=65.00,actual=56.00"
+    },
+    {
+      "slug": "google/gemini-3.1-pro-preview",
+      "reason": "aaii-threshold:min=65.00,actual=47.70"
     },
     {
       "slug": "anthropic/claude-sonnet-5",
@@ -2496,12 +2579,12 @@
       "reason": "aaii-threshold:min=65.00,actual=30.40"
     },
     {
-      "slug": "deepseek/deepseek-v4-flash",
-      "reason": "aaii-threshold:min=65.00,actual=51.80"
-    },
-    {
       "slug": "deepseek/deepseek-v4-pro",
       "reason": "aaii-threshold:min=65.00,actual=53.20"
+    },
+    {
+      "slug": "deepseek/deepseek-v4-flash",
+      "reason": "aaii-threshold:min=65.00,actual=51.80"
     },
     {
       "slug": "x-ai/grok-4.5",
@@ -2525,11 +2608,15 @@
     },
     {
       "slug": "nvidia/nemotron-3-nano-30b-a3b",
-      "reason": "aaii-threshold:min=65.00,actual=8.60"
+      "reason": "aaii-threshold:min=65.00,actual=14.50"
     },
     {
       "slug": "nvidia/nemotron-3.5-lightning",
       "reason": "aaii-threshold:min=65.00,actual=23.60"
+    },
+    {
+      "slug": "nvidia/nemotron-3-nano-30b-a3b",
+      "reason": "aaii-threshold:min=65.00,actual=8.60"
     },
     {
       "slug": "moonshotai/kimi-k2.7-code",
@@ -2548,12 +2635,12 @@
       "reason": "aaii-threshold:min=65.00,actual=3.70"
     },
     {
-      "slug": "xiaomi/mimo-v2.5-pro",
-      "reason": "aaii-threshold:min=65.00,actual=42.90"
-    },
-    {
       "slug": "xiaomi/mimo-v2.5",
       "reason": "aaii-threshold:min=65.00,actual=38.00"
+    },
+    {
+      "slug": "xiaomi/mimo-v2.5-pro",
+      "reason": "aaii-threshold:min=65.00,actual=42.90"
     },
     {
       "slug": "tencent/hy3",
@@ -2576,12 +2663,12 @@
       "reason": "aaii-threshold:min=65.00,actual=41.70"
     },
     {
-      "slug": "thinkingmachines/inkling-small",
-      "reason": "aaii-threshold:min=65.00,actual=41.20"
-    },
-    {
       "slug": "thinkingmachines/inkling",
       "reason": "aaii-threshold:min=65.00,actual=42.30"
+    },
+    {
+      "slug": "thinkingmachines/inkling-small",
+      "reason": "aaii-threshold:min=65.00,actual=41.20"
     },
     {
       "slug": "z-ai/glm-5.2",
@@ -2606,10 +2693,6 @@
     {
       "slug": "inclusionai/ling-3.0-flash",
       "reason": "aaii-threshold:min=65.00,actual=37.80"
-    },
-    {
-      "slug": "inclusionai/ring-2.6-1t",
-      "reason": "aaii-threshold:min=65.00,actual=31.70"
     },
     {
       "slug": "openai/o1",
@@ -2640,96 +2723,92 @@
       "reason": "aaii-threshold:min=65.00,actual=3.20"
     },
     {
-      "slug": "openai/o3-pro",
-      "reason": "aaii-threshold:min=65.00,actual=33.30"
-    },
-    {
-      "slug": "openai/o4-mini",
-      "reason": "aaii-threshold:min=65.00,actual=26.10"
-    },
-    {
       "slug": "openai/gpt-4.1-nano",
       "reason": "aaii-threshold:min=65.00,actual=9.60"
-    },
-    {
-      "slug": "openai/gpt-4.1-mini",
-      "reason": "aaii-threshold:min=65.00,actual=14.80"
-    },
-    {
-      "slug": "openai/gpt-5.4-mini",
-      "reason": "aaii-threshold:min=65.00,actual=40.90"
-    },
-    {
-      "slug": "openai/gpt-5.4-nano",
-      "reason": "aaii-threshold:min=65.00,actual=39.70"
-    },
-    {
-      "slug": "openai/gpt-5-nano",
-      "reason": "aaii-threshold:min=65.00,actual=20.10"
-    },
-    {
-      "slug": "openai/o1-pro",
-      "reason": "aaii-threshold:min=65.00,actual=19.10"
-    },
-    {
-      "slug": "openai/gpt-5.1-codex-mini",
-      "reason": "aaii-threshold:min=65.00,actual=31.30"
     },
     {
       "slug": "openai/gpt-5.4",
       "reason": "aaii-threshold:min=65.00,actual=53.10"
     },
     {
-      "slug": "openai/gpt-4.1",
-      "reason": "aaii-threshold:min=65.00,actual=19.60"
-    },
-    {
-      "slug": "openai/gpt-5",
-      "reason": "aaii-threshold:min=65.00,actual=35.30"
+      "slug": "openai/gpt-5.1",
+      "reason": "aaii-threshold:min=65.00,actual=37.50"
     },
     {
       "slug": "openai/gpt-5.2",
       "reason": "aaii-threshold:min=65.00,actual=43.30"
     },
     {
-      "slug": "openai/gpt-5.1",
-      "reason": "aaii-threshold:min=65.00,actual=37.50"
+      "slug": "openai/gpt-5",
+      "reason": "aaii-threshold:min=65.00,actual=35.30"
     },
     {
-      "slug": "openai/gpt-5.2-codex",
-      "reason": "aaii-threshold:min=65.00,actual=41.20"
-    },
-    {
-      "slug": "openai/gpt-5.1-codex",
-      "reason": "aaii-threshold:min=65.00,actual=35.60"
-    },
-    {
-      "slug": "openai/gpt-5.5",
-      "reason": "aaii-threshold:min=65.00,actual=56.30"
-    },
-    {
-      "slug": "openai/gpt-5-mini",
-      "reason": "aaii-threshold:min=65.00,actual=25.80"
+      "slug": "openai/gpt-4.1",
+      "reason": "aaii-threshold:min=65.00,actual=19.60"
     },
     {
       "slug": "openai/o3-mini",
       "reason": "aaii-threshold:min=65.00,actual=19.20"
     },
     {
+      "slug": "openai/gpt-5-mini",
+      "reason": "aaii-threshold:min=65.00,actual=25.80"
+    },
+    {
+      "slug": "openai/gpt-5.5",
+      "reason": "aaii-threshold:min=65.00,actual=56.30"
+    },
+    {
+      "slug": "openai/gpt-5.2-codex",
+      "reason": "aaii-threshold:min=65.00,actual=41.20"
+    },
+    {
       "slug": "openai/o3-mini-high",
       "reason": "aaii-threshold:min=65.00,actual=15.70"
+    },
+    {
+      "slug": "openai/gpt-5.1-codex",
+      "reason": "aaii-threshold:min=65.00,actual=35.60"
+    },
+    {
+      "slug": "openai/o3-pro",
+      "reason": "aaii-threshold:min=65.00,actual=33.30"
+    },
+    {
+      "slug": "openai/gpt-5-nano",
+      "reason": "aaii-threshold:min=65.00,actual=20.10"
+    },
+    {
+      "slug": "openai/gpt-5.1-codex-mini",
+      "reason": "aaii-threshold:min=65.00,actual=31.30"
+    },
+    {
+      "slug": "openai/o4-mini",
+      "reason": "aaii-threshold:min=65.00,actual=26.10"
+    },
+    {
+      "slug": "openai/gpt-4.1-mini",
+      "reason": "aaii-threshold:min=65.00,actual=14.80"
+    },
+    {
+      "slug": "openai/gpt-5.4-nano",
+      "reason": "aaii-threshold:min=65.00,actual=39.70"
+    },
+    {
+      "slug": "openai/gpt-5.4-mini",
+      "reason": "aaii-threshold:min=65.00,actual=40.90"
+    },
+    {
+      "slug": "openai/o1-pro",
+      "reason": "aaii-threshold:min=65.00,actual=19.10"
     },
     {
       "slug": "meta/muse-spark-1.1",
       "reason": "aaii-threshold:min=65.00,actual=53.20"
     },
     {
-      "slug": "google/gemini-3.5-flash",
-      "reason": "aaii-threshold:min=65.00,actual=52.00"
-    },
-    {
-      "slug": "google/gemini-2.5-pro",
-      "reason": "aaii-threshold:min=65.00,actual=25.90"
+      "slug": "google/gemini-2.5-flash",
+      "reason": "aaii-threshold:min=65.00,actual=14.20"
     },
     {
       "slug": "google/gemini-3.1-flash-lite-preview",
@@ -2744,24 +2823,20 @@
       "reason": "aaii-threshold:min=65.00,actual=6.70"
     },
     {
-      "slug": "google/gemini-2.5-flash",
-      "reason": "aaii-threshold:min=65.00,actual=14.20"
+      "slug": "google/gemini-3.5-flash",
+      "reason": "aaii-threshold:min=65.00,actual=52.00"
+    },
+    {
+      "slug": "google/gemini-2.5-pro",
+      "reason": "aaii-threshold:min=65.00,actual=25.90"
     },
     {
       "slug": "anthropic/claude-3-haiku",
       "reason": "aaii-threshold:min=65.00,actual=3.50"
     },
     {
-      "slug": "anthropic/claude-sonnet-4.6",
-      "reason": "aaii-threshold:min=65.00,actual=36.80"
-    },
-    {
       "slug": "anthropic/claude-sonnet-4.5",
       "reason": "aaii-threshold:min=65.00,actual=29.90"
-    },
-    {
-      "slug": "anthropic/claude-opus-4.5",
-      "reason": "aaii-threshold:min=65.00,actual=35.60"
     },
     {
       "slug": "anthropic/claude-opus-4.7",
@@ -2772,6 +2847,14 @@
       "reason": "aaii-threshold:min=65.00,actual=38.80"
     },
     {
+      "slug": "anthropic/claude-opus-4.5",
+      "reason": "aaii-threshold:min=65.00,actual=35.60"
+    },
+    {
+      "slug": "anthropic/claude-sonnet-4.6",
+      "reason": "aaii-threshold:min=65.00,actual=36.80"
+    },
+    {
       "slug": "mistralai/mistral-large-2407",
       "reason": "aaii-threshold:min=65.00,actual=7.00"
     },
@@ -2780,12 +2863,12 @@
       "reason": "aaii-threshold:min=65.00,actual=4.10"
     },
     {
-      "slug": "mistralai/mistral-saba",
-      "reason": "aaii-threshold:min=65.00,actual=6.20"
-    },
-    {
       "slug": "mistralai/mistral-medium-3.1",
       "reason": "aaii-threshold:min=65.00,actual=14.70"
+    },
+    {
+      "slug": "mistralai/mistral-saba",
+      "reason": "aaii-threshold:min=65.00,actual=6.20"
     },
     {
       "slug": "mistralai/mistral-medium-3",
@@ -2800,10 +2883,6 @@
       "reason": "aaii-threshold:min=65.00,actual=6.20"
     },
     {
-      "slug": "deepseek/deepseek-v3.2",
-      "reason": "aaii-threshold:min=65.00,actual=25.10"
-    },
-    {
       "slug": "deepseek/deepseek-r1",
       "reason": "aaii-threshold:min=65.00,actual=20.40"
     },
@@ -2812,68 +2891,68 @@
       "reason": "aaii-threshold:min=65.00,actual=21.70"
     },
     {
-      "slug": "perplexity/sonar-pro",
-      "reason": "aaii-threshold:min=65.00,actual=9.10"
+      "slug": "deepseek/deepseek-v3.2",
+      "reason": "aaii-threshold:min=65.00,actual=25.10"
     },
     {
       "slug": "perplexity/sonar",
       "reason": "aaii-threshold:min=65.00,actual=9.40"
     },
     {
-      "slug": "perplexity/sonar-reasoning-pro",
-      "reason": "aaii-threshold:min=65.00,actual=18.00"
+      "slug": "perplexity/sonar-pro",
+      "reason": "aaii-threshold:min=65.00,actual=9.10"
     },
     {
-      "slug": "x-ai/grok-4.3",
-      "reason": "aaii-threshold:min=65.00,actual=37.90"
+      "slug": "perplexity/sonar-reasoning-pro",
+      "reason": "aaii-threshold:min=65.00,actual=18.00"
     },
     {
       "slug": "x-ai/grok-4.20",
       "reason": "aaii-threshold:min=65.00,actual=38.00"
     },
     {
-      "slug": "minimax/minimax-m2.5",
-      "reason": "aaii-threshold:min=65.00,actual=34.50"
-    },
-    {
-      "slug": "minimax/minimax-m2.1",
-      "reason": "aaii-threshold:min=65.00,actual=32.10"
-    },
-    {
-      "slug": "minimax/minimax-m2.7",
-      "reason": "aaii-threshold:min=65.00,actual=38.90"
+      "slug": "x-ai/grok-4.3",
+      "reason": "aaii-threshold:min=65.00,actual=37.90"
     },
     {
       "slug": "minimax/minimax-m2",
       "reason": "aaii-threshold:min=65.00,actual=28.90"
     },
     {
-      "slug": "moonshotai/kimi-k2",
-      "reason": "aaii-threshold:min=65.00,actual=19.70"
+      "slug": "minimax/minimax-m2.1",
+      "reason": "aaii-threshold:min=65.00,actual=32.10"
     },
     {
-      "slug": "moonshotai/kimi-k2-thinking",
-      "reason": "aaii-threshold:min=65.00,actual=33.50"
+      "slug": "minimax/minimax-m2.5",
+      "reason": "aaii-threshold:min=65.00,actual=34.50"
     },
     {
-      "slug": "moonshotai/kimi-k2.5",
-      "reason": "aaii-threshold:min=65.00,actual=36.00"
-    },
-    {
-      "slug": "moonshotai/kimi-k2-0905",
-      "reason": "aaii-threshold:min=65.00,actual=24.00"
+      "slug": "minimax/minimax-m2.7",
+      "reason": "aaii-threshold:min=65.00,actual=38.90"
     },
     {
       "slug": "moonshotai/kimi-k2.6",
       "reason": "aaii-threshold:min=65.00,actual=45.10"
     },
     {
-      "slug": "stepfun/step-3.5-flash",
-      "reason": "aaii-threshold:min=65.00,actual=26.50"
+      "slug": "moonshotai/kimi-k2.5",
+      "reason": "aaii-threshold:min=65.00,actual=36.00"
     },
     {
-      "slug": "allenai/olmo-3-32b-think",
-      "reason": "aaii-threshold:min=65.00,actual=6.10"
+      "slug": "moonshotai/kimi-k2-thinking",
+      "reason": "aaii-threshold:min=65.00,actual=33.50"
+    },
+    {
+      "slug": "moonshotai/kimi-k2",
+      "reason": "aaii-threshold:min=65.00,actual=19.70"
+    },
+    {
+      "slug": "moonshotai/kimi-k2-0905",
+      "reason": "aaii-threshold:min=65.00,actual=24.00"
+    },
+    {
+      "slug": "stepfun/step-3.5-flash",
+      "reason": "aaii-threshold:min=65.00,actual=26.50"
     },
     {
       "slug": "nousresearch/hermes-3-llama-3.1-70b",
@@ -2884,32 +2963,24 @@
       "reason": "aaii-threshold:min=65.00,actual=34.40"
     },
     {
-      "slug": "z-ai/glm-4.7",
-      "reason": "aaii-threshold:min=65.00,actual=34.50"
-    },
-    {
-      "slug": "z-ai/glm-4.5-air",
-      "reason": "aaii-threshold:min=65.00,actual=16.70"
-    },
-    {
-      "slug": "z-ai/glm-4.6v",
-      "reason": "aaii-threshold:min=65.00,actual=10.90"
-    },
-    {
-      "slug": "z-ai/glm-5",
-      "reason": "aaii-threshold:min=65.00,actual=40.60"
-    },
-    {
-      "slug": "z-ai/glm-5.1",
-      "reason": "aaii-threshold:min=65.00,actual=41.00"
+      "slug": "z-ai/glm-4.5",
+      "reason": "aaii-threshold:min=65.00,actual=19.70"
     },
     {
       "slug": "z-ai/glm-4.7-flash",
       "reason": "aaii-threshold:min=65.00,actual=23.30"
     },
     {
-      "slug": "z-ai/glm-4.5",
-      "reason": "aaii-threshold:min=65.00,actual=19.70"
+      "slug": "z-ai/glm-5.1",
+      "reason": "aaii-threshold:min=65.00,actual=41.00"
+    },
+    {
+      "slug": "z-ai/glm-4.7",
+      "reason": "aaii-threshold:min=65.00,actual=34.50"
+    },
+    {
+      "slug": "z-ai/glm-5",
+      "reason": "aaii-threshold:min=65.00,actual=40.60"
     },
     {
       "slug": "z-ai/glm-4.5v",
@@ -2924,8 +2995,16 @@
       "reason": "aaii-threshold:min=65.00,actual=35.30"
     },
     {
+      "slug": "z-ai/glm-4.6v",
+      "reason": "aaii-threshold:min=65.00,actual=10.90"
+    },
+    {
       "slug": "z-ai/glm-5-turbo",
       "reason": "aaii-threshold:min=65.00,actual=39.10"
+    },
+    {
+      "slug": "z-ai/glm-4.5-air",
+      "reason": "aaii-threshold:min=65.00,actual=16.70"
     },
     {
       "slug": "qwen/qwen-2.5-72b-instruct",
@@ -2936,48 +3015,40 @@
       "reason": "aaii-threshold:min=65.00,actual=6.90"
     },
     {
-      "slug": "qwen/qwen3-vl-8b-instruct",
-      "reason": "aaii-threshold:min=65.00,actual=8.20"
-    },
-    {
-      "slug": "qwen/qwen3-max-thinking",
-      "reason": "aaii-threshold:min=65.00,actual=32.50"
+      "slug": "qwen/qwen3-coder-30b-a3b-instruct",
+      "reason": "aaii-threshold:min=65.00,actual=13.60"
     },
     {
       "slug": "qwen/qwen3-vl-235b-a22b-instruct",
       "reason": "aaii-threshold:min=65.00,actual=14.40"
     },
     {
-      "slug": "qwen/qwen3-vl-30b-a3b-instruct",
-      "reason": "aaii-threshold:min=65.00,actual=9.90"
+      "slug": "qwen/qwen3.7-max",
+      "reason": "aaii-threshold:min=65.00,actual=46.70"
     },
     {
       "slug": "qwen/qwen3-vl-32b-instruct",
       "reason": "aaii-threshold:min=65.00,actual=11.00"
     },
     {
-      "slug": "qwen/qwen3.6-plus",
-      "reason": "aaii-threshold:min=65.00,actual=40.50"
-    },
-    {
-      "slug": "qwen/qwen3-coder-30b-a3b-instruct",
-      "reason": "aaii-threshold:min=65.00,actual=13.60"
-    },
-    {
-      "slug": "qwen/qwen3.7-max",
-      "reason": "aaii-threshold:min=65.00,actual=46.70"
-    },
-    {
       "slug": "qwen/qwen3-max",
       "reason": "aaii-threshold:min=65.00,actual=24.50"
     },
     {
-      "slug": "inclusionai/ling-2.6-flash",
-      "reason": "aaii-threshold:min=65.00,actual=14.20"
+      "slug": "qwen/qwen3-max-thinking",
+      "reason": "aaii-threshold:min=65.00,actual=32.50"
     },
     {
-      "slug": "inclusionai/ling-2.6-1t",
-      "reason": "aaii-threshold:min=65.00,actual=26.60"
+      "slug": "qwen/qwen3.6-plus",
+      "reason": "aaii-threshold:min=65.00,actual=40.50"
+    },
+    {
+      "slug": "qwen/qwen3-vl-30b-a3b-instruct",
+      "reason": "aaii-threshold:min=65.00,actual=9.90"
+    },
+    {
+      "slug": "qwen/qwen3-vl-8b-instruct",
+      "reason": "aaii-threshold:min=65.00,actual=8.20"
     }
   ]
 }
