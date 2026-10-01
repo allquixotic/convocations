@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-09-15T13:08:45.505769283+00:00",
+  "generated_at": "2026-10-01T15:05:22.569451193+00:00",
   "metadata": {
     "thresholds": {
       "min_free_aaii": 60.0,
@@ -17,24 +17,24 @@
     "counts": {
       "curated_free": 1,
       "curated_cheap": 4,
-      "unmatched": 498,
-      "discarded": 148
+      "unmatched": 528,
+      "discarded": 156
     }
   },
   "free": [
     {
-      "slug": "z-ai/glm-5.2:free",
-      "display_name": "Z.ai: GLM 5.2 (free)",
-      "provider": "z-ai",
+      "slug": "qwen/qwen3.8-27b:free",
+      "display_name": "Qwen: Qwen3.8 27B (free)",
+      "provider": "qwen",
       "aaii": 0.0,
       "price_in_per_million": 0.0,
       "price_out_per_million": 0.0,
       "price_source": "openrouter",
-      "context_length": 32768,
+      "context_length": 262144,
       "modalities": [],
-      "match_strategy": "manual-series:zai-glm",
-      "aa_last_updated": "2026-06-16T17:45:30+00:00",
-      "openrouter_created_at": "2026-06-16T17:45:30+00:00"
+      "match_strategy": "manual-series:qwen",
+      "aa_last_updated": "2026-08-14T15:55:10+00:00",
+      "openrouter_created_at": "2026-08-14T15:55:10+00:00"
     }
   ],
   "cheap": [
@@ -68,7 +68,7 @@
       "slug": "google/gemini-3.8-flash",
       "display_name": "Google: Gemini 3.8 Flash",
       "provider": "google",
-      "aaii": 41.2,
+      "aaii": 40.9,
       "price_in_per_million": 0.75,
       "price_out_per_million": 3.75,
       "price_source": "openrouter",
@@ -93,14 +93,39 @@
   ],
   "unmatched": [
     {
+      "name": "Claude Opus 5.5 (Adaptive Reasoning, Xhigh Effort, Default Fallback)",
+      "provider": "anthropic",
+      "slug": "claude-opus-5-5-xhigh"
+    },
+    {
+      "name": "Claude Opus 5.5 (Adaptive Reasoning, High Effort, Default Fallback)",
+      "provider": "anthropic",
+      "slug": "claude-opus-5-5-high"
+    },
+    {
       "name": "Claude Fable 5.1 (Adaptive Reasoning, Xhigh Effort, Default Fallback)",
       "provider": "anthropic",
       "slug": "claude-fable-5-1-xhigh"
     },
     {
-      "name": "GPT-6 Astra (xhigh)",
+      "name": "Gemini 4 Argon (High)",
+      "provider": "google",
+      "slug": "gemini-4-argon"
+    },
+    {
+      "name": "GPT-6 Astra (Xhigh)",
       "provider": "openai",
       "slug": "gpt-6-astra-xhigh"
+    },
+    {
+      "name": "Claude Sonnet 5.5 (Adaptive Reasoning, Xhigh Effort, Default Fallback)",
+      "provider": "anthropic",
+      "slug": "claude-sonnet-5-5-xhigh"
+    },
+    {
+      "name": "Claude Opus 5.5 (Adaptive Reasoning, Medium Effort, Default Fallback)",
+      "provider": "anthropic",
+      "slug": "claude-opus-5-5-medium"
     },
     {
       "name": "Claude Fable 5.1 (Adaptive Reasoning, High Effort, Default Fallback)",
@@ -108,19 +133,29 @@
       "slug": "claude-fable-5-1-high"
     },
     {
-      "name": "GPT-6 Astra (high)",
+      "name": "GPT-6.1 Sol (Xhigh)",
+      "provider": "openai",
+      "slug": "gpt-6-1-sol-xhigh"
+    },
+    {
+      "name": "GPT-6 Astra (High)",
       "provider": "openai",
       "slug": "gpt-6-astra-high"
     },
     {
-      "name": "GPT-6 Astra (medium)",
+      "name": "GPT-6.1 Sol (High)",
       "provider": "openai",
-      "slug": "gpt-6-astra-medium"
+      "slug": "gpt-6-1-sol-high"
     },
     {
       "name": "Claude Opus 5 (Adaptive Reasoning, Xhigh Effort)",
       "provider": "anthropic",
       "slug": "claude-opus-5-xhigh"
+    },
+    {
+      "name": "GPT-6 Astra (Medium)",
+      "provider": "openai",
+      "slug": "gpt-6-astra-medium"
     },
     {
       "name": "Claude Fable 5.1 (Adaptive Reasoning, Medium Effort, Default Fallback)",
@@ -133,17 +168,37 @@
       "slug": "claude-opus-5-high"
     },
     {
+      "name": "GPT-6.1 Sol (Medium)",
+      "provider": "openai",
+      "slug": "gpt-6-1-sol-medium"
+    },
+    {
       "name": "Claude Fable 5.1 (Adaptive Reasoning, Low Effort, Default Fallback)",
       "provider": "anthropic",
       "slug": "claude-fable-5-1-low"
     },
     {
-      "name": "GPT-6 Astra (low)",
+      "name": "Claude Sonnet 5.5 (Adaptive Reasoning, High Effort, Default Fallback)",
+      "provider": "anthropic",
+      "slug": "claude-sonnet-5-5-high"
+    },
+    {
+      "name": "Grok 4.7 (High)",
+      "provider": "xai",
+      "slug": "grok-4-7-high"
+    },
+    {
+      "name": "GPT-6 Astra (Low)",
       "provider": "openai",
       "slug": "gpt-6-astra-low"
     },
     {
-      "name": "Muse Spark 1.3 (xhigh)",
+      "name": "Qwen3.8 Max (0902)",
+      "provider": "alibaba",
+      "slug": "qwen3-8-max"
+    },
+    {
+      "name": "Muse Spark 1.3 (Xhigh)",
       "provider": "meta",
       "slug": "muse-spark-1-3-xhigh"
     },
@@ -153,29 +208,59 @@
       "slug": "claude-opus-5-medium"
     },
     {
-      "name": "Grok 4.6 (xhigh)",
+      "name": "GPT-6 Sol (Xhigh)",
+      "provider": "openai",
+      "slug": "gpt-6-sol-xhigh"
+    },
+    {
+      "name": "Grok 4.6 (Xhigh)",
       "provider": "xai",
       "slug": "grok-4-6-xhigh"
     },
     {
-      "name": "GPT-5.6 Sol (xhigh)",
+      "name": "GPT-5.6 Sol (Xhigh)",
       "provider": "openai",
       "slug": "gpt-5-6-sol-xhigh"
     },
     {
-      "name": "Grok 4.6 (medium)",
+      "name": "Step 5 Preview",
+      "provider": "stepfun",
+      "slug": "step-5"
+    },
+    {
+      "name": "Grok 4.6 (Medium)",
       "provider": "xai",
       "slug": "grok-4-6-medium"
     },
     {
-      "name": "GPT-5.6 Sol (high)",
+      "name": "GPT-6 Sol (High)",
+      "provider": "openai",
+      "slug": "gpt-6-sol-high"
+    },
+    {
+      "name": "GPT-5.6 Sol (High)",
       "provider": "openai",
       "slug": "gpt-5-6-sol-high"
     },
     {
+      "name": "Claude Opus 5.5 (Adaptive Reasoning, Low Effort, Default Fallback)",
+      "provider": "anthropic",
+      "slug": "claude-opus-5-5-low"
+    },
+    {
+      "name": "GPT-6.1 Sol (Low)",
+      "provider": "openai",
+      "slug": "gpt-6-1-sol-low"
+    },
+    {
+      "name": "Claude Sonnet 5.5 (Adaptive Reasoning, Medium Effort, Default Fallback)",
+      "provider": "anthropic",
+      "slug": "claude-sonnet-5-5-medium"
+    },
+    {
       "name": "Qwen3.8 Max",
       "provider": "alibaba",
-      "slug": "qwen3-8-max"
+      "slug": "qwen3-8-max-0803"
     },
     {
       "name": "Qwen3.8 2.4T A95B",
@@ -183,14 +268,24 @@
       "slug": "qwen3-8-2-4t-a95b"
     },
     {
-      "name": "Gemini 3.8 Flash (medium)",
+      "name": "Qwen3.8-Flash-Next",
+      "provider": "alibaba",
+      "slug": "qwen3-8-flash-next"
+    },
+    {
+      "name": "GPT-6 Sol (Medium)",
+      "provider": "openai",
+      "slug": "gpt-6-sol-medium"
+    },
+    {
+      "name": "Gemini 3.8 Flash (Medium)",
       "provider": "google",
       "slug": "gemini-3-8-flash-medium"
     },
     {
-      "name": "Qwen3.8-Flash-Next",
-      "provider": "alibaba",
-      "slug": "qwen3-8-flash-next"
+      "name": "Gemini 3.7 Flash (Medium)",
+      "provider": "google",
+      "slug": "gemini-3-7-flash-medium"
     },
     {
       "name": "Claude Opus 5 (Adaptive Reasoning, Low Effort)",
@@ -198,52 +293,42 @@
       "slug": "claude-opus-5-low"
     },
     {
-      "name": "Gemini 3.7 Flash (medium)",
-      "provider": "google",
-      "slug": "gemini-3-7-flash-medium"
-    },
-    {
-      "name": "GPT-5.6 Sol (medium)",
+      "name": "GPT-5.6 Sol (Medium)",
       "provider": "openai",
       "slug": "gpt-5-6-sol-medium"
     },
     {
-      "name": "GPT-5.6 Terra (xhigh)",
+      "name": "GPT-5.6 Terra (Xhigh)",
       "provider": "openai",
       "slug": "gpt-5-6-terra-xhigh"
     },
     {
-      "name": "GPT-5.5 (high)",
+      "name": "GPT-5.5 (High)",
       "provider": "openai",
       "slug": "gpt-5-5-high"
     },
     {
-      "name": "Gemini 3.7 Flash (low)",
+      "name": "Gemini 3.7 Flash (Low)",
       "provider": "google",
       "slug": "gemini-3-7-flash-low"
     },
     {
-      "name": "Agnes 3.0 Flash",
-      "provider": "agnes-ai",
-      "slug": "agnes-3-0-flash"
-    },
-    {
-      "name": "Grok 4.6 (low)",
+      "name": "Grok 4.6 (Low)",
       "provider": "xai",
       "slug": "grok-4-6-low"
     },
     {
-      "name": "Agnes 2.5 Pro Beta",
-      "provider": "agnes-ai",
-      "slug": "agnes-2-5-pro-beta"
-    },
-    {
-      "name": "DeepSeek V4 Flash Vision (Reasoning, Max Effort)",
+      "name": "DeepSeek V4 Flash Vision (Max)",
       "provider": "deepseek",
       "slug": "deepseek-v4-flash-vision"
     },
     {
-      "name": "GPT-5.6 Luna (xhigh)",
+      "name": "GPT-6 Luna (Xhigh)",
+      "provider": "openai",
+      "slug": "gpt-6-luna-xhigh"
+    },
+    {
+      "name": "GPT-5.6 Luna (Xhigh)",
       "provider": "openai",
       "slug": "gpt-5-6-luna-xhigh"
     },
@@ -253,32 +338,37 @@
       "slug": "claude-sonnet-5-xhigh"
     },
     {
-      "name": "GPT-5.6 Terra (high)",
+      "name": "GLM-5.3 (Low)",
+      "provider": "zai",
+      "slug": "glm-5-3-low"
+    },
+    {
+      "name": "GPT-5.6 Terra (High)",
       "provider": "openai",
       "slug": "gpt-5-6-terra-high"
     },
     {
-      "name": "GPT-5.5 (medium)",
+      "name": "GPT-6 Sol (Low)",
+      "provider": "openai",
+      "slug": "gpt-6-sol-low"
+    },
+    {
+      "name": "JT-4.1 Flash 236B A21B (Reasoning)",
+      "provider": "china-mobile",
+      "slug": "jt236b"
+    },
+    {
+      "name": "GPT-5.5 (Medium)",
       "provider": "openai",
       "slug": "gpt-5-5-medium"
     },
     {
-      "name": "Qwen3.8 27B (xhigh)",
+      "name": "Qwen3.8 27B (Xhigh)",
       "provider": "alibaba",
       "slug": "qwen3-8-27b"
     },
     {
-      "name": "GPT-5.6 Sol (low)",
-      "provider": "openai",
-      "slug": "gpt-5-6-sol-low"
-    },
-    {
-      "name": "Gemini 3.8 Flash (low)",
-      "provider": "google",
-      "slug": "gemini-3-8-flash-low"
-    },
-    {
-      "name": "Gemini 3.5 Flash (medium)",
+      "name": "Gemini 3.5 Flash (Medium)",
       "provider": "google",
       "slug": "gemini-3-5-flash-medium"
     },
@@ -288,9 +378,19 @@
       "slug": "motif-3"
     },
     {
-      "name": "GPT-5.6 Luna (high)",
+      "name": "GPT-5.6 Sol (Low)",
       "provider": "openai",
-      "slug": "gpt-5-6-luna-high"
+      "slug": "gpt-5-6-sol-low"
+    },
+    {
+      "name": "Gemini 3.8 Flash (Low)",
+      "provider": "google",
+      "slug": "gemini-3-8-flash-low"
+    },
+    {
+      "name": "GPT-6 Luna (High)",
+      "provider": "openai",
+      "slug": "gpt-6-luna-high"
     },
     {
       "name": "Motif 3 (Beta)",
@@ -298,14 +398,19 @@
       "slug": "motif-0714"
     },
     {
-      "name": "Claude Sonnet 5 (Adaptive Reasoning, High Effort)",
-      "provider": "anthropic",
-      "slug": "claude-sonnet-5-high"
+      "name": "GPT-5.6 Luna (High)",
+      "provider": "openai",
+      "slug": "gpt-5-6-luna-high"
     },
     {
       "name": "Claude Opus 4.6 (Adaptive Reasoning, Max Effort)",
       "provider": "anthropic",
       "slug": "claude-opus-4-6-adaptive"
+    },
+    {
+      "name": "Claude Sonnet 5 (Adaptive Reasoning, High Effort)",
+      "provider": "anthropic",
+      "slug": "claude-sonnet-5-high"
     },
     {
       "name": "Muse Spark",
@@ -318,22 +423,32 @@
       "slug": "claude-opus-4-7-non-reasoning"
     },
     {
-      "name": "DeepSeek V4 Pro (Reasoning, Max Effort)",
-      "provider": "deepseek",
-      "slug": "deepseek-v4-pro-0424"
-    },
-    {
-      "name": "K2 Horizon 375B A23B",
-      "provider": "mbzuai",
-      "slug": "k2-horizon-375b-a23b"
-    },
-    {
-      "name": "GPT-5.5 (low)",
+      "name": "GPT-5.5 (Low)",
       "provider": "openai",
       "slug": "gpt-5-5-low"
     },
     {
-      "name": "Kimi K3 (low)",
+      "name": "K2 Horizon 375B A23B",
+      "provider": "ifm",
+      "slug": "k2-horizon-375b-a23b"
+    },
+    {
+      "name": "DeepSeek V4 Pro 0424 (Max)",
+      "provider": "deepseek",
+      "slug": "deepseek-v4-pro-0424"
+    },
+    {
+      "name": "DeepSeek V4 Pro 0424 (High)",
+      "provider": "deepseek",
+      "slug": "deepseek-v4-pro-0424-high"
+    },
+    {
+      "name": "GPT-5.6 Terra (Medium)",
+      "provider": "openai",
+      "slug": "gpt-5-6-terra-medium"
+    },
+    {
+      "name": "Kimi K3 (Low)",
       "provider": "kimi",
       "slug": "kimi-k3-low"
     },
@@ -343,19 +458,9 @@
       "slug": "claude-sonnet-4-6-adaptive"
     },
     {
-      "name": "GPT-5.6 Terra (medium)",
+      "name": "GPT-6 Luna (Medium)",
       "provider": "openai",
-      "slug": "gpt-5-6-terra-medium"
-    },
-    {
-      "name": "Apodex 1.1",
-      "provider": "apodex",
-      "slug": "apodex-1-1"
-    },
-    {
-      "name": "DeepSeek V4 Pro (Reasoning, High Effort)",
-      "provider": "deepseek",
-      "slug": "deepseek-v4-pro-0424-high"
+      "slug": "gpt-6-luna-medium"
     },
     {
       "name": "Claude Opus 4.5 (Reasoning)",
@@ -363,19 +468,14 @@
       "slug": "claude-opus-4-5-thinking"
     },
     {
-      "name": "Claude Sonnet 5 (Non-reasoning, High Effort)",
-      "provider": "anthropic",
-      "slug": "claude-sonnet-5-non-reasoning"
-    },
-    {
       "name": "MiMo-V2-Pro",
       "provider": "xiaomi",
       "slug": "mimo-v2-pro"
     },
     {
-      "name": "Claude Sonnet 5 (Adaptive Reasoning, Medium Effort)",
-      "provider": "anthropic",
-      "slug": "claude-sonnet-5-medium"
+      "name": "GPT-6 Sol (Non-reasoning)",
+      "provider": "openai",
+      "slug": "gpt-6-sol-non-reasoning"
     },
     {
       "name": "Qwen3.6 Max Preview",
@@ -388,37 +488,37 @@
       "slug": "gpt-5-6-sol-non-reasoning"
     },
     {
-      "name": "Nex-N2-Pro",
+      "name": "Nex-N2-Pro (Based on Qwen3.5-397B-A17B)",
       "provider": "nex",
       "slug": "nex-n2-pro"
     },
     {
-      "name": "Gemini 3 Pro Preview (high)",
+      "name": "Claude Sonnet 5 (Adaptive Reasoning, Medium Effort)",
+      "provider": "anthropic",
+      "slug": "claude-sonnet-5-medium"
+    },
+    {
+      "name": "Gemini 3 Pro Preview (High)",
       "provider": "google",
       "slug": "gemini-3-pro"
     },
     {
-      "name": "GPT-5.6 Terra (low)",
-      "provider": "openai",
-      "slug": "gpt-5-6-terra-low"
-    },
-    {
-      "name": "Qwen3.8 27B (medium)",
-      "provider": "alibaba",
-      "slug": "qwen3-8-27b-medium"
-    },
-    {
-      "name": "Agnes 2.5 Pro Alpha",
-      "provider": "agnes-ai",
-      "slug": "agnes-2-5-pro-alpha"
-    },
-    {
-      "name": "GPT-5.4 (low)",
+      "name": "GPT-5.4 (Low)",
       "provider": "openai",
       "slug": "gpt-5-4-low"
     },
     {
-      "name": "JT-4.1 Flash 236B A21B",
+      "name": "Qwen3.8 27B (Medium)",
+      "provider": "alibaba",
+      "slug": "qwen3-8-27b-medium"
+    },
+    {
+      "name": "GPT-5.6 Terra (Low)",
+      "provider": "openai",
+      "slug": "gpt-5-6-terra-low"
+    },
+    {
+      "name": "JT-4.1 Flash 236B A21B (Non-reasoning)",
       "provider": "china-mobile",
       "slug": "jt-4-1-flash-236b-a21b"
     },
@@ -428,24 +528,19 @@
       "slug": "grok-build-0-1-06-16"
     },
     {
-      "name": "Quasar 438B (max, based on GLM-5.2)",
+      "name": "Quasar 438B (Max, Based on GLM-5.2)",
       "provider": "multiversecomputing",
       "slug": "quasar-438b"
     },
     {
-      "name": "GPT-5.5 Instant (June 2026)",
-      "provider": "openai",
-      "slug": "gpt-5-5-instant-06-26"
-    },
-    {
-      "name": "GPT-5.2 (medium)",
+      "name": "GPT-5.2 (Medium)",
       "provider": "openai",
       "slug": "gpt-5-2-medium"
     },
     {
-      "name": "Qwen3.8 27B (low)",
-      "provider": "alibaba",
-      "slug": "qwen3-8-27b-low"
+      "name": "Apodex 1.1",
+      "provider": "apodex",
+      "slug": "apodex-1-1"
     },
     {
       "name": "Gemini 3 Flash Preview (Reasoning)",
@@ -453,14 +548,19 @@
       "slug": "gemini-3-flash-reasoning"
     },
     {
-      "name": "K2 Horizon MoVA 36B A4B",
-      "provider": "mbzuai",
-      "slug": "k2-mova-36b-mid5"
+      "name": "Qwen3.8 27B (Low)",
+      "provider": "alibaba",
+      "slug": "qwen3-8-27b-low"
     },
     {
-      "name": "GPT-5.6 Luna (medium)",
+      "name": "GPT-5.5 Instant (June 2026)",
       "provider": "openai",
-      "slug": "gpt-5-6-luna-medium"
+      "slug": "gpt-5-5-instant-06-26"
+    },
+    {
+      "name": "K2 Horizon MoVA 36B A4B",
+      "provider": "ifm",
+      "slug": "k2-horizon-mova-36b-a4b"
     },
     {
       "name": "Grok 4.20 0309 (Reasoning)",
@@ -473,24 +573,19 @@
       "slug": "mimo-v2-omni-0327"
     },
     {
-      "name": "GPT-5 Codex (high)",
+      "name": "GPT-5.6 Luna (Medium)",
+      "provider": "openai",
+      "slug": "gpt-5-6-luna-medium"
+    },
+    {
+      "name": "GPT-5 Codex (High)",
       "provider": "openai",
       "slug": "gpt-5-codex"
     },
     {
-      "name": "DeepSeek V4 Flash (Reasoning, High Effort)",
-      "provider": "deepseek",
-      "slug": "deepseek-v4-flash-0420-high"
-    },
-    {
-      "name": "Grok 4.3 (medium)",
+      "name": "Grok 4.3 (Medium)",
       "provider": "xai",
       "slug": "grok-4-3-medium"
-    },
-    {
-      "name": "Claude Sonnet 5 (Adaptive Reasoning, Low Effort)",
-      "provider": "anthropic",
-      "slug": "claude-sonnet-5-low"
     },
     {
       "name": "Solar Open2 250B",
@@ -498,14 +593,24 @@
       "slug": "solar-open2-250b"
     },
     {
-      "name": "DeepSeek V4 Flash (Reasoning, Max Effort)",
+      "name": "DeepSeek V4.1 Flash (Non-reasoning)",
       "provider": "deepseek",
-      "slug": "deepseek-v4-flash-0420"
+      "slug": "deepseek-v4-1-flash-non-reasoning"
     },
     {
-      "name": "Grok 4.3 (low)",
+      "name": "DeepSeek V4 Flash 0420 (High)",
+      "provider": "deepseek",
+      "slug": "deepseek-v4-flash-0420-high"
+    },
+    {
+      "name": "Grok 4.3 (Low)",
       "provider": "xai",
       "slug": "grok-4-3-low"
+    },
+    {
+      "name": "Claude Sonnet 5 (Adaptive Reasoning, Low Effort)",
+      "provider": "anthropic",
+      "slug": "claude-sonnet-5-low"
     },
     {
       "name": "GLM-5.1 (Non-reasoning)",
@@ -513,12 +618,17 @@
       "slug": "glm-5-1-non-reasoning"
     },
     {
+      "name": "DeepSeek V4 Flash 0420 (Max)",
+      "provider": "deepseek",
+      "slug": "deepseek-v4-flash-0420"
+    },
+    {
       "name": "MiMo-V2-Omni",
       "provider": "xiaomi",
       "slug": "mimo-v2-omni"
     },
     {
-      "name": "Gemini 3.5 Flash (minimal)",
+      "name": "Gemini 3.5 Flash (Minimal)",
       "provider": "google",
       "slug": "gemini-3-5-flash-minimal"
     },
@@ -528,14 +638,14 @@
       "slug": "kimi-k2-6-non-reasoning"
     },
     {
-      "name": "Nemotron 3 Ultra 550B A55B (Reasoning)",
-      "provider": "nvidia",
-      "slug": "nvidia-nemotron-3-ultra-550b-a55b"
-    },
-    {
       "name": "Claude Sonnet 4.6 (Non-reasoning, Low Effort)",
       "provider": "anthropic",
       "slug": "claude-sonnet-4-6-non-reasoning-low-effort"
+    },
+    {
+      "name": "Claude Sonnet 5 (Non-reasoning, High Effort)",
+      "provider": "anthropic",
+      "slug": "claude-sonnet-5-non-reasoning"
     },
     {
       "name": "GPT-5.5 (Non-reasoning)",
@@ -543,12 +653,17 @@
       "slug": "gpt-5-5-non-reasoning"
     },
     {
+      "name": "Nemotron 3 Ultra 550B A55B (Reasoning)",
+      "provider": "nvidia",
+      "slug": "nvidia-nemotron-3-ultra-550b-a55b"
+    },
+    {
       "name": "Qwen3.5 27B (Reasoning)",
       "provider": "alibaba",
       "slug": "qwen3-5-27b"
     },
     {
-      "name": "GPT-5 (medium)",
+      "name": "GPT-5 (Medium)",
       "provider": "openai",
       "slug": "gpt-5-medium"
     },
@@ -583,24 +698,9 @@
       "slug": "glm-5-2-non-reasoning"
     },
     {
-      "name": "Qwen3.8 27B (Non-reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-8-27b-non-reasoning"
-    },
-    {
-      "name": "Gemini 3 Pro Preview (low)",
+      "name": "Gemini 3 Pro Preview (Low)",
       "provider": "google",
       "slug": "gemini-3-pro-low"
-    },
-    {
-      "name": "GPT-5.6 Terra (Non-reasoning)",
-      "provider": "openai",
-      "slug": "gpt-5-6-terra-non-reasoning"
-    },
-    {
-      "name": "Qwen3.6 27B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-6-27b"
     },
     {
       "name": "G9v3-39A5B",
@@ -613,9 +713,14 @@
       "slug": "glm-5-non-reasoning"
     },
     {
-      "name": "GPT-5.6 Luna (low)",
+      "name": "KAT Coder Pro V2",
+      "provider": "kwaikat",
+      "slug": "kat-coder-pro-v2"
+    },
+    {
+      "name": "GPT-6 Luna (Low)",
       "provider": "openai",
-      "slug": "gpt-5-6-luna-low"
+      "slug": "gpt-6-luna-low"
     },
     {
       "name": "DeepSeek V3.2 (Reasoning)",
@@ -628,17 +733,17 @@
       "slug": "qwen3-5-397b-a17b-non-reasoning"
     },
     {
-      "name": "Claude 4.5 Sonnet (Reasoning)",
-      "provider": "anthropic",
-      "slug": "claude-4-5-sonnet-thinking"
+      "name": "Qwen3.6 27B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-6-27b"
     },
     {
-      "name": "K2 Horizon 7B",
-      "provider": "mbzuai",
-      "slug": "k2-7b-ph2"
+      "name": "GPT-5.6 Luna (Low)",
+      "provider": "openai",
+      "slug": "gpt-5-6-luna-low"
     },
     {
-      "name": "DeepSeek V4 Pro (Non-reasoning)",
+      "name": "DeepSeek V4 Pro 0424 (Non-reasoning)",
       "provider": "deepseek",
       "slug": "deepseek-v4-pro-0424-non-reasoning"
     },
@@ -648,9 +753,19 @@
       "slug": "mimo-v2-flash-reasoning"
     },
     {
-      "name": "GPT-5 (low)",
+      "name": "GPT-5 (Low)",
       "provider": "openai",
       "slug": "gpt-5-low"
+    },
+    {
+      "name": "GPT-5.6 Terra (Non-reasoning)",
+      "provider": "openai",
+      "slug": "gpt-5-6-terra-non-reasoning"
+    },
+    {
+      "name": "Claude 4.5 Sonnet (Reasoning)",
+      "provider": "anthropic",
+      "slug": "claude-4-5-sonnet-thinking"
     },
     {
       "name": "Claude 4 Opus (Reasoning)",
@@ -658,9 +773,14 @@
       "slug": "claude-4-opus-thinking"
     },
     {
-      "name": "GPT-5 mini (medium)",
+      "name": "GPT-5 mini (Medium)",
       "provider": "openai",
       "slug": "gpt-5-mini-medium"
+    },
+    {
+      "name": "K2 Horizon 7B",
+      "provider": "ifm",
+      "slug": "k2-horizon-7b"
     },
     {
       "name": "Qwen3.5 Omni Plus",
@@ -673,7 +793,17 @@
       "slug": "grok-4-1-fast-reasoning"
     },
     {
-      "name": "GPT-5.4 nano (medium)",
+      "name": "DeepSeek V4 Pro 0813 (Non-reasoning)",
+      "provider": "deepseek",
+      "slug": "deepseek-v4-pro-non-reasoning"
+    },
+    {
+      "name": "Qwen3.8 27B (Non-reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-8-27b-non-reasoning"
+    },
+    {
+      "name": "GPT-5.4 nano (Medium)",
       "provider": "openai",
       "slug": "gpt-5-4-nano-medium"
     },
@@ -683,12 +813,12 @@
       "slug": "qwen3-6-27b-non-reasoning"
     },
     {
-      "name": "GPT-5.4 mini (medium)",
+      "name": "GPT-5.4 mini (Medium)",
       "provider": "openai",
       "slug": "gpt-5-4-mini-medium"
     },
     {
-      "name": "K-EXAONE 2.0",
+      "name": "K-EXAONE 2.0 0803",
       "provider": "lg",
       "slug": "k-exaone-2-0-0803"
     },
@@ -708,24 +838,14 @@
       "slug": "qwen3-5-35b-a3b"
     },
     {
-      "name": "Qwen3.5 397B A17B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-5-397b-a17b"
-    },
-    {
       "name": "Claude 4 Sonnet (Reasoning)",
       "provider": "anthropic",
       "slug": "claude-4-sonnet-thinking"
     },
     {
-      "name": "DeepSeek V4 Flash (Non-reasoning)",
+      "name": "DeepSeek V4 Flash 0420 (Non-reasoning)",
       "provider": "deepseek",
       "slug": "deepseek-v4-flash-0420-non-reasoning"
-    },
-    {
-      "name": "Qwen3.6 35B A3B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-6-35b-a3b"
     },
     {
       "name": "JT-35B-Flash",
@@ -748,19 +868,29 @@
       "slug": "glm-4-6-reasoning"
     },
     {
+      "name": "GPT-6 Luna (Non-reasoning)",
+      "provider": "openai",
+      "slug": "gpt-6-luna-non-reasoning"
+    },
+    {
+      "name": "Qwen3.5 397B A17B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-397b-a17b"
+    },
+    {
       "name": "MiMo-V2.5-Pro (Non-reasoning)",
       "provider": "xiaomi",
       "slug": "mimo-v2-5-pro-non-reasoning"
     },
     {
+      "name": "Qwen3.6 35B A3B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-6-35b-a3b"
+    },
+    {
       "name": "GPT-5.4 (Non-reasoning)",
       "provider": "openai",
       "slug": "gpt-5-4-non-reasoning"
-    },
-    {
-      "name": "Muse Glimmer (high)",
-      "provider": "meta",
-      "slug": "muse-glimmer"
     },
     {
       "name": "Grok 4 Fast (Reasoning)",
@@ -778,19 +908,14 @@
       "slug": "claude-3-7-sonnet-thinking"
     },
     {
-      "name": "Claude 4.5 Haiku (Reasoning)",
-      "provider": "anthropic",
-      "slug": "claude-4-5-haiku-reasoning"
+      "name": "Muse Glimmer (High)",
+      "provider": "meta",
+      "slug": "muse-glimmer"
     },
     {
       "name": "GLM-4.7 (Non-reasoning)",
       "provider": "zai",
       "slug": "glm-4-7-non-reasoning"
-    },
-    {
-      "name": "Ring-2.6-1T",
-      "provider": "inclusionai",
-      "slug": "ring-2-6-1t"
     },
     {
       "name": "Hy3-preview (Non-reasoning)",
@@ -813,14 +938,19 @@
       "slug": "doubao-seed-code"
     },
     {
-      "name": "GPT-5.6 Luna (Non-reasoning)",
-      "provider": "openai",
-      "slug": "gpt-5-6-luna-non-reasoning"
+      "name": "Claude 4.5 Haiku (Reasoning)",
+      "provider": "anthropic",
+      "slug": "claude-4-5-haiku-reasoning"
     },
     {
       "name": "Gemma 4 26B A4B (Reasoning)",
       "provider": "google",
       "slug": "gemma-4-26b-a4b"
+    },
+    {
+      "name": "Ring-2.6-1T",
+      "provider": "inclusionai",
+      "slug": "ring-2-6-1t"
     },
     {
       "name": "Step 3.5 Flash",
@@ -848,34 +978,29 @@
       "slug": "qwen3-max-thinking-preview"
     },
     {
-      "name": "Qwen3.5 122B A10B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-5-122b-a10b"
-    },
-    {
-      "name": "K2 Horizon 3.7B",
-      "provider": "mbzuai",
-      "slug": "k2-4b-ph1"
-    },
-    {
       "name": "MiMo-V2-Flash (Non-reasoning)",
       "provider": "xiaomi",
       "slug": "mimo-v2-flash"
     },
     {
+      "name": "K2 Horizon 3.7B",
+      "provider": "ifm",
+      "slug": "k2-horizon-3-7b"
+    },
+    {
+      "name": "Qwen3.5 122B A10B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-122b-a10b"
+    },
+    {
+      "name": "GPT-5.6 Luna (Non-reasoning)",
+      "provider": "openai",
+      "slug": "gpt-5-6-luna-non-reasoning"
+    },
+    {
       "name": "Gemini 2.5 Flash Preview (Sep '25) (Reasoning)",
       "provider": "google",
       "slug": "gemini-2-5-flash-preview-09-2025-reasoning"
-    },
-    {
-      "name": "Gemma 4 31B (Reasoning)",
-      "provider": "google",
-      "slug": "gemma-4-31b"
-    },
-    {
-      "name": "DeepSeek V3.1 Terminus (Reasoning)",
-      "provider": "deepseek",
-      "slug": "deepseek-v3-1-terminus-reasoning"
     },
     {
       "name": "Claude 3.7 Sonnet (Non-reasoning)",
@@ -903,7 +1028,17 @@
       "slug": "granite-4-2-30b"
     },
     {
-      "name": "Grok 3 mini Reasoning (high)",
+      "name": "DeepSeek V3.1 Terminus (Reasoning)",
+      "provider": "deepseek",
+      "slug": "deepseek-v3-1-terminus-reasoning"
+    },
+    {
+      "name": "Gemma 4 31B (Reasoning)",
+      "provider": "google",
+      "slug": "gemma-4-31b"
+    },
+    {
+      "name": "Grok 3 mini Reasoning (High)",
       "provider": "xai",
       "slug": "grok-3-mini-reasoning"
     },
@@ -911,11 +1046,6 @@
       "name": "Grok 4.20 0309 (Non-reasoning)",
       "provider": "xai",
       "slug": "grok-4-20-0309-non-reasoning"
-    },
-    {
-      "name": "Grok 4.3 (Non-reasoning)",
-      "provider": "xai",
-      "slug": "grok-4-3-non-reasoning"
     },
     {
       "name": "Gemini 2.5 Pro Preview (May' 25)",
@@ -948,7 +1078,7 @@
       "slug": "gemma-4-12b"
     },
     {
-      "name": "Nova 2.0 Pro Preview (medium)",
+      "name": "Nova 2.0 Pro Preview (Medium)",
       "provider": "aws",
       "slug": "nova-2-0-pro-reasoning-medium"
     },
@@ -958,9 +1088,9 @@
       "slug": "grok-code-fast-1"
     },
     {
-      "name": "Command A+",
-      "provider": "cohere",
-      "slug": "command-a-plus"
+      "name": "Grok 4.3 (Non-reasoning)",
+      "provider": "xai",
+      "slug": "grok-4-3-non-reasoning"
     },
     {
       "name": "Gemma 4 31B (Non-reasoning)",
@@ -983,19 +1113,9 @@
       "slug": "deepseek-v3-1"
     },
     {
-      "name": "Qwen3.5 9B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-5-9b"
-    },
-    {
-      "name": "Nova 2.0 Omni (medium)",
+      "name": "Nova 2.0 Omni (Medium)",
       "provider": "aws",
       "slug": "nova-2-0-omni-reasoning-medium"
-    },
-    {
-      "name": "Nemotron 3 Super 120B A12B (Reasoning)",
-      "provider": "nvidia",
-      "slug": "nvidia-nemotron-3-super-120b-a12b"
     },
     {
       "name": "DeepSeek V3.1 (Reasoning)",
@@ -1013,7 +1133,7 @@
       "slug": "apriel-v1-6-15b-thinker"
     },
     {
-      "name": "Nova 2.0 Lite (high)",
+      "name": "Nova 2.0 Lite (High)",
       "provider": "aws",
       "slug": "nova-2-0-lite-reasoning"
     },
@@ -1028,14 +1148,9 @@
       "slug": "qwen3-5-9b-non-reasoning"
     },
     {
-      "name": "EXAONE 4.5 33B",
+      "name": "EXAONE 4.5 33B (Reasoning)",
       "provider": "lg",
       "slug": "exaone-4-5-33b"
-    },
-    {
-      "name": "MiniCPM5-2B",
-      "provider": "openbmb",
-      "slug": "minicpm5-2b"
     },
     {
       "name": "Gemma 4 26B A4B (Non-reasoning)",
@@ -1053,12 +1168,12 @@
       "slug": "gemini-2-5-flash-reasoning"
     },
     {
-      "name": "North Mini Code",
-      "provider": "cohere",
-      "slug": "north-mini-code"
+      "name": "Nemotron 3 Super 120B A12B (Reasoning)",
+      "provider": "nvidia",
+      "slug": "nvidia-nemotron-3-super-120b-a12b"
     },
     {
-      "name": "Nova 2.0 Pro Preview (low)",
+      "name": "Nova 2.0 Pro Preview (Low)",
       "provider": "aws",
       "slug": "nova-2-0-pro-reasoning-low"
     },
@@ -1073,12 +1188,12 @@
       "slug": "qwen3-max-preview"
     },
     {
-      "name": "Nova 2.0 Lite (medium)",
+      "name": "Nova 2.0 Lite (Medium)",
       "provider": "aws",
       "slug": "nova-2-0-lite-reasoning-medium"
     },
     {
-      "name": "GPT-5 nano (medium)",
+      "name": "GPT-5 nano (Medium)",
       "provider": "openai",
       "slug": "gpt-5-nano-medium"
     },
@@ -1086,6 +1201,11 @@
       "name": "Qwen3.5 Omni Flash",
       "provider": "alibaba",
       "slug": "qwen3-5-omni-flash"
+    },
+    {
+      "name": "MiniCPM5-2B",
+      "provider": "openbmb",
+      "slug": "minicpm5-2b"
     },
     {
       "name": "Gemini 2.5 Flash Preview (Sep '25) (Non-reasoning)",
@@ -1123,27 +1243,17 @@
       "slug": "qwen3-vl-32b-reasoning"
     },
     {
-      "name": "Ling 3.0 Tiny",
-      "provider": "inclusionai",
-      "slug": "ling-3-0-tiny"
-    },
-    {
       "name": "Magistral Medium 1.2",
       "provider": "mistral",
       "slug": "magistral-medium-2509"
     },
     {
-      "name": "Granite 4.2 8B",
-      "provider": "ibm",
-      "slug": "granite-4-2-8b"
-    },
-    {
-      "name": "Nova 2.0 Lite (low)",
+      "name": "Nova 2.0 Lite (Low)",
       "provider": "aws",
       "slug": "nova-2-0-lite-reasoning-low"
     },
     {
-      "name": "HyperNova 60B 2605 (high, based on gpt-oss-120b)",
+      "name": "HyperNova 60B 2605 (High, Based on gpt-oss-120b)",
       "provider": "multiversecomputing",
       "slug": "hypernova-60b"
     },
@@ -1153,7 +1263,7 @@
       "slug": "minimax-m1-80k"
     },
     {
-      "name": "GPT-5.4 nano (Non-Reasoning)",
+      "name": "GPT-5.4 nano (Non-reasoning)",
       "provider": "openai",
       "slug": "gpt-5-4-nano-non-reasoning"
     },
@@ -1169,7 +1279,7 @@
     },
     {
       "name": "K2 Think V2",
-      "provider": "mbzuai",
+      "provider": "ifm",
       "slug": "k2-think-v2"
     },
     {
@@ -1178,12 +1288,7 @@
       "slug": "longcat-flash-lite"
     },
     {
-      "name": "Mistral Small 4 (Reasoning)",
-      "provider": "mistral",
-      "slug": "mistral-small-4"
-    },
-    {
-      "name": "GPT-5 (minimal)",
+      "name": "GPT-5 (Minimal)",
       "provider": "openai",
       "slug": "gpt-5-minimal"
     },
@@ -1208,6 +1313,11 @@
       "slug": "grok-4-1-fast"
     },
     {
+      "name": "Mistral Small 4 (Reasoning)",
+      "provider": "mistral",
+      "slug": "mistral-small-4"
+    },
+    {
       "name": "GLM-4.6V (Reasoning)",
       "provider": "zai",
       "slug": "glm-4-6v-reasoning"
@@ -1223,19 +1333,34 @@
       "slug": "qwen3-next-80b-a3b-reasoning"
     },
     {
-      "name": "GPT-5.4 mini (Non-Reasoning)",
+      "name": "Qwen3.5 9B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-5-9b"
+    },
+    {
+      "name": "GPT-5.4 mini (Non-reasoning)",
       "provider": "openai",
       "slug": "gpt-5-4-mini-non-reasoning"
     },
     {
-      "name": "Nova 2.0 Omni (low)",
+      "name": "Nova 2.0 Omni (Low)",
       "provider": "aws",
       "slug": "nova-2-0-omni-reasoning-low"
+    },
+    {
+      "name": "Granite 4.2 8B",
+      "provider": "ibm",
+      "slug": "granite-4-2-8b"
     },
     {
       "name": "Grok 4 Fast (Non-reasoning)",
       "provider": "xai",
       "slug": "grok-4-fast"
+    },
+    {
+      "name": "Ling 3.0 Tiny",
+      "provider": "inclusionai",
+      "slug": "ling-3-0-tiny"
     },
     {
       "name": "Mi:dm K 2.5 Pro",
@@ -1258,7 +1383,7 @@
       "slug": "qwen3-5-4b-non-reasoning"
     },
     {
-      "name": "INTELLECT-3",
+      "name": "INTELLECT-3 (Based on GLM-4.5-Air)",
       "provider": "prime-intellect",
       "slug": "intellect-3"
     },
@@ -1293,7 +1418,7 @@
       "slug": "nemotron-3-nano-omni-30b-a3b"
     },
     {
-      "name": "gpt-oss-120b (low)",
+      "name": "gpt-oss-120b (Low)",
       "provider": "openai",
       "slug": "gpt-oss-120b-low"
     },
@@ -1308,18 +1433,23 @@
       "slug": "nova-2-0-pro"
     },
     {
-      "name": "gpt-oss-20b (low)",
+      "name": "gpt-oss-20b (Low)",
       "provider": "openai",
       "slug": "gpt-oss-20b-low"
     },
     {
-      "name": "GPT-5 mini (minimal)",
+      "name": "North Mini Code",
+      "provider": "cohere",
+      "slug": "north-mini-code"
+    },
+    {
+      "name": "GPT-5 mini (Minimal)",
       "provider": "openai",
       "slug": "gpt-5-mini-minimal"
     },
     {
-      "name": "K2-V2 (high)",
-      "provider": "mbzuai",
+      "name": "K2-V2 (High)",
+      "provider": "ifm",
       "slug": "k2-v2"
     },
     {
@@ -1378,11 +1508,6 @@
       "slug": "gemini-2-0-flash-thinking-exp-0121"
     },
     {
-      "name": "Devstral 2",
-      "provider": "mistral",
-      "slug": "devstral-2"
-    },
-    {
       "name": "Gemma 4 12B (Non-reasoning)",
       "provider": "google",
       "slug": "gemma-4-12b-non-reasoning"
@@ -1423,8 +1548,8 @@
       "slug": "magistral-medium"
     },
     {
-      "name": "K2-V2 (medium)",
-      "provider": "mbzuai",
+      "name": "K2-V2 (Medium)",
+      "provider": "ifm",
       "slug": "k2-v2-medium"
     },
     {
@@ -1483,7 +1608,7 @@
       "slug": "minicpm5-1b"
     },
     {
-      "name": "Sarvam 105B (high)",
+      "name": "Sarvam 105B (High)",
       "provider": "sarvam",
       "slug": "sarvam-105b"
     },
@@ -1523,9 +1648,19 @@
       "slug": "gemini-2-5-flash-04-2025"
     },
     {
+      "name": "Devstral 2",
+      "provider": "mistral",
+      "slug": "devstral-2"
+    },
+    {
       "name": "Magistral Small 1.2",
       "provider": "mistral",
       "slug": "magistral-small-2509"
+    },
+    {
+      "name": "Qwen3 32B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-32b-instruct-reasoning"
     },
     {
       "name": "Gemini 2.5 Flash-Lite (Reasoning)",
@@ -1553,14 +1688,14 @@
       "slug": "deepseek-r1-distill-qwen-32b"
     },
     {
-      "name": "Devstral Small 2",
-      "provider": "mistral",
-      "slug": "devstral-small-2"
-    },
-    {
       "name": "Qwen3 235B A22B (Non-reasoning)",
       "provider": "alibaba",
       "slug": "qwen3-235b-a22b-instruct"
+    },
+    {
+      "name": "Mistral Small 3.2",
+      "provider": "mistral",
+      "slug": "mistral-small-3-2"
     },
     {
       "name": "Magistral Small 1",
@@ -1581,6 +1716,11 @@
       "name": "Qwen3 VL 8B (Reasoning)",
       "provider": "alibaba",
       "slug": "qwen3-vl-8b-reasoning"
+    },
+    {
+      "name": "Qwen3 14B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-14b-instruct-reasoning"
     },
     {
       "name": "Nova 2.0 Omni (Non-reasoning)",
@@ -1611,6 +1751,11 @@
       "name": "Solar Pro 2 (Preview) (Non-reasoning)",
       "provider": "upstage",
       "slug": "solar-pro-2-preview"
+    },
+    {
+      "name": "DeepSeek R1 Distill Llama 70B",
+      "provider": "deepseek",
+      "slug": "deepseek-r1-distill-llama-70b"
     },
     {
       "name": "Claude 3.5 Sonnet (Oct '24)",
@@ -1678,6 +1823,11 @@
       "slug": "mistral-large-2"
     },
     {
+      "name": "Devstral Small 2",
+      "provider": "mistral",
+      "slug": "devstral-small-2"
+    },
+    {
       "name": "Llama 3.1 Nemotron Ultra 253B v1 (Reasoning)",
       "provider": "nvidia",
       "slug": "llama-3-1-nemotron-ultra-253b-v1-reasoning"
@@ -1733,11 +1883,6 @@
       "slug": "gemini-2-0-flash-lite-001"
     },
     {
-      "name": "Mistral Small 3.1",
-      "provider": "mistral",
-      "slug": "mistral-small-3-1"
-    },
-    {
       "name": "Llama Nemotron Super 49B v1.5 (Non-reasoning)",
       "provider": "nvidia",
       "slug": "llama-nemotron-super-49b-v1-5"
@@ -1753,8 +1898,8 @@
       "slug": "gemini-2-0-flash-lite-preview"
     },
     {
-      "name": "K2-V2 (low)",
-      "provider": "mbzuai",
+      "name": "K2-V2 (Low)",
+      "provider": "ifm",
       "slug": "k2-v2-low"
     },
     {
@@ -1773,6 +1918,11 @@
       "slug": "llama-3-1-instruct-405b"
     },
     {
+      "name": "Qwen3 8B (Reasoning)",
+      "provider": "alibaba",
+      "slug": "qwen3-8b-instruct-reasoning"
+    },
+    {
       "name": "Llama 3.3 Nemotron Super 49B v1 (Non-reasoning)",
       "provider": "nvidia",
       "slug": "llama-3-3-nemotron-super-49b"
@@ -1786,11 +1936,6 @@
       "name": "LFM2.5-8B-A1B",
       "provider": "liquidai",
       "slug": "lfm2-5-8b-a1b"
-    },
-    {
-      "name": "Qwen3 32B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-32b-instruct-reasoning"
     },
     {
       "name": "Claude 3.5 Sonnet (June '24)",
@@ -1823,12 +1968,17 @@
       "slug": "olmo-3-1-32b-think"
     },
     {
+      "name": "Mistral Small 3.1",
+      "provider": "mistral",
+      "slug": "mistral-small-3-1"
+    },
+    {
       "name": "Grok 2 (Dec '24)",
       "provider": "xai",
       "slug": "grok-2-1212"
     },
     {
-      "name": "GPT-5 nano (minimal)",
+      "name": "GPT-5 nano (Minimal)",
       "provider": "openai",
       "slug": "gpt-5-nano-minimal"
     },
@@ -1846,11 +1996,6 @@
       "name": "Solar Pro 2 (Non-reasoning)",
       "provider": "upstage",
       "slug": "solar-pro-2"
-    },
-    {
-      "name": "Mistral Small 3.2",
-      "provider": "mistral",
-      "slug": "mistral-small-3-2"
     },
     {
       "name": "Nova Pro",
@@ -1943,7 +2088,7 @@
       "slug": "granite-4-1-8b"
     },
     {
-      "name": "Sarvam 30B (high)",
+      "name": "Sarvam 30B (High)",
       "provider": "sarvam",
       "slug": "sarvam-30b"
     },
@@ -1961,6 +2106,11 @@
       "name": "Olmo 3.1 32B Instruct",
       "provider": "ai2",
       "slug": "olmo-3-1-32b-instruct"
+    },
+    {
+      "name": "DeepSeek R1 Distill Llama 8B",
+      "provider": "deepseek",
+      "slug": "deepseek-r1-distill-llama-8b"
     },
     {
       "name": "Gemma 4 E2B (Non-reasoning)",
@@ -2001,11 +2151,6 @@
       "name": "Solar Mini",
       "provider": "upstage",
       "slug": "solar-mini"
-    },
-    {
-      "name": "Qwen3 14B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-14b-instruct-reasoning"
     },
     {
       "name": "Celeris-1",
@@ -2153,7 +2298,7 @@
       "slug": "phi-4-multimodal"
     },
     {
-      "name": "Qwen2.5 Coder Instruct 7B ",
+      "name": "Qwen2.5 Coder Instruct 7B",
       "provider": "alibaba",
       "slug": "qwen2-5-coder-7b-instruct"
     },
@@ -2201,6 +2346,11 @@
       "name": "Claude 2.1",
       "provider": "anthropic",
       "slug": "claude-21"
+    },
+    {
+      "name": "Claude 3 Haiku",
+      "provider": "anthropic",
+      "slug": "claude-3-haiku"
     },
     {
       "name": "OLMo 2 7B",
@@ -2293,7 +2443,7 @@
       "slug": "deepseek-coder-v2-lite"
     },
     {
-      "name": "Sarvam M (Reasoning)",
+      "name": "Sarvam M (Reasoning, Based on Mistral Small 3.1)",
       "provider": "sarvam",
       "slug": "sarvam-m-reasoning"
     },
@@ -2381,11 +2531,6 @@
       "name": "Jamba 1.6 Mini",
       "provider": "ai21-labs",
       "slug": "jamba-1-6-mini"
-    },
-    {
-      "name": "Qwen3 8B (Reasoning)",
-      "provider": "alibaba",
-      "slug": "qwen3-8b-instruct-reasoning"
     },
     {
       "name": "Mixtral 8x7B Instruct",
@@ -2549,8 +2694,13 @@
     },
     {
       "name": "K2 Horizon 0.9B",
-      "provider": "mbzuai",
-      "slug": "k2-1b-final"
+      "provider": "ifm",
+      "slug": "k2-horizon-0-9b"
+    },
+    {
+      "name": "Claude Sonnet 5.5 (Adaptive Reasoning, Low Effort, Default Fallback)",
+      "provider": "anthropic",
+      "slug": "claude-sonnet-5-5-low"
     },
     {
       "name": "Cogito v2.1 (Reasoning)",
@@ -2601,40 +2751,64 @@
       "reason": "missing-aaii"
     },
     {
+      "slug": "openai/gpt-6.1-sol",
+      "reason": "aaii-threshold:min=65.00,actual=51.80"
+    },
+    {
+      "slug": "anthropic/claude-opus-5",
+      "reason": "aaii-threshold:min=65.00,actual=50.80"
+    },
+    {
+      "slug": "anthropic/claude-fable-5",
+      "reason": "aaii-threshold:min=65.00,actual=49.60"
+    },
+    {
       "slug": "meta/muse-spark-1.3",
-      "reason": "aaii-threshold:min=65.00,actual=48.20"
+      "reason": "aaii-threshold:min=65.00,actual=48.10"
+    },
+    {
+      "slug": "openai/gpt-6-sol",
+      "reason": "aaii-threshold:min=65.00,actual=47.60"
     },
     {
       "slug": "openai/gpt-5.6-sol",
-      "reason": "aaii-threshold:min=65.00,actual=47.10"
+      "reason": "aaii-threshold:min=65.00,actual=47.00"
+    },
+    {
+      "slug": "x-ai/grok-4.7",
+      "reason": "aaii-threshold:min=65.00,actual=46.40"
+    },
+    {
+      "slug": "xiaomi/mimo-v2.6-pro",
+      "reason": "aaii-threshold:min=65.00,actual=46.30"
     },
     {
       "slug": "z-ai/glm-5.3",
-      "reason": "aaii-threshold:min=65.00,actual=44.90"
+      "reason": "aaii-threshold:min=65.00,actual=44.80"
     },
     {
       "slug": "x-ai/grok-4.6",
-      "reason": "aaii-threshold:min=65.00,actual=44.40"
+      "reason": "aaii-threshold:min=65.00,actual=44.30"
     },
     {
       "slug": "moonshotai/kimi-k3",
-      "reason": "aaii-threshold:min=65.00,actual=43.80"
+      "reason": "aaii-threshold:min=65.00,actual=43.60"
     },
     {
       "slug": "openai/gpt-5.6-terra",
-      "reason": "aaii-threshold:min=65.00,actual=42.30"
-    },
-    {
-      "slug": "anthropic/claude-opus-4.8",
-      "reason": "aaii-threshold:min=65.00,actual=42.00"
+      "reason": "aaii-threshold:min=65.00,actual=42.10"
     },
     {
       "slug": "z-ai/glm-5.3-flash",
-      "reason": "aaii-threshold:min=65.00,actual=41.90"
+      "reason": "aaii-threshold:min=65.00,actual=41.80"
+    },
+    {
+      "slug": "anthropic/claude-opus-4.8",
+      "reason": "aaii-threshold:min=65.00,actual=41.80"
     },
     {
       "slug": "google/gemini-3.8-flash",
-      "reason": "aaii-threshold:min=65.00,actual=41.20"
+      "reason": "aaii-threshold:min=65.00,actual=40.90"
     },
     {
       "slug": "anthropic/claude-opus-4.7",
@@ -2642,7 +2816,7 @@
     },
     {
       "slug": "meta/muse-spark-1.2",
-      "reason": "aaii-threshold:min=65.00,actual=39.80"
+      "reason": "aaii-threshold:min=65.00,actual=39.60"
     },
     {
       "slug": "deepseek/deepseek-v4.1-flash",
@@ -2650,10 +2824,6 @@
     },
     {
       "slug": "google/gemini-3.7-flash",
-      "reason": "aaii-threshold:min=65.00,actual=39.40"
-    },
-    {
-      "slug": "x-ai/grok-4.5",
       "reason": "aaii-threshold:min=65.00,actual=39.10"
     },
     {
@@ -2661,40 +2831,52 @@
       "reason": "aaii-threshold:min=65.00,actual=39.00"
     },
     {
-      "slug": "openai/gpt-5.5",
-      "reason": "aaii-threshold:min=65.00,actual=38.60"
+      "slug": "x-ai/grok-4.5",
+      "reason": "aaii-threshold:min=65.00,actual=38.80"
     },
     {
-      "slug": "anthropic/claude-sonnet-5",
+      "slug": "openai/gpt-5.5",
       "reason": "aaii-threshold:min=65.00,actual=38.40"
     },
     {
+      "slug": "anthropic/claude-sonnet-5",
+      "reason": "aaii-threshold:min=65.00,actual=38.20"
+    },
+    {
+      "slug": "openai/gpt-6-luna",
+      "reason": "aaii-threshold:min=65.00,actual=38.10"
+    },
+    {
+      "slug": "xiaomi/mimo-v2.6-flash",
+      "reason": "aaii-threshold:min=65.00,actual=37.90"
+    },
+    {
       "slug": "openai/gpt-5.6-luna",
-      "reason": "aaii-threshold:min=65.00,actual=37.50"
+      "reason": "aaii-threshold:min=65.00,actual=37.30"
     },
     {
       "slug": "deepseek/deepseek-v4-pro",
-      "reason": "aaii-threshold:min=65.00,actual=36.30"
+      "reason": "aaii-threshold:min=65.00,actual=36.00"
     },
     {
       "slug": "deepseek/deepseek-v4-flash",
-      "reason": "aaii-threshold:min=65.00,actual=34.50"
+      "reason": "aaii-threshold:min=65.00,actual=34.30"
     },
     {
       "slug": "google/gemini-3.6-flash",
-      "reason": "aaii-threshold:min=65.00,actual=34.30"
-    },
-    {
-      "slug": "meta/muse-spark-1.1",
-      "reason": "aaii-threshold:min=65.00,actual=34.30"
-    },
-    {
-      "slug": "z-ai/glm-5.2",
       "reason": "aaii-threshold:min=65.00,actual=34.00"
     },
     {
+      "slug": "meta/muse-spark-1.1",
+      "reason": "aaii-threshold:min=65.00,actual=33.70"
+    },
+    {
+      "slug": "z-ai/glm-5.2",
+      "reason": "aaii-threshold:min=65.00,actual=33.70"
+    },
+    {
       "slug": "google/gemini-3.5-flash",
-      "reason": "aaii-threshold:min=65.00,actual=33.00"
+      "reason": "aaii-threshold:min=65.00,actual=32.60"
     },
     {
       "slug": "openai/gpt-5.3-codex",
@@ -2706,15 +2888,15 @@
     },
     {
       "slug": "google/gemini-3.1-pro-preview",
-      "reason": "aaii-threshold:min=65.00,actual=30.40"
+      "reason": "aaii-threshold:min=65.00,actual=29.70"
     },
     {
       "slug": "qwen/qwen3.7-max",
-      "reason": "aaii-threshold:min=65.00,actual=29.90"
+      "reason": "aaii-threshold:min=65.00,actual=29.50"
     },
     {
       "slug": "minimax/minimax-m3",
-      "reason": "aaii-threshold:min=65.00,actual=29.60"
+      "reason": "aaii-threshold:min=65.00,actual=29.20"
     },
     {
       "slug": "openai/gpt-5.2-codex",
@@ -2729,11 +2911,11 @@
       "reason": "aaii-threshold:min=65.00,actual=27.90"
     },
     {
-      "slug": "moonshotai/kimi-k2.6",
-      "reason": "aaii-threshold:min=65.00,actual=27.50"
+      "slug": "qwen/qwen3.6-plus",
+      "reason": "aaii-threshold:min=65.00,actual=27.00"
     },
     {
-      "slug": "qwen/qwen3.6-plus",
+      "slug": "moonshotai/kimi-k2.6",
       "reason": "aaii-threshold:min=65.00,actual=27.00"
     },
     {
@@ -2741,48 +2923,48 @@
       "reason": "aaii-threshold:min=65.00,actual=26.60"
     },
     {
-      "slug": "z-ai/glm-5.1",
-      "reason": "aaii-threshold:min=65.00,actual=26.40"
-    },
-    {
-      "slug": "xiaomi/mimo-v2.5-pro",
-      "reason": "aaii-threshold:min=65.00,actual=26.40"
-    },
-    {
       "slug": "anthropic/claude-opus-4.6",
       "reason": "aaii-threshold:min=65.00,actual=26.40"
     },
     {
-      "slug": "moonshotai/kimi-k2.7-code",
-      "reason": "aaii-threshold:min=65.00,actual=26.30"
-    },
-    {
-      "slug": "thinkingmachines/inkling-small",
+      "slug": "z-ai/glm-5.1",
       "reason": "aaii-threshold:min=65.00,actual=26.10"
     },
     {
-      "slug": "qwen/qwen3.7-plus",
+      "slug": "xiaomi/mimo-v2.5-pro",
+      "reason": "aaii-threshold:min=65.00,actual=26.00"
+    },
+    {
+      "slug": "moonshotai/kimi-k2.7-code",
       "reason": "aaii-threshold:min=65.00,actual=25.80"
     },
     {
-      "slug": "tencent/hy3",
-      "reason": "aaii-threshold:min=65.00,actual=25.80"
+      "slug": "thinkingmachines/inkling-small",
+      "reason": "aaii-threshold:min=65.00,actual=25.70"
     },
     {
       "slug": "x-ai/grok-4.20",
       "reason": "aaii-threshold:min=65.00,actual=25.70"
     },
     {
+      "slug": "tencent/hy3",
+      "reason": "aaii-threshold:min=65.00,actual=25.30"
+    },
+    {
+      "slug": "xiaomi/mimo-v2.5",
+      "reason": "aaii-threshold:min=65.00,actual=25.20"
+    },
+    {
+      "slug": "qwen/qwen3.7-plus",
+      "reason": "aaii-threshold:min=65.00,actual=25.20"
+    },
+    {
       "slug": "thinkingmachines/inkling",
-      "reason": "aaii-threshold:min=65.00,actual=25.50"
+      "reason": "aaii-threshold:min=65.00,actual=25.00"
     },
     {
       "slug": "x-ai/grok-4.3",
-      "reason": "aaii-threshold:min=65.00,actual=25.40"
-    },
-    {
-      "slug": "inclusionai/ling-3.0-flash-vl",
-      "reason": "aaii-threshold:min=65.00,actual=25.00"
+      "reason": "aaii-threshold:min=65.00,actual=24.90"
     },
     {
       "slug": "openai/gpt-5.1",
@@ -2793,8 +2975,16 @@
       "reason": "aaii-threshold:min=65.00,actual=24.70"
     },
     {
-      "slug": "openai/gpt-5.4-mini",
+      "slug": "inclusionai/ling-3.0-flash-vl",
       "reason": "aaii-threshold:min=65.00,actual=24.60"
+    },
+    {
+      "slug": "openai/gpt-5.4-mini",
+      "reason": "aaii-threshold:min=65.00,actual=24.10"
+    },
+    {
+      "slug": "upstage/solar-mini4",
+      "reason": "aaii-threshold:min=65.00,actual=24.10"
     },
     {
       "slug": "openai/gpt-5.1-codex",
@@ -2813,10 +3003,6 @@
       "reason": "aaii-threshold:min=65.00,actual=23.50"
     },
     {
-      "slug": "minimax/minimax-m2.7",
-      "reason": "aaii-threshold:min=65.00,actual=23.20"
-    },
-    {
       "slug": "openai/gpt-5",
       "reason": "aaii-threshold:min=65.00,actual=23.00"
     },
@@ -2825,19 +3011,23 @@
       "reason": "aaii-threshold:min=65.00,actual=22.80"
     },
     {
+      "slug": "minimax/minimax-m2.7",
+      "reason": "aaii-threshold:min=65.00,actual=22.80"
+    },
+    {
       "slug": "tencent/hy3-preview",
       "reason": "aaii-threshold:min=65.00,actual=22.70"
     },
     {
-      "slug": "google/gemini-3.5-flash-lite",
-      "reason": "aaii-threshold:min=65.00,actual=22.70"
-    },
-    {
-      "slug": "xiaomi/mimo-v2.5",
-      "reason": "aaii-threshold:min=65.00,actual=22.30"
+      "slug": "inclusionai/ling-3.0-flash-fin",
+      "reason": "aaii-threshold:min=65.00,actual=22.60"
     },
     {
       "slug": "z-ai/glm-4.7",
+      "reason": "aaii-threshold:min=65.00,actual=22.20"
+    },
+    {
+      "slug": "google/gemini-3.5-flash-lite",
       "reason": "aaii-threshold:min=65.00,actual=22.20"
     },
     {
@@ -2849,24 +3039,16 @@
       "reason": "aaii-threshold:min=65.00,actual=21.90"
     },
     {
-      "slug": "kwaipilot/kat-coder-pro-v2",
-      "reason": "aaii-threshold:min=65.00,actual=21.70"
-    },
-    {
       "slug": "qwen/qwen3-max-thinking",
       "reason": "aaii-threshold:min=65.00,actual=21.30"
-    },
-    {
-      "slug": "openai/gpt-5.4-nano",
-      "reason": "aaii-threshold:min=65.00,actual=21.20"
     },
     {
       "slug": "minimax/minimax-m2.1",
       "reason": "aaii-threshold:min=65.00,actual=20.90"
     },
     {
-      "slug": "inclusionai/ling-3.0-flash",
-      "reason": "aaii-threshold:min=65.00,actual=20.60"
+      "slug": "openai/gpt-5.4-nano",
+      "reason": "aaii-threshold:min=65.00,actual=20.70"
     },
     {
       "slug": "openai/gpt-5.1-codex-mini",
@@ -2877,8 +3059,8 @@
       "reason": "aaii-threshold:min=65.00,actual=20.20"
     },
     {
-      "slug": "meituan/longcat-2.0",
-      "reason": "aaii-threshold:min=65.00,actual=19.70"
+      "slug": "inclusionai/ling-3.0-flash",
+      "reason": "aaii-threshold:min=65.00,actual=20.10"
     },
     {
       "slug": "stepfun/step-3.7-flash",
@@ -2889,6 +3071,10 @@
       "reason": "aaii-threshold:min=65.00,actual=19.30"
     },
     {
+      "slug": "meituan/longcat-2.0",
+      "reason": "aaii-threshold:min=65.00,actual=19.10"
+    },
+    {
       "slug": "minimax/minimax-m2",
       "reason": "aaii-threshold:min=65.00,actual=18.60"
     },
@@ -2897,31 +3083,31 @@
       "reason": "aaii-threshold:min=65.00,actual=17.90"
     },
     {
-      "slug": "openai/gpt-5-mini",
-      "reason": "aaii-threshold:min=65.00,actual=17.40"
-    },
-    {
       "slug": "stepfun/step-3.5-flash",
       "reason": "aaii-threshold:min=65.00,actual=17.00"
     },
     {
-      "slug": "google/gemini-2.5-pro",
-      "reason": "aaii-threshold:min=65.00,actual=16.70"
+      "slug": "openai/gpt-5-mini",
+      "reason": "aaii-threshold:min=65.00,actual=16.80"
     },
     {
       "slug": "openai/o4-mini",
       "reason": "aaii-threshold:min=65.00,actual=16.70"
     },
     {
+      "slug": "google/gemini-2.5-pro",
+      "reason": "aaii-threshold:min=65.00,actual=16.10"
+    },
+    {
       "slug": "deepseek/deepseek-v3.2",
       "reason": "aaii-threshold:min=65.00,actual=16.00"
     },
     {
-      "slug": "google/gemini-3.1-flash-lite-preview",
-      "reason": "aaii-threshold:min=65.00,actual=16.00"
+      "slug": "qwen/qwen3-max",
+      "reason": "aaii-threshold:min=65.00,actual=15.60"
     },
     {
-      "slug": "qwen/qwen3-max",
+      "slug": "google/gemini-3.1-flash-lite-preview",
       "reason": "aaii-threshold:min=65.00,actual=15.60"
     },
     {
@@ -2941,20 +3127,24 @@
       "reason": "aaii-threshold:min=65.00,actual=14.90"
     },
     {
-      "slug": "mistralai/mistral-medium-3-5",
+      "slug": "z-ai/glm-4.7-flash",
       "reason": "aaii-threshold:min=65.00,actual=14.90"
     },
     {
-      "slug": "z-ai/glm-4.7-flash",
-      "reason": "aaii-threshold:min=65.00,actual=14.90"
+      "slug": "mistralai/mistral-medium-3-5",
+      "reason": "aaii-threshold:min=65.00,actual=14.20"
     },
     {
       "slug": "deepseek/deepseek-v3.1-terminus",
       "reason": "aaii-threshold:min=65.00,actual=13.90"
     },
     {
-      "slug": "nvidia/nemotron-3.5-lightning",
-      "reason": "aaii-threshold:min=65.00,actual=13.60"
+      "slug": "inception/mercury-2",
+      "reason": "aaii-threshold:min=65.00,actual=13.80"
+    },
+    {
+      "slug": "cohere/command-a-plus",
+      "reason": "aaii-threshold:min=65.00,actual=13.10"
     },
     {
       "slug": "deepseek/deepseek-r1",
@@ -2963,6 +3153,10 @@
     {
       "slug": "openai/gpt-5-nano",
       "reason": "aaii-threshold:min=65.00,actual=13.00"
+    },
+    {
+      "slug": "nvidia/nemotron-3.5-lightning",
+      "reason": "aaii-threshold:min=65.00,actual=12.90"
     },
     {
       "slug": "z-ai/glm-4.5",
@@ -2985,7 +3179,7 @@
       "reason": "aaii-threshold:min=65.00,actual=12.40"
     },
     {
-      "slug": "openai/gpt-oss-120b",
+      "slug": "inception/mercury-2.5",
       "reason": "aaii-threshold:min=65.00,actual=12.30"
     },
     {
@@ -2993,8 +3187,8 @@
       "reason": "aaii-threshold:min=65.00,actual=11.80"
     },
     {
-      "slug": "inception/mercury-2",
-      "reason": "aaii-threshold:min=65.00,actual=11.50"
+      "slug": "openai/gpt-oss-120b",
+      "reason": "aaii-threshold:min=65.00,actual=11.60"
     },
     {
       "slug": "z-ai/glm-4.5-air",
@@ -3006,31 +3200,23 @@
     },
     {
       "slug": "arcee-ai/trinity-large-thinking",
-      "reason": "aaii-threshold:min=65.00,actual=10.90"
+      "reason": "aaii-threshold:min=65.00,actual=10.80"
     },
     {
       "slug": "openai/gpt-4.1-mini",
       "reason": "aaii-threshold:min=65.00,actual=10.20"
     },
     {
-      "slug": "qwen/qwen3-coder-next",
-      "reason": "aaii-threshold:min=65.00,actual=10.10"
+      "slug": "meta-llama/llama-4-maverick",
+      "reason": "aaii-threshold:min=65.00,actual=10.00"
     },
     {
       "slug": "qwen/qwen3-vl-235b-a22b-instruct",
       "reason": "aaii-threshold:min=65.00,actual=9.90"
     },
     {
-      "slug": "mistralai/mistral-medium-3.1",
-      "reason": "aaii-threshold:min=65.00,actual=9.90"
-    },
-    {
       "slug": "google/gemini-2.5-flash",
       "reason": "aaii-threshold:min=65.00,actual=9.90"
-    },
-    {
-      "slug": "mistralai/mistral-large",
-      "reason": "aaii-threshold:min=65.00,actual=9.70"
     },
     {
       "slug": "qwen/qwen3-next-80b-a3b-instruct",
@@ -3041,8 +3227,16 @@
       "reason": "aaii-threshold:min=65.00,actual=9.60"
     },
     {
-      "slug": "meta-llama/llama-4-maverick",
+      "slug": "mistralai/mistral-large",
       "reason": "aaii-threshold:min=65.00,actual=9.30"
+    },
+    {
+      "slug": "qwen/qwen3-coder-next",
+      "reason": "aaii-threshold:min=65.00,actual=9.20"
+    },
+    {
+      "slug": "mistralai/mistral-medium-3.1",
+      "reason": "aaii-threshold:min=65.00,actual=9.20"
     },
     {
       "slug": "mistralai/mistral-medium-3",
@@ -3069,11 +3263,11 @@
       "reason": "aaii-threshold:min=65.00,actual=8.40"
     },
     {
-      "slug": "qwen/qwen3-vl-30b-a3b-instruct",
-      "reason": "aaii-threshold:min=65.00,actual=7.90"
+      "slug": "meta-llama/llama-4-scout",
+      "reason": "aaii-threshold:min=65.00,actual=8.10"
     },
     {
-      "slug": "deepseek/deepseek-r1-distill-llama-70b",
+      "slug": "qwen/qwen3-vl-30b-a3b-instruct",
       "reason": "aaii-threshold:min=65.00,actual=7.90"
     },
     {
@@ -3145,14 +3339,6 @@
       "reason": "aaii-threshold:min=65.00,actual=6.50"
     },
     {
-      "slug": "deepseek/deepseek-r1-distill-llama-70b",
-      "reason": "aaii-threshold:min=65.00,actual=6.50"
-    },
-    {
-      "slug": "meta-llama/llama-4-scout",
-      "reason": "aaii-threshold:min=65.00,actual=6.50"
-    },
-    {
       "slug": "nousresearch/hermes-3-llama-3.1-70b",
       "reason": "aaii-threshold:min=65.00,actual=6.00"
     },
@@ -3166,10 +3352,6 @@
     },
     {
       "slug": "rekaai/reka-flash-3",
-      "reason": "aaii-threshold:min=65.00,actual=5.60"
-    },
-    {
-      "slug": "anthropic/claude-3-haiku",
       "reason": "aaii-threshold:min=65.00,actual=5.60"
     },
     {
